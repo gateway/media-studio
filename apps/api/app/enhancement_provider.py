@@ -5,12 +5,16 @@ import json
 import mimetypes
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import httpx
 
 from . import codex_local_provider
 from .settings import settings
+
+
+if TYPE_CHECKING:
+    from .assistant.guides import TurnGuideContext
 
 ENHANCEMENT_HTTP_TIMEOUT_SECONDS = 80.0
 ENHANCEMENT_MAX_COMPLETION_TOKENS = 900
@@ -716,6 +720,7 @@ def run_codex_local_chat(
     compact_before_turn: bool = False,
     unbounded_turn: bool = False,
     resume_usage: Optional[Dict[str, Any]] = None,
+    guide_context: TurnGuideContext | None = None,
     on_compaction=None,
 ) -> Dict[str, Any]:
     try:
@@ -737,6 +742,7 @@ def run_codex_local_chat(
             unbounded_turn=unbounded_turn,
             resume_usage=resume_usage,
             on_compaction=on_compaction,
+            guide_context=guide_context,
         )
     except codex_local_provider.CodexLocalProviderError as exc:
         raise EnhancementProviderError(str(exc)) from exc

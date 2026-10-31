@@ -184,7 +184,10 @@ function GraphStudioStorage() {
     return <GraphStorageRestore choices={tabState.storageChoices} onChoose={tabState.chooseStorageScope}
       error={tabState.storageRestoreError} onRetry={tabState.retryStorageRestore} canRetry={tabState.canRetryStorageRestore} />;
   }
-  return <GraphStudioClient tabState={tabState} />;
+  return <>
+    {tabState.storageWriteError && <div role="alert">{tabState.storageWriteError}</div>}
+    <GraphStudioClient tabState={tabState} />
+  </>;
 }
 
 function GraphStudioClient({ tabState }: { tabState: ReturnType<typeof useGraphTabs> }) {
@@ -1873,6 +1876,7 @@ function GraphStudioClient({ tabState }: { tabState: ReturnType<typeof useGraphT
     openNewWorkflowTab,
     closeActiveWorkflow,
   } = useGraphTabWorkspace({
+    persistTabs: tabState.persistTabs,
     activeTab,
     activeTabId,
     tabs,

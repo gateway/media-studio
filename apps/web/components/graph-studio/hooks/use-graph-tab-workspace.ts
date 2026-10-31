@@ -6,7 +6,6 @@ import {
   blankGraphWorkflowPayload,
   graphWorkflowDirtyState,
   graphWorkflowSnapshotSignature,
-  writeGraphTabSession,
   type GraphTabSnapshot,
 } from "../utils/graph-tabs";
 import type { GraphHistorySnapshot } from "../utils/graph-history";
@@ -16,6 +15,7 @@ type UseGraphTabWorkspaceParams = {
   activeTabId: string;
   tabs: GraphWorkspaceTab[];
   storageScope: string | null;
+  persistTabs: (tabId: string, tabs: GraphWorkspaceTab[]) => void;
   workflowId: string | null;
   workflowName: string;
   workflowUpdatedAt: string | null;
@@ -95,6 +95,7 @@ export function useGraphTabWorkspace({
   activeTabId,
   tabs,
   storageScope,
+  persistTabs,
   workflowId,
   workflowName,
   workflowUpdatedAt,
@@ -133,10 +134,10 @@ export function useGraphTabWorkspace({
     updateActiveTab(snapshot);
     if (storageScope) {
       const nextTabs = tabs.map((tab) => (tab.tab_id === activeTabId ? applyGraphTabSnapshot(tab, snapshot) : tab));
-      writeGraphTabSession(storageScope, activeTabId, nextTabs);
+      persistTabs(activeTabId, nextTabs);
     }
     return snapshot;
-  }, [activeTab, activeTabId, consoleLines, edges, nodes, run, storageScope, tabs, updateActiveTab, workflowFromCanvas, workflowId, workflowName, workflowUpdatedAt]);
+  }, [activeTab, activeTabId, consoleLines, edges, nodes, persistTabs, run, storageScope, tabs, updateActiveTab, workflowFromCanvas, workflowId, workflowName, workflowUpdatedAt]);
   snapshotActiveTabRef.current = snapshotActiveTab;
   canvasHydratedRef.current = canvasHydrated;
   storageScopeRef.current = storageScope;
@@ -192,8 +193,8 @@ export function useGraphTabWorkspace({
         : tab,
     );
     if (!storageScope) return;
-    writeGraphTabSession(storageScope, activeTabId, nextTabs);
-  }, [activeTab, activeTabId, canvasHydrated, consoleLines, edges, nodes, run, storageScope, tabs, workflowFromCanvas, workflowId, workflowName, workflowUpdatedAt]);
+    persistTabs(activeTabId, nextTabs);
+  }, [activeTab, activeTabId, canvasHydrated, consoleLines, edges, nodes, persistTabs, run, storageScope, tabs, workflowFromCanvas, workflowId, workflowName, workflowUpdatedAt]);
 
   const switchWorkflowTab = useCallback(
     (tabId: string) => {

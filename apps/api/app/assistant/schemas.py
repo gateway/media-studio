@@ -217,6 +217,8 @@ class AssistantKernelProviderTrace(BaseModel):
     usage: Dict[str, Any] = Field(default_factory=dict)
     latency_ms: Optional[int] = None
     prompt_bytes: Optional[int] = None
+    guide_versions: Dict[str, str] = Field(default_factory=dict)
+    guide_context_bytes: int = 0
     reasoning_effort: Optional[str] = None
     client_user_message_id: Optional[str] = None
     compaction: Optional[Dict[str, Any]] = None
@@ -249,6 +251,7 @@ class AssistantKernelTurnResult(BaseModel):
 
 
 class AssistantVisualAnalysis(BaseModel):
+    uncertainties: List[AssistantVisualTrait] = Field(default_factory=list, max_length=12)
     medium: List[AssistantVisualTrait] = Field(default_factory=list, max_length=12)
     palette: List[AssistantVisualTrait] = Field(default_factory=list, max_length=12)
     composition: List[AssistantVisualTrait] = Field(default_factory=list, max_length=12)

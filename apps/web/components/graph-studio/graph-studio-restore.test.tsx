@@ -15,6 +15,7 @@ import { __resetGraphStartupReadsForTests } from "./utils/graph-startup-reads";
 import { graphWorkflowLayoutHash } from "./utils/graph-layout-recovery";
 import {
   graphWorkflowSnapshotSignature,
+  graphTabsStorageKey,
   readGraphTabSession,
   writeGraphTabSession,
 } from "./utils/graph-tabs";
@@ -121,6 +122,26 @@ afterEach(() => {
   __resetGraphStartupReadsForTests();
   vi.unstubAllGlobals();
   window.localStorage.clear();
+});
+
+it("does not flush an obsolete mounted workspace over another client's drafts", async () => {
+  const mounted = render(<GraphStudio />);
+  await waitFor(() => expect(screen.getByTestId("canvas").textContent).toBe("saved-node"));
+  writeGraphTabSession("restore-test", "newer", [{
+    tab_id: "newer", workflow_id: null, workflow_name: "Newer draft",
+    workflow_json: { ...localWorkflow, name: "Keep this draft" }, dirty: true,
+    assistant_session_id: "newer-assistant", run_id: "newer-run",
+  }]);
+  const key = graphTabsStorageKey("restore-test");
+  const latest = window.localStorage.getItem(key);
+  fireEvent(window, new Event("pagehide"));
+  expect(screen.getByRole("alert").textContent).toContain("another browser");
+  expect(screen.getByTestId("canvas").textContent).toBe("saved-node");
+  expect(window.localStorage.getItem(key)).toBe(latest);
+  fireEvent.click(screen.getByText("Edit node"));
+  expect(window.localStorage.getItem(key)).toBe(latest);
+  mounted.unmount();
+  expect(window.localStorage.getItem(key)).toBe(latest);
 });
 
 it("preserves overlapping dirty draft positions through measurement, tab selection and reload", async () => {

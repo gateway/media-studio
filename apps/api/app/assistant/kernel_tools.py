@@ -106,8 +106,11 @@ from .story_kernel import (
 
 
 from .tool_limits import KERNEL_TOOL_RESULT_MAX_BYTES
+from .guides import LoadApplicationGuideArguments, TurnGuideContext, load_application_guide
+from .prompt_assets import KERNEL_CAPABILITY_PROMPTS
 KERNEL_SCHEMA_RESULT_TARGET_BYTES = 30_000
 KERNEL_TOOL_ACTIVITIES = {
+    "load_application_guide": ("graph_check", "Loaded relevant task guidance"),
     "search_conversation": ("graph_check", "Found saved conversation messages"),
     "read_session_content": ("graph_check", "Read saved conversation content"),
     "read_current_workflow": ("graph_check", "Checked your graph"),
@@ -224,6 +227,7 @@ class KernelToolContext:
     provider_steps: List[Any] = field(default_factory=list)
     cancel_event: Event | None = None
     timeout_seconds: Optional[float] = None
+    guide_context: TurnGuideContext | None = None
 
 
 @dataclass(frozen=True)
@@ -1941,6 +1945,13 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
 
 
 KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
+    "load_application_guide": KernelToolDefinition(
+        name="load_application_guide",
+        description="Load a fixed application-owned task guide and its registered tool contracts. Knowledge does not change this turn's capability, artifact intent or confirmation requirements.",
+        arguments_model=LoadApplicationGuideArguments,
+        allowed_capabilities=frozenset(KERNEL_CAPABILITY_PROMPTS),
+        handler=load_application_guide,
+    ),
     "search_conversation": KernelToolDefinition(
         name="search_conversation",
         description="Find older saved messages in this conversation by literal phrase, or list newest messages with an empty query. Results are excerpts with message_id; use read_session_content for exact full text. Follow next_before_message_id for older matches. No execution.",

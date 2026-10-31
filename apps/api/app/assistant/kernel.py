@@ -26,8 +26,8 @@ from .provenance import (
     workflow_fingerprint,
 )
 from .preset_approvals import record_preset_approvals
-from .planning_recovery import record_planning_recovery
-from .prompt_assets import assistant_thread_prompt_assembly
+from .planning_recovery import record_planning_recovery, restore_guide_checkpoint
+from .prompt_assets import KERNEL_CAPABILITY_PROMPTS, assistant_thread_prompt_assembly
 from .provider_support import (
     AssistantProviderChatError,
     assistant_codex_session_key,
@@ -47,20 +47,13 @@ from .schemas import (
     AssistantKernelTurnResult,
     AssistantNextAction,
 )
+from .guides import TurnGuideContext, guide_trace_context, loaded_guide_versions
 from .completion import terminal_artifact_reply
 from .story_kernel import format_story_shot_list_reply
 
 
 KERNEL_USER_TURN_MAX_BYTES = 96 * 1024
 KERNEL_TOOL_INPUT_MAX_BYTES = KERNEL_TOOL_RESULT_MAX_BYTES + 4096
-KERNEL_CAPABILITY_PROMPTS: Dict[AssistantKernelCapability, str] = {
-    "general": "apps/api/app/assistant/prompts/skills/general_helper.md",
-    "graph_builder": "apps/api/app/assistant/prompts/skills/graph_workflow_builder.md",
-    "preset_builder": "apps/api/app/assistant/prompts/skills/media_preset_builder.md",
-    "recipe_builder": "apps/api/app/assistant/prompts/skills/prompt_recipe_builder.md",
-    "story_builder": "apps/api/app/assistant/prompts/skills/story_project.md",
-    "run_debugger": "apps/api/app/assistant/prompts/skills/run_debugger.md",
-}
 KERNEL_ARTIFACT_INTENTS: Dict[AssistantKernelCapability, frozenset[AssistantArtifactIntent]] = {
     "general": frozenset({"none", "display_image"}),
     "graph_builder": frozenset({"none", "display_image"}),
@@ -166,7 +159,8 @@ def _sync_kernel_prompt_thread(
 
 def _kernel_instruction() -> str:
     from .tool_limits import compact_tool_catalog
-    catalog = compact_tool_catalog(kernel_tool_catalog())
+    tools = kernel_tool_catalog()
+    catalog = compact_tool_catalog([tool for tool in tools if tool["name"] == "load_application_guide"])
     return (
         "Select exactly one Media Assistant capability and one artifact_intent from the semantic request. Use "
         "quality_decision when the user approves, continues refining, or stops after an active output comparison. "
@@ -235,7 +229,11 @@ def _kernel_instruction() -> str:
         "Continue in the current workflow unless the user explicitly requests a separate one. "
         "Exact user-supplied asset/reference IDs may be bound to ordinary media loaders and validated; "
         "they do not require selecting a result in a different session. Never claim visual inspection from an ID alone. "
-        "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
+        "For story development, storyboard planning, or shot-list writing/revision, select story_builder with "
+        "artifact_intent update_story and keep the premise, characters, world rules, continuity facts, and shots in "
+        "update_story_state. A request to plan without building or generating still creates typed story state; "
+        "honor that restriction by leaving graph proposals and runs untouched. Use artifact_intent none for "
+        "discussion or review that does not create or revise story content. "
         "In user-facing replies and production plans, call a graph/tab a workflow and a creative phase a step; say Open new workflow, not Open new stage. "
         "At a meaningful transition where the user is choosing or constructing a reusable character-sheet, environment-sheet, "
         "storyboard-sheet, or video-prompt production artifact, call "
@@ -287,7 +285,30 @@ def _kernel_instruction() -> str:
         f"Capabilities: {', '.join(KERNEL_CAPABILITY_PROMPTS)}\n"
         f"Allowed artifact intents: {json.dumps({key: sorted(value) for key, value in KERNEL_ARTIFACT_INTENTS.items()}, separators=(',', ':'))}\n"
         f"Tools: {json.dumps(catalog, separators=(',', ':'))}"
+        + ("\nBefore using task tools, call load_application_guide with the selected capability ID. "
+           "The application supplies trusted guidance and complete contracts separately from untrusted tool evidence. "
+           "The media_studio_guides manifest lists ordered bounded application fragments; read all listed parts as one complete JSON document. "
+           "Select the correct capability and artifact_intent before loading and keep both unchanged. "
+           "Additional guides provide knowledge only. Use only contracts supplied by the application. "
+           "For general conversation or conceptual advice that needs no state, artifact or tool result, reply directly "
+           "with artifact_intent none; do not call load_application_guide. A Prompt Recipe turns inputs into prompt text; "
+           "a Media Preset packages reusable media-generation inputs and settings. Naming an artifact in a question "
+           "does not by itself request its inspection, creation or revision. When actual pixels, current model limits, "
+           "saved content or artifact work is needed, load the appropriate guide and use its registered tools. "
+           "If a required guide fails to load, resolve the recoverable error or explain the blocker; do not invent tools."
+           )
     )
+
+
+def _kernel_turn_context():
+    assembly = assistant_thread_prompt_assembly(
+        developer_addendum=_kernel_instruction(),
+    )
+    return assembly, TurnGuideContext()
+
+
+def _loaded_kernel_assets(assembly, context):
+    return list(dict.fromkeys([*assembly.loaded_assets, *(context.assets() if context else [])]))
 
 
 def _kernel_input_message(
@@ -374,6 +395,7 @@ def _kernel_reasoning_effort(
     selected_capability: AssistantKernelCapability | None,
     tool_traces: List[Any],
 ) -> str:
+    tool_traces = [trace for trace in tool_traces if trace.tool_name != "load_application_guide"]
     if not tool_traces:
         return "medium"
     last_tool = tool_traces[-1].tool_name
@@ -760,6 +782,7 @@ def run_kernel_provider_step(
     client_user_message_id: Optional[str] = None,
     compact_before_turn: bool = False,
     on_compaction=None,
+    guide_context: TurnGuideContext | None = None,
 ) -> Dict[str, Any]:
     runtime = resolve_assistant_provider_runtime(session)
     if runtime.provider_kind != "codex_local":
@@ -784,6 +807,7 @@ def run_kernel_provider_step(
             client_user_message_id=client_user_message_id,
             compact_before_turn=compact_before_turn,
             on_compaction=on_compaction,
+            guide_context=guide_context,
             resume_usage=(session.get("summary_json") or {}).get("kernel_provider_usage"),
         )
     except enhancement_provider.EnhancementProviderError as exc:
@@ -824,6 +848,7 @@ def run_kernel_provider_step(
                 client_user_message_id=(
                     str(result.get("client_user_message_id") or "").strip() or None
                 ),
+                **guide_trace_context(guide_context),
                 compaction=(
                     dict(result.get("compaction"))
                     if isinstance(result.get("compaction"), dict)
@@ -934,10 +959,8 @@ def run_assistant_kernel_turn(
         )
     selected_capability: AssistantKernelCapability | None = None
     selected_artifact_intent: AssistantArtifactIntent | None = None
-    thread_assembly = assistant_thread_prompt_assembly(
-        tuple(KERNEL_CAPABILITY_PROMPTS.values()),
-        developer_addendum=_kernel_instruction(),
-    )
+    thread_assembly, guide_context = _kernel_turn_context()
+    planning_checkpoint = restore_guide_checkpoint(guide_context, planning_checkpoint)
     session = _sync_kernel_prompt_thread(session, thread_assembly)
     messages: List[Dict[str, Any]] = [
         _kernel_user_turn_message(
@@ -956,7 +979,7 @@ def run_assistant_kernel_turn(
         ))
     checkpoint_messages: List[Dict[str, Any]] = list((planning_checkpoint or {}).get("messages") or [])
     messages.extend(checkpoint_messages)
-    loaded_prompt_assets: List[str] = list(thread_assembly.loaded_assets)
+    loaded_prompt_assets: List[str] = _loaded_kernel_assets(thread_assembly, guide_context)
     provider_lifecycle: List[str] = []
     reset_reason = (session.get("state_snapshot_json") or {}).get("provider_thread_reset_reason")
     if not session.get("provider_thread_id") and reset_reason:
@@ -979,7 +1002,7 @@ def run_assistant_kernel_turn(
             recovery = record_planning_recovery(
                 session=session, workflow=workflow, canvas_context=canvas_context,
                 request=(planning_checkpoint or {}).get("request", user_text), attachments=list(attachments or []),
-                traces=tool_traces, messages=checkpoint_messages, reason=reason, prior=planning_checkpoint, remaining="The same operation or policy error repeated without progress.",
+                traces=tool_traces, messages=checkpoint_messages, reason=reason, prior=planning_checkpoint, guide_versions=loaded_guide_versions(provider_steps), remaining="The same operation or policy error repeated without progress.",
             )
         return AssistantKernelTurnResult(
             reply="Planning stopped because the same operation repeated without progress. "
@@ -1034,6 +1057,7 @@ def run_assistant_kernel_turn(
                 reasoning_effort=_kernel_reasoning_effort(selected_capability, tool_traces),
                 client_user_message_id=f"{client_user_message_id}:{provider_call_index}" if client_user_message_id else None,
                 compact_before_turn=provider_call_index == 1, on_compaction=on_compaction,
+                guide_context=guide_context,
             )
             if is_cancelled(cancel_event):
                 raise AssistantRequestCancelled("Assistant kernel turn was cancelled.", outcome="cancelled_after_provider")
@@ -1178,11 +1202,13 @@ def run_assistant_kernel_turn(
                         cancel_event=cancel_event,
                         timeout_seconds=None,
                         provider_steps=provider_steps,
+                        guide_context=guide_context,
                     ),
                 )
             except AssistantRequestCancelled as exc:
                 preserve_failure(exc)
                 raise
+            loaded_prompt_assets[:] = _loaded_kernel_assets(thread_assembly, guide_context)
             tool_steps += 1
             tool_traces.append(execution.trace)
             session_id = str(session.get("assistant_session_id") or "")

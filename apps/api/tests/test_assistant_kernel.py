@@ -318,6 +318,8 @@ def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
             "usage": {"total_tokens": 42},
             "latency_ms": 25,
             "prompt_bytes": 512,
+            "guide_versions": {},
+            "guide_context_bytes": 0,
             "reasoning_effort": None,
             "client_user_message_id": None,
             "compaction": None,
