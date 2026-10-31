@@ -85,7 +85,9 @@ export function StudioLightbox({
             <video
               ref={lightboxVideoRef}
               src={selectedAssetPlaybackVisual}
+              aria-label="Selected video artifact"
               controls
+              tabIndex={0}
               autoPlay
               playsInline
               preload="metadata"
@@ -107,6 +109,7 @@ export function StudioLightbox({
               <audio
                 src={selectedAssetPlaybackVisual}
                 controls
+              tabIndex={0}
                 autoPlay
                 preload="metadata"
                 className="w-full"

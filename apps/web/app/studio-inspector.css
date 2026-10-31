@@ -23,11 +23,12 @@
   color: var(--foreground);
   box-shadow: var(--shadow-overlay);
   outline: none;
+  position: relative;
 }
 
 .studio-media-inspector-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 44px;
+  grid-template-columns: minmax(0, 1fr) 44px;
   align-items: center;
   grid-column: 1 / -1;
   gap: 20px;
@@ -59,6 +60,9 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  position: absolute;
+  top: 24px;
+  right: 84px;
 }
 
 .studio-media-inspector-media-column {
@@ -514,5 +518,30 @@
     inset: 8px auto 8px 0;
     border-left: 1px solid var(--border-soft);
     content: "";
+  }
+}
+
+/* Keep one DOM order: close, media, utilities, creative actions, details. */
+
+
+.studio-media-inspector-title {
+  max-width: max(200px, calc(100% - 500px));
+}
+
+
+
+@media (width >= 1024px) and (width <= 1250px) {
+  .studio-media-inspector-media-actions {
+    padding-top: 56px;
+  }
+}
+
+@media (width <= 1023px) {
+  .studio-media-inspector-title {
+    max-width: none;
+  }
+
+  .studio-media-inspector-utilities {
+    position: static;
   }
 }

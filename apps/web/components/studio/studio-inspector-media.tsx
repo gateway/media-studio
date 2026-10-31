@@ -25,6 +25,7 @@ function AudioPreview({
       <audio
         src={playbackVisual}
         controls
+        tabIndex={0}
         preload="metadata"
         aria-label={alt}
       />
@@ -47,6 +48,7 @@ function VisualPreview({
         src={playbackVisual}
         aria-label={alt}
         controls
+        tabIndex={0}
         playsInline
         preload="metadata"
       />
@@ -92,6 +94,7 @@ export function StudioInspectorMedia(props: InspectorMediaProps) {
         <Button
           appearance="admin"
           size="touch"
+          aria-label="Open full size"
           variant="media-expand"
           onClick={props.onOpenLightbox}
           className="studio-media-inspector-full-size"

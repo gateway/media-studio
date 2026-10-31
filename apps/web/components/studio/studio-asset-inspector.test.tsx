@@ -81,7 +81,7 @@ it("keeps keyboard focus out of CSS-hidden controls", () => {
   inspector();
   const hidden = screen.getByRole("button", { name: "Collapse prompt" });
   hidden.style.display = "none";
-  const first = screen.getByRole("button", { name: "Favorite" });
+  const first = screen.getByRole("button", { name: "Close media details" });
   const last = screen.getByRole("button", { name: "Copy", exact: true });
   first.focus();
   fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
@@ -223,4 +223,11 @@ it("reports clipboard failure and retains prompt-copy failure feedback", async (
   await screen.findAllByRole("button", { name: "Copy failed" });
   expect(screen.getAllByText("Copy failed")).toHaveLength(2);
   vi.unstubAllGlobals();
+});
+
+it("keeps the full-size control named when its visible text is hidden", () => {
+  inspector();
+  const expand = screen.getByRole("button", { name: "Open full size" });
+  expand.querySelector("span")!.style.display = "none";
+  expect(screen.getByRole("button", { name: "Open full size" })).toBe(expand);
 });

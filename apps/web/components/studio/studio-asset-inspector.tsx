@@ -118,15 +118,6 @@ export function StudioAssetInspector({
               <span>/</span> {kind}
             </p>
           </div>
-          <StudioInspectorUtilities
-            selectedAsset={selectedAsset}
-            favoriteAssetIdBusy={favoriteAssetIdBusy}
-            onToggleFavorite={onToggleFavorite}
-            canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
-            downloadActionLabel={downloadActionLabel}
-            onDownload={onDownload}
-            onDismiss={onDismiss}
-          />
           <IconButton
             appearance="admin"
             size="touch"
@@ -144,6 +135,15 @@ export function StudioAssetInspector({
             displayVisual={selectedAssetDisplayVisual}
             playbackVisual={selectedAssetPlaybackVisual}
             onOpenLightbox={onOpenLightbox}
+          />
+          <StudioInspectorUtilities
+            selectedAsset={selectedAsset}
+            favoriteAssetIdBusy={favoriteAssetIdBusy}
+            onToggleFavorite={onToggleFavorite}
+            canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
+            downloadActionLabel={downloadActionLabel}
+            onDownload={onDownload}
+            onDismiss={onDismiss}
           />
           <div className="studio-media-inspector-media-actions">
             <StudioInspectorActions
