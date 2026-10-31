@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
+import { ControlTooltip } from "@/components/ui/control-tooltip";
 import { Button, buttonClassName } from "@/components/ui/button";
 import { PillSelect, type PillSelectChoice } from "@/components/ui/pill-select";
 import { emptyStateClassName, surfaceInsetClassName } from "@/components/ui/surface-primitives";
@@ -73,9 +74,7 @@ export function AdminIconButton({
       className={cn("admin-icon-button group/icon relative", className)}
     >
       {children}
-      <span className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-1/2 z-20 max-w-48 -translate-x-1/2 rounded-[var(--radius-control)] border border-[var(--surface-border-soft)] bg-[var(--surface-overlay-panel)] px-2.5 py-1.5 text-[0.66rem] leading-tight font-semibold tracking-normal text-[var(--foreground)] normal-case opacity-0 shadow-sm transition group-hover/icon:opacity-100 group-focus-visible/icon:opacity-100">
-        {tooltip}
-      </span>
+      <ControlTooltip>{tooltip}</ControlTooltip>
     </AdminButton>
   );
 }

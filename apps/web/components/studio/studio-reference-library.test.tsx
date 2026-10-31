@@ -55,6 +55,18 @@ describe("StudioReferenceLibrary", () => {
     vi.unstubAllGlobals();
   });
 
+  it("dismisses only the preview on Escape before dismissing the library", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ ok: true, items: [referenceItem] })));
+    const onClose = vi.fn(); render(<StudioReferenceLibrary title="Reference Library" onClose={onClose} onSelect={vi.fn()} />);
+    expect(screen.getByText("Choose an image to reuse in Studio.")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Preview reference-one.png" }));
+    expect(screen.getByRole("dialog", { name: "Preview reference-one.png" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByTestId("studio-image-lightbox")).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: "Escape" }); expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("preserves preview, contextual select, and delete behavior", async () => {
     const onSelect = vi.fn();
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -82,6 +94,7 @@ describe("StudioReferenceLibrary", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Preview reference-one.png" }));
     expect(screen.getByTestId("studio-image-lightbox")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
 
     fireEvent.click(screen.getByRole("button", { name: "Attach image" }));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ reference_id: "reference-1" }));

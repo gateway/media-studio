@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 
+import { useDialogFocus } from "@/components/ui/use-dialog-focus";
 import { AdminButton } from "@/components/admin-controls";
 import {
   overlayBackdropClassName,
@@ -65,31 +66,14 @@ export function MediaImagePickerDialog({
 }: MediaImagePickerDialogProps) {
   const descriptionId = useId();
   const statusId = useId();
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useDialogFocus(onClose, !open);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const previousActiveElementRef = useRef<HTMLElement | null>(null);
   const [previewItemId, setPreviewItemId] = useState<string | null>(null);
   const hasMore = nextOffset != null;
   const previewItem = previewItemId
     ? (items.find((item) => item.id === previewItemId) ?? null)
     : null;
-
-  useEffect(() => {
-    if (!open || typeof document === "undefined") return;
-    previousActiveElementRef.current =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    const focusFrame = window.requestAnimationFrame(() => {
-      panelRef.current?.focus({ preventScroll: true });
-    });
-    return () => {
-      window.cancelAnimationFrame(focusFrame);
-      previousActiveElementRef.current?.focus();
-      previousActiveElementRef.current = null;
-    };
-  }, [open]);
 
   useEffect(() => {
     if (!open || loading || loadingMore || !hasMore || errorMessage) return;

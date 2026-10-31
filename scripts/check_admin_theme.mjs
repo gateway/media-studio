@@ -155,6 +155,10 @@ async function sourceFiles(directory) {
   return files;
 }
 
+function isStudioBrowserOwner(file) {
+  return /^apps\/web\/components\/(?:studio\/studio-(?:browser-|preset-browser|reference-library|project-browser|project-row)|media\/media-browser-)/.test(file) || file === `${WEB}app/studio-browsers.css`;
+}
+
 export async function inspectRepo(root) {
   const files = (await sourceFiles(path.join(root, WEB))).map((name) => path.relative(root, name).split(path.sep).join("/")).sort();
   const sources = new Map();
@@ -213,6 +217,8 @@ export async function inspectRepo(root) {
     return roots;
   }
   const scoped = new Set([...seeds, ...pages.flatMap(pageRoots)].flatMap((file) => [...reachable(file)]));
+  // Modal compositions share the token/control contract without being admin pages.
+  files.filter(isStudioBrowserOwner).forEach((file) => scoped.add(file));
   const findings = [];
   for (const file of scoped) findings.push(...(parsed.get(file)?.findings ?? []));
   for (const file of files.filter((name) => name.endsWith(".css"))) findings.push(...inspectCss(file, sources.get(file), scoped.has(file) && file !== `${WEB}app/globals.css`));

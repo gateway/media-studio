@@ -1,10 +1,9 @@
 "use client";
 
-import { Image as ImageIcon, LoaderCircle, Trash2 } from "lucide-react";
+import { LogIn, LoaderCircle, Trash2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { MediaBrowserItem } from "@/components/media/media-browser-item";
 import { IconButton } from "@/components/ui/icon-button";
-import { MediaBrowserCard } from "@/components/ui/surface-primitives";
 import type { MediaReference } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 
@@ -43,63 +42,51 @@ export function StudioReferenceLibraryItem({
   const label = item.original_filename ?? item.reference_id;
 
   return (
-    <MediaBrowserCard
-      data-testid={`studio-reference-library-item-${item.reference_id}`}
-      appearance="studio"
-      className="studio-reference-library-item"
-    >
-      <button
-        type="button"
-        onClick={() => onPreview(item)}
-        className="media-browser-card-thumbnail group relative aspect-square text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)]"
-        aria-label={`Preview ${label}`}
-      >
-        {previewUrl ? (
-          <img
-            src={previewUrl}
-            alt={label}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-white/58">
-            <ImageIcon className="size-4" aria-hidden="true" />
-            <span className="sr-only">No preview available for {label}</span>
+    <MediaBrowserItem
+      testId={`studio-reference-library-item-${item.reference_id}`}
+      label={label}
+      previewUrl={previewUrl}
+      previewLabel={`Preview ${label}`}
+      onPreview={() => onPreview(item)}
+      metadata={
+        <>
+          <div>
+            {referenceDimensions(item)} ·{" "}
+            {Math.max(1, Math.round(item.file_size_bytes / 1024))} KB
           </div>
-        )}
-      </button>
-      <div className="media-browser-card-copy">
-        <div className="media-browser-card-title truncate">
-          {label}
-        </div>
-        <div className="media-browser-card-description">
-          {referenceDimensions(item)} · {Math.max(1, Math.round(item.file_size_bytes / 1024))} KB
-        </div>
-      </div>
-      <div className="media-browser-card-actions">
-        <Button
-          onClick={() => onSelect(item)}
-          variant="primary"
-          size="compact"
-          className="h-8 min-w-0 rounded-full px-3 text-[0.62rem] tracking-[0.12em]"
-        >
-          {actionLabel ?? defaultActionLabel(kind)}
-        </Button>
-        <IconButton
-          icon={deleting ? LoaderCircle : Trash2}
-          onClick={() => onDelete(item.reference_id)}
-          disabled={deleting}
-          tone="danger"
-          iconClassName={deleting ? "animate-spin" : undefined}
-          className="h-8 w-8 rounded-full"
-          aria-label={`Delete ${label} from the library`}
-          title="Delete from library"
-        />
-      </div>
-      <div className="media-browser-card-meta">
-        Last used {item.last_used_at ? formatDateTime(item.last_used_at) : "never"}
-      </div>
-    </MediaBrowserCard>
+          <div>
+            Last used{" "}
+            {item.last_used_at ? formatDateTime(item.last_used_at) : "never"}
+          </div>
+        </>
+      }
+      actions={
+        <>
+          <IconButton
+            icon={LogIn}
+            tone="primary"
+            onClick={() => onSelect(item)}
+            appearance="admin"
+            size="compact"
+            quiet
+            disabled={deleting}
+            aria-label={actionLabel ?? defaultActionLabel(kind)}
+            title={actionLabel ?? defaultActionLabel(kind)}
+          />
+          <IconButton
+            icon={deleting ? LoaderCircle : Trash2}
+            onClick={() => onDelete(item.reference_id)}
+            disabled={deleting}
+            tone="danger"
+            appearance="admin"
+            size="compact"
+            quiet
+            iconClassName={deleting ? "animate-spin" : undefined}
+            aria-label={`Delete ${label} from the library`}
+            title="Delete from library"
+          />
+        </>
+      }
+    />
   );
 }
