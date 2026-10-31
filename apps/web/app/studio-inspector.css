@@ -551,3 +551,13 @@
     padding-bottom: 56px;
   }
 }
+
+@media (width >= 1024px) {
+  .studio-media-inspector-prompt {
+    padding-top: 8px;
+  }
+
+  .studio-media-inspector-prompt .studio-media-inspector-section-heading {
+    margin-bottom: 0;
+  }
+}
