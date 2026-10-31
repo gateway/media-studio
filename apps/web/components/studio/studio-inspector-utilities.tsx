@@ -53,6 +53,7 @@ export function StudioInspectorUtilities({
         appearance="admin"
         size="touch-compact"
         variant="danger-ghost"
+        className="admin-action-separated"
         aria-label="Remove"
         data-testid="studio-inspector-remove"
         onClick={onDismiss}

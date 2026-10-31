@@ -508,3 +508,29 @@
     font-size: 10px;
   }
 }
+
+/* Group a destructive toolbar action without giving it primary emphasis. */
+@media (width >= 1024px) {
+  .admin-action-separated {
+    position: relative;
+    margin-inline: 8px;
+  }
+
+  .admin-action-separated::before,
+  .admin-action-separated::after {
+    position: absolute;
+    top: 50%;
+    height: 28px;
+    border-left: 1px solid var(--border-soft);
+    content: "";
+    transform: translateY(-50%);
+  }
+
+  .admin-action-separated::before {
+    left: -8px;
+  }
+
+  .admin-action-separated::after {
+    right: -8px;
+  }
+}

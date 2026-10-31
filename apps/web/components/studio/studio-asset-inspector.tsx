@@ -136,23 +136,25 @@ export function StudioAssetInspector({
             playbackVisual={selectedAssetPlaybackVisual}
             onOpenLightbox={onOpenLightbox}
           />
-          <StudioInspectorUtilities
-            selectedAsset={selectedAsset}
-            favoriteAssetIdBusy={favoriteAssetIdBusy}
-            onToggleFavorite={onToggleFavorite}
-            canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
-            downloadActionLabel={downloadActionLabel}
-            onDownload={onDownload}
-            onDismiss={onDismiss}
-          />
-          <div className="studio-media-inspector-media-actions">
-            <StudioInspectorActions
-              showImageActions={selectedAsset.generation_kind === "image"}
-              showReviseAction={showReviseAction}
-              onAnimate={onAnimate}
-              onUseImage={onUseImage}
-              onRevise={onRevise}
+          <div className="studio-media-inspector-action-bar">
+            <StudioInspectorUtilities
+              selectedAsset={selectedAsset}
+              favoriteAssetIdBusy={favoriteAssetIdBusy}
+              onToggleFavorite={onToggleFavorite}
+              canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
+              downloadActionLabel={downloadActionLabel}
+              onDownload={onDownload}
+              onDismiss={onDismiss}
             />
+            <div className="studio-media-inspector-media-actions">
+              <StudioInspectorActions
+                showImageActions={selectedAsset.generation_kind === "image"}
+                showReviseAction={showReviseAction}
+                onAnimate={onAnimate}
+                onUseImage={onUseImage}
+                onRevise={onRevise}
+              />
+            </div>
           </div>
         </div>
         <div className="studio-media-inspector-details scrollbar-none">
