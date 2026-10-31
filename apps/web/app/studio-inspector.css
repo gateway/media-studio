@@ -545,3 +545,9 @@
     position: static;
   }
 }
+
+@media (width <= 1023px) {
+  .studio-media-inspector-media:has(audio) {
+    padding-bottom: 56px;
+  }
+}
