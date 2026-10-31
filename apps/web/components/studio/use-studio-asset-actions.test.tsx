@@ -192,3 +192,27 @@ describe("useStudioAssetActions", () => {
     expect(showActivity).not.toHaveBeenCalled();
   });
 });
+
+it("uses the local blob save fallback when native sharing is unavailable", async () => {
+  mockMobileDevice();
+  mockFetchBlob(new Blob(["png"], { type: "image/png" }));
+  URL.createObjectURL = vi.fn(() => "blob:local-save");
+  URL.revokeObjectURL = vi.fn();
+  let href = "";
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { href = this.href; });
+  const showActivity = vi.fn();
+  render(<DownloadHarness asset={makeImageAsset()} onActivity={showActivity} />);
+  await waitFor(() => expect(href).toBe("blob:local-save"));
+  expect(showActivity).toHaveBeenCalledWith({ tone:"healthy", message:"Opened the media save flow for your device." }, {autoHideMs:2600});
+});
+
+it("opens the original image when mobile fetching fails", async () => {
+  mockMobileDevice();
+  globalThis.fetch = vi.fn().mockRejectedValue(new Error("offline"));
+  const open = vi.spyOn(window, "open").mockReturnValue({} as Window);
+  const showActivity = vi.fn();
+  render(<DownloadHarness asset={makeImageAsset()} onActivity={showActivity} />);
+  await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+  expect(open).toHaveBeenCalledWith("http://localhost:3000/api/control/files/outputs/2026-04-09/original/output_01.png?inline=1", "_blank", "noopener,noreferrer");
+  expect(showActivity).toHaveBeenCalledWith({tone:"healthy", message:"Opened the original media so your device can save or share it."}, {autoHideMs:2600});
+});

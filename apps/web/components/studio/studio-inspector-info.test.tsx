@@ -6,9 +6,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { StudioInspectorInfo } from "@/components/studio/studio-inspector-info";
 import type { MediaAsset } from "@/lib/types";
 
-const longToken = "ultra-long-generated-preset-name-without-natural-breaks-abcdefghijklmnopqrstuvwxyz-0123456789";
+const longToken =
+  "ultra-long-generated-preset-name-without-natural-breaks-abcdefghijklmnopqrstuvwxyz-0123456789";
 
-function renderInspectorInfo(options: { onUsePreset?: (presetIdOrKey: string) => void } = {}) {
+function renderInspectorInfo(
+  options: { onUsePreset?: (presetIdOrKey: string) => void } = {},
+) {
   const selectedAsset = {
     asset_id: "asset-1",
     created_at: "2026-06-08T12:00:00Z",
@@ -27,8 +30,6 @@ function renderInspectorInfo(options: { onUsePreset?: (presetIdOrKey: string) =>
   render(
     <StudioInspectorInfo
       selectedAsset={selectedAsset}
-      favoriteAssetIdBusy={null}
-      onToggleFavorite={vi.fn()}
       projectLabel={`project-label-${longToken}`}
       onOpenProject={vi.fn()}
       presetLabel={`preset-label-${longToken}`}
@@ -56,11 +57,21 @@ describe("StudioInspectorInfo", () => {
   it("allows long inspector values to wrap inside the information pane", () => {
     renderInspectorInfo();
 
-    expect(screen.getByText(`model-${longToken}`).className).toContain("[overflow-wrap:anywhere]");
-    expect(screen.getByText(`preset-label-${longToken}`).className).toContain("[overflow-wrap:anywhere]");
-    expect(screen.getByText(`project-label-${longToken}`).className).toContain("[overflow-wrap:anywhere]");
-    expect(screen.getByText(`headline-${longToken}`).className).toContain("[overflow-wrap:anywhere]");
-    expect(screen.getByText(`reference-${longToken}`).className).toContain("[overflow-wrap:anywhere]");
+    expect(screen.getByText(`model-${longToken}`).className).toContain(
+      "[overflow-wrap:anywhere]",
+    );
+    expect(screen.getByText(`preset-label-${longToken}`).className).toContain(
+      "[overflow-wrap:anywhere]",
+    );
+    expect(screen.getByText(`project-label-${longToken}`).className).toContain(
+      "[overflow-wrap:anywhere]",
+    );
+    expect(screen.getByText(`headline-${longToken}`).className).toContain(
+      "[overflow-wrap:anywhere]",
+    );
+    expect(screen.getByText(`reference-${longToken}`).className).toContain(
+      "[overflow-wrap:anywhere]",
+    );
   });
 
   it("loads the selected asset preset from the information pane", () => {
@@ -71,4 +82,37 @@ describe("StudioInspectorInfo", () => {
 
     expect(onUsePreset).toHaveBeenCalledWith(`preset-id-${longToken}`);
   });
+});
+
+it("keeps unknown metadata, the existing six-option limit and project navigation", () => {
+  const onOpenProject = vi.fn();
+  render(
+    <StudioInspectorInfo
+      selectedAsset={
+        {
+          asset_id: "unknown",
+          project_id: "project-1",
+          created_at: null,
+          payload: {
+            resolved_options: {
+              one: "first-value",
+              two: "second-value",
+              three: "third-value",
+              four: "fourth-value",
+              five: "fifth-value",
+              six: "sixth-value",
+              seven: "seventh-value",
+            },
+          },
+        } as unknown as MediaAsset
+      }
+      onOpenProject={onOpenProject}
+    />,
+  );
+  expect(screen.getAllByText("Unknown")).toHaveLength(2);
+  expect(screen.getAllByText("stored")).toHaveLength(2);
+  expect(screen.getByText("sixth-value")).toBeTruthy();
+  expect(screen.queryByText("seventh-value")).toBeNull();
+  screen.getByRole("button", { name: "project-1" }).click();
+  expect(onOpenProject).toHaveBeenCalledWith("project-1");
 });

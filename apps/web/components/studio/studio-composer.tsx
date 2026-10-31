@@ -1,10 +1,10 @@
 "use client";
 
-import { ChevronDown, Coins } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import type { FloatingComposerStatus } from "@/lib/media-studio-contract";
 import { StudioComposerCollapsedBar } from "@/components/studio/studio-composer-collapsed-bar";
-import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
+import { StudioCreditMetrics } from "@/components/studio/studio-metric-pill";
 import { IconButton } from "@/components/ui/icon-button";
 import { ToastBanner } from "@/components/ui/toast-banner";
 import { overlayPanelClassName } from "@/components/ui/surfaces";
@@ -135,8 +135,7 @@ export function StudioComposer({
               <div className="studio-composer-mobile-model-label">{currentModelLabel}</div>
               {mobileComposerExpanded ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {formattedRemainingCredits ? <StudioMetricPill icon={Coins} value={formattedRemainingCredits} /> : null}
-                  {estimatedCredits ? <StudioMetricPill icon={Coins} value={estimatedCredits} accent="highlight" /> : null}
+                  <StudioCreditMetrics remaining={formattedRemainingCredits} estimated={estimatedCredits} />
                 </div>
               ) : null}
               {hasSidebar ? (

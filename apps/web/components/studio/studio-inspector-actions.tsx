@@ -1,140 +1,59 @@
 "use client";
-
-import { Download, ImagePlus, RefreshCcw, Trash2, Wand2 } from "lucide-react";
-
+import { ImagePlus, RefreshCcw, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { IconButton } from "@/components/ui/icon-button";
 
 type StudioInspectorActionsProps = {
-  canDownload: boolean;
-  downloadActionLabel: string;
   showImageActions: boolean;
-  showReviseAction?: boolean;
-  showMobileActions?: boolean;
-  showDesktopActions?: boolean;
-  onDownload: () => void;
-  onDismiss: () => void;
+  showReviseAction: boolean;
   onAnimate: () => void;
   onUseImage: () => void;
-  onRevise?: () => void;
+  onRevise: () => void;
 };
-
 export function StudioInspectorActions({
-  canDownload,
-  downloadActionLabel,
   showImageActions,
-  showReviseAction = false,
-  showMobileActions = true,
-  showDesktopActions = true,
-  onDownload,
-  onDismiss,
+  showReviseAction,
   onAnimate,
   onUseImage,
   onRevise,
 }: StudioInspectorActionsProps) {
+  if (!showImageActions && !showReviseAction) return null;
   return (
-    <>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
-        <div className="pointer-events-auto flex items-center gap-2">
-          {canDownload ? (
-          <IconButton
-            icon={Download}
-              aria-label={downloadActionLabel}
-              title={downloadActionLabel}
-              onClick={onDownload}
-              data-testid="studio-inspector-download"
-            className="overlay-close-button h-11 w-11"
-          />
-          ) : null}
-        </div>
-        <div className="pointer-events-auto flex items-center gap-2">
-          <IconButton
-            icon={Trash2}
-            aria-label="Remove"
-            title="Remove"
-            onClick={onDismiss}
-            tone="danger"
-            data-testid="studio-inspector-remove"
-            className="h-11 w-11 rounded-full border-[var(--action-danger-border)] bg-[var(--action-danger-surface)] text-[var(--action-danger-text)] shadow-[var(--shadow-soft)] backdrop-blur-xl"
-          />
-        </div>
-      </div>
-
-      {showMobileActions ? (
-      <div className="studio-action-panel lg:hidden">
-        {showReviseAction && onRevise ? (
-          <Button
-            data-testid="studio-inspector-revise"
-            onClick={onRevise}
-            variant="subtle"
-            className="h-11 w-full gap-2"
-          >
-            <RefreshCcw className="size-4" />
-            Create Revision
-          </Button>
-        ) : null}
-        {showImageActions ? (
-          <>
-            <Button
-              data-testid="studio-inspector-animate"
-              onClick={onAnimate}
-              variant="primary"
-              className="h-11 w-full gap-2 shadow-[var(--shadow-button)]"
-            >
-              <Wand2 className="size-4" />
-              Animate
-            </Button>
-            <Button
-              data-testid="studio-inspector-use-image"
-              onClick={onUseImage}
-              variant="subtle"
-              className="h-11 w-full gap-2"
-            >
-              <ImagePlus className="size-4" />
-              Use image
-            </Button>
-          </>
-        ) : null}
-      </div>
+    <div className="studio-media-inspector-creative-actions">
+      {showReviseAction ? (
+        <Button
+          appearance="admin"
+          size="touch"
+          variant="subtle"
+          data-testid="studio-inspector-revise"
+          onClick={onRevise}
+        >
+          <RefreshCcw className="size-5" />
+          <span>Create Revision</span>
+        </Button>
       ) : null}
-
-      {showDesktopActions ? (
-      <div className="hidden content-start gap-3 self-start lg:grid">
-        {showReviseAction && onRevise ? (
+      {showImageActions ? (
+        <>
           <Button
-            data-testid="studio-inspector-revise-desktop"
-            onClick={onRevise}
-            variant="subtle"
-            className="h-11 w-full gap-2"
+            appearance="admin"
+            size="touch"
+            data-testid="studio-inspector-animate"
+            onClick={onAnimate}
           >
-            <RefreshCcw className="size-4" />
-            Create Revision
+            <Wand2 className="size-5" />
+            <span>Animate</span>
           </Button>
-        ) : null}
-        {showImageActions ? (
-          <>
-            <Button
-              data-testid="studio-inspector-animate-desktop"
-              onClick={onAnimate}
-              variant="primary"
-              className="h-11 w-full gap-2 shadow-[var(--shadow-button)]"
-            >
-              <Wand2 className="size-4" />
-              Animate
-            </Button>
-            <Button
-              data-testid="studio-inspector-use-image-desktop"
-              onClick={onUseImage}
-              variant="subtle"
-              className="h-11 w-full gap-2"
-            >
-              <ImagePlus className="size-4" />
-              Use image
-            </Button>
-          </>
-        ) : null}
-      </div>
+          <Button
+            appearance="admin"
+            size="touch"
+            variant="subtle"
+            data-testid="studio-inspector-use-image"
+            onClick={onUseImage}
+          >
+            <ImagePlus className="size-5" />
+            <span>Use image</span>
+          </Button>
+        </>
       ) : null}
-    </>
+    </div>
   );
 }

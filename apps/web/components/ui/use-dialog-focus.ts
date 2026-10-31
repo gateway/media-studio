@@ -1,6 +1,14 @@
 "use client";
 import { useEffect, useRef } from "react";
 
+function isVisibleControl(element: HTMLElement, panel: HTMLElement) {
+  for (let current: HTMLElement | null = element; current && current !== panel; current = current.parentElement) {
+    const style = window.getComputedStyle(current);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+  }
+  return true;
+}
+
 function containTabFocus(event: KeyboardEvent, panel: HTMLElement) {
   const controls = Array.from(
     panel.querySelectorAll<HTMLElement>(
@@ -9,7 +17,8 @@ function containTabFocus(event: KeyboardEvent, panel: HTMLElement) {
   ).filter(
     (element) =>
       !element.closest("[hidden], [inert]") &&
-      element.getAttribute("aria-hidden") !== "true",
+      element.getAttribute("aria-hidden") !== "true" &&
+      isVisibleControl(element, panel),
   );
   const first = controls[0];
   const last = controls.at(-1);

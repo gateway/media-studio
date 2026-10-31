@@ -3,7 +3,7 @@
 import { resolveStudioComposerInputRail } from "@/lib/studio-model-support";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Coins, FolderPlus, X } from "lucide-react";
+import { FolderPlus, X } from "lucide-react";
 
 import { useGlobalActivity } from "@/components/global-activity";
 import { StudioContextPanels } from "@/components/studio/studio-context-panels";
@@ -23,7 +23,7 @@ import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { StudioAssetInspector } from "@/components/studio/studio-asset-inspector";
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioComposerControls } from "@/components/studio/studio-composer-controls";
-import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
+import { StudioCreditMetrics } from "@/components/studio/studio-metric-pill";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
 import { StudioPromptComposerBody } from "@/components/studio/studio-prompt-composer-body";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
@@ -109,7 +109,6 @@ export function MediaStudio({
   jobs,
   assets,
   initialAssetLimit = INITIAL_ASSET_PAGE_SIZE,
-  initialAssetOffset = 0,
   initialAssetsHasMore = false,
   initialAssetsNextOffset = null,
   initialAssetsNextCursor = null,
@@ -119,7 +118,6 @@ export function MediaStudio({
   initialSelectedAssetId = null,
   initialSelectedProjectId = null,
   immersive = false,
-  closeHref = "/media",
 }: MediaStudioProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -307,7 +305,6 @@ export function MediaStudio({
     selectedAssetId,
     selectedMediaLightboxOpen,
     mobileInspectorPromptOpen,
-    mobileInspectorInfoOpen,
   } = selection.state;
   const {
     selectedAsset,
@@ -330,7 +327,6 @@ export function MediaStudio({
     setSelectedAssetId,
     setSelectedMediaLightboxOpen,
     setMobileInspectorPromptOpen,
-    setMobileInspectorInfoOpen,
     resetInspector,
     openSelectedMediaLightbox,
     closeSelectedMediaLightbox,
@@ -1180,6 +1176,14 @@ export function MediaStudio({
     }
   }
 
+  const composerMediaInteractionProps = {
+    buildAttachmentPreview,
+    standardComposerSlotPreview,
+    standardComposerSlotVisual,
+    onSetDragActive: setIsDragActive,
+    onSetFormWarning: (text: string) => setFormMessage({ tone: "warning", text }),
+  };
+
   const sourceAttachmentStrip = composerInputRail === "seedance" || composerInputRail === "standard" ? (
     <StudioSourceAttachmentStrip
       inputRail={composerInputRail}
@@ -1190,17 +1194,13 @@ export function MediaStudio({
       orderedImageInputs={orderedImageInputs}
       mobileAddTileClassName={mobileAddTileClassName}
       mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
-      buildAttachmentPreview={buildAttachmentPreview}
-      standardComposerSlotPreview={standardComposerSlotPreview}
-      standardComposerSlotVisual={standardComposerSlotVisual}
-      onSetDragActive={setIsDragActive}
-      onSetFormWarning={(text) => setFormMessage({ tone: "warning", text })}
+      {...composerMediaInteractionProps}
       onDropIntoSourceSlot={(event, slotIndex, slot) => void handleSourceTileDrop(event, slotIndex, slot)}
       onOpenPreview={openReferencePreview}
       onRemoveAttachment={removeAttachment}
       onClearStandardComposerSlot={clearStandardComposerSlot}
       onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
-      onAddFiles={addFiles}
+      onAddFiles={(files, options) => { addFiles(files, options).catch(reportActionError); }}
       onResetFileInput={resetFileInputValue}
     />
   ) : null;
@@ -1219,7 +1219,7 @@ export function MediaStudio({
         onReferenceDrop={(event, kind) => void handleSeedanceReferenceDrop(event, kind)}
         onOpenPreview={openReferencePreview}
         onRemoveAttachment={removeAttachment}
-        onAddFiles={addFiles}
+        onAddFiles={(files, options) => { addFiles(files, options).catch(reportActionError); }}
         onResetFileInput={resetFileInputValue}
       />
     ) : null;
@@ -1245,11 +1245,7 @@ export function MediaStudio({
       mobileAddTileClassName={mobileAddTileClassName}
       mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
       buildOrderedImageInputPreview={orderedImageInputPreview}
-      buildAttachmentPreview={buildAttachmentPreview}
-      standardComposerSlotPreview={standardComposerSlotPreview}
-      standardComposerSlotVisual={standardComposerSlotVisual}
-      onSetDragActive={setIsDragActive}
-      onSetFormWarning={(text) => setFormMessage({ tone: "warning", text })}
+      {...composerMediaInteractionProps}
       onDropIntoSourceSlot={(event, slotIndex, slot) => void handleSourceTileDrop(event, slotIndex, slot)}
       onSeedanceReferenceDrop={(event, kind) => void handleSeedanceReferenceDrop(event, kind)}
       onOpenPreview={openReferencePreview}
@@ -1257,7 +1253,7 @@ export function MediaStudio({
       onRemoveAttachment={removeAttachment}
       onClearStandardComposerSlot={clearStandardComposerSlot}
       onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
-      onAddFiles={addFiles}
+      onAddFiles={(files, options) => { addFiles(files, options).catch(reportActionError); }}
       onAddImageFilesToOrderedSlot={addImageFilesToOrderedSlot}
       onResetFileInput={resetFileInputValue}
     />
@@ -1403,26 +1399,6 @@ export function MediaStudio({
     visibleGalleryAssetIds,
     isTypingTarget,
   ]);
-
-  useEffect(() => {
-    if (!selectedAsset || selectedMediaLightboxOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
-        return;
-      }
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.preventDefault();
-      closeAssetInspector();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [closeAssetInspector, selectedAsset, selectedMediaLightboxOpen]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1575,12 +1551,7 @@ export function MediaStudio({
         });
         return;
       }
-      if (motionControlVideoAsset) {
-        clearSourceAsset();
-      } else if (motionControlVideoAttachment) {
-        removeAttachment(motionControlVideoAttachment.id);
-      }
-      addFiles(event.dataTransfer.files, { allowedKinds: ["videos"] });
+      stageDroppedDrivingVideo(event.dataTransfer.files);
       return;
     }
     if (galleryAssetId) {
@@ -1646,12 +1617,7 @@ export function MediaStudio({
         addFiles(event.dataTransfer.files, { allowedKinds: ["images"], insertImageIndex: 0 });
         return;
       }
-      if (motionControlVideoAsset) {
-        clearSourceAsset();
-      } else if (motionControlVideoAttachment) {
-        removeAttachment(motionControlVideoAttachment.id);
-      }
-      addFiles(event.dataTransfer.files, { allowedKinds: ["videos"] });
+      stageDroppedDrivingVideo(event.dataTransfer.files);
       return;
     }
     if ((dedicatedImageReferenceRailActive || explicitVideoImageSlots) && slotIndex > orderedImageInputs.length) {
@@ -1707,6 +1673,12 @@ export function MediaStudio({
     }
     const droppedFile = Array.from(event.dataTransfer.files).find((file) => file.type.startsWith("image/")) ?? null;
     assignPresetSlotFile(slotKey, droppedFile);
+  }
+
+  function stageDroppedDrivingVideo(files: FileList) {
+    if (motionControlVideoAsset) clearSourceAsset();
+    else if (motionControlVideoAttachment) removeAttachment(motionControlVideoAttachment.id);
+    addFiles(files, { allowedKinds: ["videos"] }).catch(reportActionError);
   }
 
   function handleGalleryAssetDragStart(event: React.DragEvent<HTMLDivElement>, asset: MediaAsset | null) {
@@ -1915,6 +1887,12 @@ export function MediaStudio({
   const renderedGalleryHasMore = studioHarnessFixtureState?.galleryEmpty ? false : activeGalleryHasMore;
   const renderedGalleryLoadingMore = studioHarnessFixtureState?.galleryEmpty ? false : activeGalleryLoadingMore;
 
+  const stageAssetAsSource = useAssetAsSource;
+
+  function reportActionError(error: unknown) {
+    setFormMessage({ tone: "danger", text: error instanceof Error ? error.message : "Studio could not complete this action." });
+  }
+
   return (
     <div className={immersive ? "min-h-dvh" : "space-y-7"}>
       <StudioCreateStage immersive={immersive}>
@@ -1930,8 +1908,7 @@ export function MediaStudio({
               !selectedAsset ? (
                 <div className="hidden items-center gap-2 md:flex">
                   {selectedProjectMetric}
-                  {formattedRemainingCredits ? <StudioMetricPill icon={Coins} value={formattedRemainingCredits} /> : null}
-                  {estimatedCredits ? <StudioMetricPill icon={Coins} value={estimatedCredits} accent="highlight" /> : null}
+                  <StudioCreditMetrics remaining={formattedRemainingCredits} estimated={estimatedCredits} />
                 </div>
               ) : null
             }
@@ -1954,7 +1931,7 @@ export function MediaStudio({
             selectedAssetId={selectedAssetId}
             favoriteAssetIdBusy={favoriteAssetIdBusy}
             galleryLoadMoreRef={galleryLoadMoreRef}
-            onLoadMore={loadMoreActiveGalleryAssets}
+            onLoadMore={() => { loadMoreActiveGalleryAssets().catch(reportActionError); }}
             onSelectAsset={(assetId) => {
               setSelectedFailedJobId(null);
               setSelectedAssetId(assetId);
@@ -1965,7 +1942,7 @@ export function MediaStudio({
               setSelectedFailedJobId(jobId);
             }}
             onDragAsset={handleGalleryAssetDragStart}
-            onToggleFavorite={(asset) => void toggleAssetFavorite(asset)}
+            onToggleFavorite={(asset) => { toggleAssetFavorite(asset).catch(reportActionError); }}
           />
 
           {!selectedAsset ? (
@@ -2190,7 +2167,7 @@ export function MediaStudio({
           models={models}
           returnToHref={typeof window === "undefined" ? pathname : `${window.location.pathname}${window.location.search}`}
           onClose={() => setPresetBrowserOpen(false)}
-          onSelectPreset={(preset) => void loadPresetIntoStudio(preset.preset_id ?? preset.key, preset)}
+          onSelectPreset={(preset) => { loadPresetIntoStudio(preset.preset_id ?? preset.key, preset).catch(reportActionError); }}
         />
       ) : null}
 
@@ -2213,7 +2190,7 @@ export function MediaStudio({
           title={referenceLibraryTarget.title}
           kind="image"
           onClose={() => setReferenceLibraryTarget(null)}
-          onSelect={(reference) => void handleReferenceLibrarySelect(reference)}
+          onSelect={(reference) => { handleReferenceLibrarySelect(reference).catch(reportActionError); }}
         />
       ) : null}
 
@@ -2229,6 +2206,7 @@ export function MediaStudio({
 
       {selectedAsset ? (
         <StudioAssetInspector
+          suspended={[selectedMediaLightboxOpen, selectedReferencePreview].some(Boolean)}
           selectedAsset={selectedAsset}
           selectedAssetDisplayVisual={selectedAssetDisplayVisual}
           selectedAssetPlaybackVisual={selectedAssetPlaybackVisual}
@@ -2246,28 +2224,26 @@ export function MediaStudio({
           favoriteAssetIdBusy={favoriteAssetIdBusy}
           copyPromptStatus={copyPromptStatus}
           mobileInspectorPromptOpen={mobileInspectorPromptOpen}
-          mobileInspectorInfoOpen={mobileInspectorInfoOpen}
           downloadActionLabel={downloadActionLabel}
           showReviseAction={Boolean(selectedAssetRevisionPlan?.targetModel)}
           onClose={closeAssetInspector}
           onOpenLightbox={openSelectedMediaLightbox}
           onCopyPrompt={() => {
-            void copyPromptFromAsset(selectedAssetPrompt);
+            copyPromptFromAsset(selectedAssetPrompt).catch(reportActionError);
           }}
-          onToggleFavorite={toggleAssetFavorite}
+          onToggleFavorite={(asset) => { toggleAssetFavorite(asset).catch(reportActionError); }}
           onUsePreset={(presetIdOrKey) => {
             closeAssetInspector();
-            void loadPresetIntoStudio(presetIdOrKey);
+            loadPresetIntoStudio(presetIdOrKey).catch(reportActionError);
           }}
           onOpenProject={openProjectWorkspace}
           onOpenReference={setSelectedReferencePreview}
           onMobileInspectorPromptOpenChange={setMobileInspectorPromptOpen}
-          onMobileInspectorInfoOpenChange={setMobileInspectorInfoOpen}
-          onDownload={() => void downloadAsset(selectedAsset)}
-          onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
-          onAnimate={() => useAssetAsSource(selectedAsset, true)}
-          onUseImage={() => useAssetAsSource(selectedAsset, false)}
-          onRevise={() => void reviseSelectedAssetInStudio(selectedAsset)}
+          onDownload={() => { downloadAsset(selectedAsset).catch(reportActionError); }}
+          onDismiss={() => { dismissAsset(selectedAsset.asset_id).catch(reportActionError); }}
+          onAnimate={() => stageAssetAsSource(selectedAsset, true)}
+          onUseImage={() => stageAssetAsSource(selectedAsset, false)}
+          onRevise={() => { reviseSelectedAssetInStudio(selectedAsset).catch(reportActionError); }}
         />
       ) : null}
 
@@ -2277,8 +2253,8 @@ export function MediaStudio({
           prompt={selectedFailedJobPrompt}
           imageReferences={selectedFailedJobImageReferences}
           onClose={() => setSelectedFailedJobId(null)}
-          onDismiss={() => void dismissJob(selectedFailedJob.job_id)}
-          onRetry={() => void retryFailedJobInStudio(selectedFailedJob)}
+          onDismiss={() => { dismissJob(selectedFailedJob.job_id).catch(reportActionError); }}
+          onRetry={() => { retryFailedJobInStudio(selectedFailedJob).catch(reportActionError); }}
           onOpenReference={setSelectedReferencePreview}
           statusLabel={jobStatusLabel(selectedFailedJob.status)}
         />
