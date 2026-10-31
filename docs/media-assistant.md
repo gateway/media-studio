@@ -35,14 +35,16 @@ Media Presets, Prompt Recipes, Graph workflows, and story state remain separate 
 
 Each user turn follows one backend-owned path:
 
-1. Assemble stable base/developer instructions plus all six capability prompts; the resolved capability selects the available tools.
+1. Assemble stable base/developer instructions, the capability index, and the registered application-guide loader.
 2. Provide bounded user, attachment, session, workflow, and selected-run context.
 3. Select one capability and one typed artifact intent.
-4. Use only the registered Media Studio tools needed for that turn.
+4. Load the selected task guide and its existing registered tool contracts when needed; answer conceptual advice directly when it needs no state or tools. Supplemental guides add knowledge without changing the turn's executable capability or artifact intent.
 5. Validate typed artifacts and provenance before persisting or presenting an action.
 6. Return a compact human-facing reply plus any server-owned next action.
 
 The client renders typed results. It does not infer the primary action from phrases or silently perform a second workflow.
+
+Task guides share one per-turn context owner, with pinned versions and deduplicated contracts delivered as trusted application context. Retrieved text, images and tool evidence remain untrusted. Missing required guidance produces a recoverable error. The temporary `MEDIA_STUDIO_ASSISTANT_EAGER_CONTEXT` rollout switch has been retired; it no longer changes prompt assembly. Saved-session recovery, Stop, proposal approval and alternate-provider support retain their existing owners.
 
 As of September 23, productive Codex Local planning has no fixed tool-count or wall-clock cutoff. Explicit Stop, workspace ownership, transport errors and repeated unchanged work remain termination boundaries. Active compaction continues in the retained thread. Nested reference-analysis calls contribute to usage/failure traces; unavailable metrics remain unknown. Historical verification sections below describe earlier bounded-turn behavior and do not define the current limits.
 
@@ -150,7 +152,7 @@ This mechanical gate does not judge whether a live reply feels human, is context
 
 ### Assistant package-growth boundary
 
-`scripts/check_file_size_guardrails.py` caps the recursively counted Python source under `apps/api/app/assistant/` at 11,527 lines. Ticket 11's reviewed story-tail candidate established 11,453 lines; the long-turn follow-up adds 74 lines by reusing the existing single-flight tracker for an ephemeral progress response, publishing already-typed safe activity labels, coordinating the established kernel time budget, and retaining single-flight ownership through final turn persistence. That is smaller and safer than introducing persisted progress, a worker, streaming transport, another planner, or broad retry behavior. The earlier increases remain the bounded deterministic story compiler, typed artifact-completion/presentation contracts, and measured provider-generation refresh. The count includes every `*.py` source file, ignores `__pycache__` and non-Python artifacts, and runs in both `npm run quality:assistant-ci` and the release quality gates. Individual-file caps remain in force, so the package cap cannot be bypassed by splitting a large module.
+`scripts/check_file_size_guardrails.py` caps the recursively counted Python source under `apps/api/app/assistant/` at 13,238 lines for the context-loading candidate. The base `ea13aec` contains 13,068 lines; selective guidance and image composition reach 13,248 before CL-005 cleanup, then 13,238 after removing eager assembly. The 124-line fixed-guide owner validates application-owned IDs, pins versions, deduplicates registered contracts and transports bounded complete guidance. The remaining net growth integrates it with existing checkpoints, traces and role-aware image evidence. Existing prompt-assembly scaffolding is removed; equivalent deletion of the required trust, transport or invalidation boundaries would lose supported behavior. No new authority, storage system or speculative reserve is included. This measured cap accompanies the capability review; individual-file caps remain unchanged. The count includes every `*.py` source file, ignores `__pycache__` and non-Python artifacts, and runs in both `npm run quality:assistant-ci` and the release quality gates, so splitting files cannot bypass it.
 
 The 2026-08-30 PR-readiness review kept that cap unchanged. It moved node measurement, rectangle geometry, group bounds, and dynamic Media Preset sizing from the Assistant's layout policy into the graph-owned layout module, reducing the Assistant package from 11,622 to 11,474 lines. This is an ownership correction rather than a file split: Graph Studio owns node geometry, while the Assistant module retains only its production-arrangement policy.
 

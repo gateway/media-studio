@@ -100,7 +100,7 @@ def _requested_shot_count(user_text: str) -> Optional[int]:
         "twelve": 12,
     }
     match = re.search(
-        r"\b(?:(\d{1,2})|(" + "|".join(number_words) + r"))\s+(?:shots?|scenes?)\b",
+        r"\b(?:(\d{1,2})|(" + "|".join(number_words) + r"))(?:\s+|-)(?:shots?|scenes?|panels?)\b",
         str(user_text or ""),
         flags=re.IGNORECASE,
     )
@@ -115,7 +115,7 @@ def _requested_revision_shots(user_text: str) -> list[int]:
         {
             int(match.group(1))
             for match in re.finditer(
-                r"\b(?:shot|scene)\s+(\d{1,2})\b",
+                r"\b(?:shot|scene|panel)\s+(\d{1,2})\b",
                 str(user_text or ""),
                 flags=re.IGNORECASE,
             )

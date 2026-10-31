@@ -96,9 +96,12 @@ GUARDRAILS = (
 # supply typed terminal summaries and retain separate run assessment; exact cap, no reserve.
 # Graph outcome copy: operation-owned labels and terminal fallback reuse existing
 # confirmation/persistence boundaries; measured source cap, no reserve.
+# Context loading: 13068 base -> 13248 before cleanup -> 13238 measured lines.
+# The fixed-guide loader, pinned contracts/checkpoints and role-aware image evidence
+# reuse existing owners; CL-005 removes eager assembly. No reserve or new authority.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    13_071,
+    13_238,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

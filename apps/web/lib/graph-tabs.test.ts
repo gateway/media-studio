@@ -7,7 +7,6 @@ import {
   blankGraphWorkflowPayload,
   GRAPH_TABS_MAX_CONSOLE_LINE_CHARS,
   GRAPH_TABS_MAX_CONSOLE_LINES,
-  GRAPH_TABS_MAX_RESTORABLE_TABS,
   GRAPH_TABS_SCHEMA_VERSION,
   GRAPH_TABS_STORAGE_KEY,
   graphTabsStorageKey,
@@ -192,13 +191,14 @@ describe("graph workspace tabs", () => {
     expect(readGraphTabSession("fresh-install")).toBeNull();
   });
 
-  it("caps persisted tabs and trims stored console lines", () => {
-    const tabs = Array.from({ length: GRAPH_TABS_MAX_RESTORABLE_TABS + 3 }, (_, index) =>
+  it("preserves every workflow and binding while trimming stored console lines", () => {
+    const tabs = Array.from({ length: 11 }, (_, index) =>
       applyGraphTabSnapshot(tab(`tab-${index}`, `Workflow ${index}`), {
         workflowId: `workflow-${index}`,
         workflowName: `Workflow ${index}`,
         workflow: workflow(`Workflow ${index}`),
         dirty: index === 0,
+        assistantSessionId: `assistant-${index}`,
         consoleLines: Array.from({ length: GRAPH_TABS_MAX_CONSOLE_LINES + 10 }, (_, lineIndex) =>
           `line ${lineIndex} ${"x".repeat(GRAPH_TABS_MAX_CONSOLE_LINE_CHARS + 25)}`,
         ),
@@ -206,7 +206,17 @@ describe("graph workspace tabs", () => {
     );
     writeGraphTabSession(null, "tab-0", tabs);
     const raw = JSON.parse(window.localStorage.getItem(GRAPH_TABS_STORAGE_KEY) || "null");
-    expect(raw.tabs).toHaveLength(GRAPH_TABS_MAX_RESTORABLE_TABS);
+    expect(raw.tabs).toHaveLength(tabs.length);
+    for (const original of tabs) {
+      expect(raw.tabs.find((stored: GraphWorkspaceTab) => stored.tab_id === original.tab_id)).toMatchObject({
+        workflow_json: original.workflow_json,
+        workflow_id: original.workflow_id,
+        assistant_session_id: original.assistant_session_id,
+        saved_workflow_signature: original.saved_workflow_signature,
+        dirty: original.dirty,
+      });
+    }
+    expect(readGraphTabSession()?.tabs).toHaveLength(tabs.length);
     expect(raw.active_tab_id).toBe("tab-0");
     expect(raw.tabs[0].console_lines).toHaveLength(GRAPH_TABS_MAX_CONSOLE_LINES);
     expect(raw.tabs[0].console_lines[0].length).toBeLessThanOrEqual(GRAPH_TABS_MAX_CONSOLE_LINE_CHARS);
@@ -228,20 +238,33 @@ describe("graph workspace tabs", () => {
     writeGraphTabSession(
       null,
       "main",
-      [
-        applyGraphTabSnapshot(tab("main", "Main"), {
-          workflowId: "main-workflow",
-          workflowName: "Main",
-          workflow: workflow("Main"),
-          consoleLines: ["a", "b", "c"],
-          dirty: true,
-        }),
-      ],
+      Array.from({ length: 11 }, (_, index) => applyGraphTabSnapshot(tab(index ? `other-${index}` : "main", `Workflow ${index}`), {
+        workflowId: `workflow-${index}`,
+        workflowName: `Workflow ${index}`,
+        workflow: workflow(`Workflow ${index}`),
+        assistantSessionId: `assistant-${index}`,
+        consoleLines: ["a", "b", "c"],
+        dirty: true,
+      })),
     );
 
     const raw = JSON.parse(window.localStorage.getItem(GRAPH_TABS_STORAGE_KEY) || "null");
     expect(attempts).toBe(3);
-    expect(raw.tabs[0].console_lines).toEqual([]);
+    expect(raw.tabs).toHaveLength(11);
+    expect(raw.tabs.every((stored: GraphWorkspaceTab) => stored.dirty && stored.assistant_session_id)).toBe(true);
+    expect(raw.tabs.every((stored: GraphWorkspaceTab) => stored.console_lines?.length === 0)).toBe(true);
+  });
+
+  it("keeps the previous session when every storage attempt fails", () => {
+    writeGraphTabSession(null, "original", [tab("original", "Original")]);
+    const before = window.localStorage.getItem(GRAPH_TABS_STORAGE_KEY);
+    Object.defineProperty(window.localStorage, "setItem", {
+      configurable: true,
+      value() { throw new Error("Quota exceeded"); },
+    });
+
+    expect(() => writeGraphTabSession(null, "new", [tab("new", "New")])).toThrow("Quota exceeded");
+    expect(window.localStorage.getItem(GRAPH_TABS_STORAGE_KEY)).toBe(before);
   });
 
   it("reloads saved workflow records when the cached session payload is missing or empty", () => {

@@ -7,6 +7,7 @@ import {
   blankGraphWorkflowPayload,
   graphTabCloseTarget,
   graphTabOpenWorkflowTarget,
+  graphTabsStorageKey,
   readGraphTabSession,
   type GraphTabSnapshot,
   type GraphTabSessionState,
@@ -82,6 +83,8 @@ export function useGraphTabs() {
   const initialActiveTabId = useRef(activeTabId);
   const [sessionRestored, setSessionRestored] = useState(Boolean(initial.restored));
   const [storageScope, setStorageScope] = useState<string | null>(null);
+  const storedSessionRef = useRef<{ scope: string; value: string | null } | null>(null);
+  const [storageWriteError, setStorageWriteError] = useState<string | null>(null);
   const [storageRestoreError, setStorageRestoreError] = useState<string | null>(null);
   const [restoreAttempt, setRestoreAttempt] = useState(0);
   const [storageChoices, setStorageChoices] = useState<GraphStorageChoice[]>([]);
@@ -114,6 +117,7 @@ export function useGraphTabs() {
         return;
       }
       const scope = binding.scope;
+      const storedValue = window.localStorage.getItem(graphTabsStorageKey(scope));
       const restored = readGraphTabSession(scope);
       if (tabMutationVersionRef.current !== restoreVersion) {
         setSessionRestored(false);
@@ -126,6 +130,7 @@ export function useGraphTabs() {
         return;
       }
       setStorageScope(scope);
+      storedSessionRef.current = { scope, value: storedValue };
       setStorageRestoreError(null);
       if (restored) {
         const selection = restoreTabSelection(restored);
@@ -152,10 +157,25 @@ export function useGraphTabs() {
     };
   }, [restoreAttempt, selectedBinding]);
 
+  const persistTabs = useCallback((tabId: string, nextTabs: GraphWorkspaceTab[]) => {
+    const expected = storedSessionRef.current;
+    if (!expected || expected.scope !== storageScope) return;
+    try {
+      const key = graphTabsStorageKey(expected.scope);
+      if (window.localStorage.getItem(key) !== expected.value) {
+        setStorageWriteError("Workflows changed in another browser tab. Saving is paused here; keep this page open to preserve its unsaved work.");
+        return;
+      }
+      writeGraphTabSession(expected.scope, tabId, nextTabs);
+      expected.value = window.localStorage.getItem(key);
+    } catch {
+      setStorageWriteError("Browser storage is unavailable. Keep this page open to preserve its unsaved work.");
+    }
+  }, [storageScope]);
+
   useEffect(() => {
-    if (!storageScope) return;
-    writeGraphTabSession(storageScope, activeTabId, tabs);
-  }, [activeTabId, storageScope, tabs]);
+    persistTabs(activeTabId, tabs);
+  }, [activeTabId, persistTabs, tabs]);
 
   useEffect(() => {
     if (!storageScope) return;
@@ -269,5 +289,5 @@ export function useGraphTabs() {
     return tabs.find((tab) => tab.tab_id === tabId) ?? null;
   }, [markTabsMutated, tabs]);
 
-  return { tabs, activeTabId, sessionRestored, storageScope, storageChoices, chooseStorageScope, storageRestoreError, retryStorageRestore, canRetryStorageRestore: tabMutationVersionRef.current === 0, updateTab, updateActiveTab, updateTabAssistantSession, openBlankTab, openWorkflowTab, closeTab, closeOtherTabs, switchTab };
+  return { tabs, activeTabId, sessionRestored, storageScope, storageChoices, chooseStorageScope, storageRestoreError, storageWriteError, persistTabs, retryStorageRestore, canRetryStorageRestore: tabMutationVersionRef.current === 0, updateTab, updateActiveTab, updateTabAssistantSession, openBlankTab, openWorkflowTab, closeTab, closeOtherTabs, switchTab };
 }

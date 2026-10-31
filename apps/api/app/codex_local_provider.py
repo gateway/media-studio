@@ -13,9 +13,13 @@ import time
 import zlib
 from pathlib import Path
 from threading import Event, Lock, Thread
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from .codex_turn_budget import CodexTurnBudget
+
+
+if TYPE_CHECKING:
+    from .assistant.guides import TurnGuideContext
 
 
 CODEX_APP_SERVER_TIMEOUT_SECONDS = 300
@@ -767,6 +771,7 @@ class _CodexAppServerSession:
         self.proc: subprocess.Popen[str] | None = None
         self._next_request_id = 1
         self._stderr = ""
+        self._stdout_buffer = b""
 
     def __enter__(self) -> "_CodexAppServerSession":
         binary = codex_command_path()
@@ -985,20 +990,14 @@ class _CodexAppServerSession:
         effort: Optional[str] = None,
         client_user_message_id: Optional[str] = None,
         budget: CodexTurnBudget | None = None,
+        guide_context: TurnGuideContext | None = None,
     ) -> Dict[str, Any]:
         budget = budget or CodexTurnBudget(self.timeout_seconds)
         budget.turn_id = None
         notifications: List[Dict[str, Any]] = []
-        params: Dict[str, Any] = {
-            "threadId": thread_id,
-            "input": input_items,
-        }
-        if output_schema is not None:
-            params["outputSchema"] = output_schema
-        if effort is not None:
-            params["effort"] = effort
-        if client_user_message_id is not None:
-            params["clientUserMessageId"] = client_user_message_id
+        params = _turn_start_params(
+            thread_id, input_items, output_schema, effort, client_user_message_id, guide_context,
+        )
         result = self._request(
             "turn/start", params, notifications=notifications,
             notification_handler=lambda message: budget.observe(message, thread_id),
@@ -1194,25 +1193,35 @@ class _CodexAppServerSession:
     def _read_message(self, timeout_seconds: float, *, allow_timeout: bool = False) -> Dict[str, Any] | None:
         if not self.proc or not self.proc.stdout:
             raise CodexLocalProviderError("Codex Local App Server is not running.")
-        fileno = self.proc.stdout.fileno()
-        readable, _, _ = select.select([fileno], [], [], max(timeout_seconds, 0.0))
-        if not readable:
-            if allow_timeout:
-                return None
-            raise CodexLocalProviderError("Codex Local App Server did not respond.")
-        line = self.proc.stdout.readline()
-        if not line:
-            stderr_output = ""
-            if self.proc.stderr:
-                stderr_output = self.proc.stderr.read().strip()
-            raise CodexLocalProviderError(_clean_codex_error_message(stderr_output) or "Codex Local App Server closed unexpectedly.")
+        line = self._read_stdout_line(timeout_seconds, allow_timeout=allow_timeout)
+        if line is None:
+            return None
         try:
             parsed = json.loads(line)
-        except json.JSONDecodeError as exc:
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise CodexLocalProviderError("Codex Local App Server returned invalid JSON.") from exc
         if not isinstance(parsed, dict):
             raise CodexLocalProviderError("Codex Local App Server returned an invalid message.")
         return parsed
+
+    def _read_stdout_line(self, timeout_seconds: float, *, allow_timeout: bool) -> bytes | None:
+        # TextIO.readline can prefetch several messages and leave the OS pipe empty.
+        # Own the byte buffer so queued terminal events never wait for another write.
+        fileno = self.proc.stdout.fileno()
+        deadline = time.monotonic() + max(timeout_seconds, 0.0)
+        while b"\n" not in self._stdout_buffer:
+            readable, _, _ = select.select([fileno], [], [], max(deadline - time.monotonic(), 0.0))
+            if not readable:
+                if allow_timeout:
+                    return None
+                raise CodexLocalProviderError("Codex Local App Server did not respond.")
+            chunk = os.read(fileno, 65536)
+            if not chunk:
+                stderr_output = self.proc.stderr.read().strip() if self.proc.stderr else ""
+                raise CodexLocalProviderError(_clean_codex_error_message(stderr_output) or "Codex Local App Server closed unexpectedly.")
+            self._stdout_buffer += chunk
+        line, self._stdout_buffer = self._stdout_buffer.split(b"\n", 1)
+        return line
 
 
 def archive_codex_local_thread(*, session_key: str, thread_id: str) -> bool:
@@ -1325,6 +1334,26 @@ def test_codex_local_connection(*, model_id: Optional[str] = None, require_image
     }
 
 
+def _turn_start_params(
+    thread_id: str, input_items: List[Dict[str, Any]], output_schema: Optional[Dict[str, Any]],
+    effort: Optional[str], client_user_message_id: Optional[str],
+    guide_context: TurnGuideContext | None,
+) -> Dict[str, Any]:
+    params: Dict[str, Any] = {
+        "threadId": thread_id,
+        "input": input_items,
+    }
+    if guide_context is not None:
+        params["additionalContext"] = guide_context.application_context()
+    if output_schema is not None:
+        params["outputSchema"] = output_schema
+    if effort is not None:
+        params["effort"] = effort
+    if client_user_message_id is not None:
+        params["clientUserMessageId"] = client_user_message_id
+    return params
+
+
 def run_codex_local_chat(
     *,
     model_id: str,
@@ -1343,6 +1372,7 @@ def run_codex_local_chat(
     compact_before_turn: bool = False,
     unbounded_turn: bool = False,
     resume_usage: Optional[Dict[str, Any]] = None,
+    guide_context: TurnGuideContext | None = None,
     on_compaction: Callable[[bool], None] | None = None,
 ) -> Dict[str, Any]:
     budget = CodexTurnBudget(None if unbounded_turn else timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS, on_compaction)
@@ -1358,6 +1388,15 @@ def run_codex_local_chat(
     prompt_bytes = 0
     actual_reasoning_effort: Optional[str] = None
     compaction: Dict[str, Any] | None = None
+    turn_options: Dict[str, Any] = {
+        "output_schema": output_schema,
+        "cancel_event": cancel_event,
+        "budget": budget,
+    }
+    if guide_context is not None:
+        turn_options["guide_context"] = guide_context
+    if client_user_message_id is not None:
+        turn_options["client_user_message_id"] = client_user_message_id
 
     if session_key:
         if force_new_codex_session:
@@ -1420,14 +1459,10 @@ def run_codex_local_chat(
                 turn_kwargs: Dict[str, Any] = {
                     "thread_id": managed.thread_id,
                     "input_items": input_items,
-                    "output_schema": output_schema,
-                    "cancel_event": cancel_event,
-                    "budget": budget,
+                    **turn_options,
                 }
                 if actual_reasoning_effort is not None:
                     turn_kwargs["effort"] = actual_reasoning_effort
-                if client_user_message_id is not None:
-                    turn_kwargs["client_user_message_id"] = client_user_message_id
                 result = managed.session.run_turn(
                     **turn_kwargs,
                 )
@@ -1511,14 +1546,10 @@ def run_codex_local_chat(
                 turn_kwargs = {
                     "thread_id": thread_id,
                     "input_items": input_items,
-                    "output_schema": output_schema,
-                    "cancel_event": cancel_event,
-                    "budget": budget,
+                    **turn_options,
                 }
                 if actual_reasoning_effort is not None:
                     turn_kwargs["effort"] = actual_reasoning_effort
-                if client_user_message_id is not None:
-                    turn_kwargs["client_user_message_id"] = client_user_message_id
                 result = session.run_turn(**turn_kwargs)
         finally:
             budget.finish_compaction()

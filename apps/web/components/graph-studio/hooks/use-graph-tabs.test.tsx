@@ -4,7 +4,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GraphWorkspaceTab, GraphWorkflowPayload } from "../types";
-import { writeGraphTabSession } from "../utils/graph-tabs";
+import { graphTabsStorageKey, writeGraphTabSession } from "../utils/graph-tabs";
 import { useGraphTabs } from "./use-graph-tabs";
 import { __resetGraphStartupReadsForTests } from "../utils/graph-startup-reads";
 
@@ -69,6 +69,27 @@ afterEach(() => {
 });
 
 describe("useGraphTabs", () => {
+  it("keeps newer shared drafts when an older client changes or flushes its tabs", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ install_id: "shared" })));
+    const older = renderHook(() => useGraphTabs());
+    await act(async () => { await Promise.resolve(); });
+    const newer = renderHook(() => useGraphTabs());
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { newer.result.current.openBlankTab(); });
+    const key = graphTabsStorageKey("shared");
+    const latest = localStorageMock.getItem(key);
+
+    await act(async () => { older.result.current.openBlankTab(); });
+    expect(localStorageMock.getItem(key)).toBe(latest);
+    expect(older.result.current.tabs).toHaveLength(2);
+    expect(older.result.current.storageWriteError).toContain("another browser");
+    await act(async () => { older.result.current.persistTabs(older.result.current.activeTabId, older.result.current.tabs); });
+    older.unmount();
+    expect(localStorageMock.getItem(key)).toBe(latest);
+    await act(async () => { newer.result.current.openBlankTab(); });
+    expect(JSON.parse(localStorageMock.getItem(key)!).tabs).toHaveLength(3);
+  });
+
   it("keeps unsaved edits when the same saved workflow is opened from the browser", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ install_id: "dirty-copy" })));
     const { result } = renderHook(() => useGraphTabs());
@@ -77,7 +98,7 @@ describe("useGraphTabs", () => {
     const editedWorkflow = { ...workflow("Unsaved edits"), workflow_id: "saved-1", nodes: [{ id: "edited", type: "prompt.text", position: { x: 10, y: 20 }, fields: { text: "Keep these edits" } }] };
     const dirty = { workflowId: "saved-1", workflowName: "Unsaved edits", workflow: editedWorkflow, dirty: true };
     act(() => result.current.updateActiveTab(dirty));
-    act(() => result.current.openWorkflowTab({ workflowId: "saved-1", workflowName: "Saved", workflow: workflow("Saved"), dirty: false }, dirty));
+    await act(async () => { result.current.openWorkflowTab({ workflowId: "saved-1", workflowName: "Saved", workflow: workflow("Saved"), dirty: false }, dirty); });
     expect(result.current.activeTabId).not.toBe(originalTabId);
     expect(result.current.tabs.find((item) => item.tab_id === originalTabId)).toMatchObject({ dirty: true, workflow_json: editedWorkflow });
     expect(result.current.tabs.find((item) => item.tab_id === result.current.activeTabId)?.dirty).toBe(false);

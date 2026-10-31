@@ -1,5 +1,7 @@
 """Direct unittest only: database/network denied before app imports; no pytest collection."""
 import sys
+import json
+import os
 import unittest
 from contextlib import ExitStack
 from pathlib import Path
@@ -37,7 +39,7 @@ class CommunicationTests(unittest.TestCase):
 
     def test_changed_prompt_rotates_once_and_retains_typed_constraints_and_context(self):
         k = self.kernel
-        assembly = self.assets.assistant_thread_prompt_assembly(tuple(k.KERNEL_CAPABILITY_PROMPTS.values()), developer_addendum=k._kernel_instruction())
+        assembly, _ = k._kernel_turn_context()
         session = {'assistant_session_id': 'communication', 'provider_kind': 'codex_local', 'provider_thread_id': 'old',
                    'state_snapshot_json': {'provider_generation': 2}, 'summary_json': {'kernel_story_state': {'shots': ['keep all shots']}, 'selected_results': {'exact': 'version'}}}
         original_summary = session['summary_json'].copy()
@@ -69,6 +71,57 @@ class CommunicationTests(unittest.TestCase):
             tool_name=name, arguments_hash='mock', duration_ms=1, result_size_bytes=100,
             activity={'kind': 'graph_check', 'label': 'Prepared graph changes for review', 'tone': 'error' if error else 'success'}, error=error))
 
+    def test_simple_advice_bootstrap_excludes_task_guides(self):
+        result = self.run_turn({'capability': 'general', 'artifact_intent': 'none',
+                                'reply': 'A Prompt Recipe shapes text; a Media Preset packages reusable media settings.'})
+        self.assertEqual(result.trace.loaded_prompt_assets, list(self.assets.SHARED_PROMPT_ASSETS))
+
+    def test_bootstrap_exposes_only_loader_even_with_retired_eager_flag(self):
+        assembly, guides = self.kernel._kernel_turn_context()
+        catalog, _ = json.JSONDecoder().raw_decode(assembly.developer_instructions.split('Tools: ', 1)[1])
+        self.assertEqual([tool['name'] for tool in catalog['tools']], ['load_application_guide'])
+        self.assertEqual(guides.versions(), {})
+        self.assertEqual(assembly.loaded_assets, self.assets.SHARED_PROMPT_ASSETS)
+        with patch.dict(os.environ, {'MEDIA_STUDIO_ASSISTANT_EAGER_CONTEXT': '1'}):
+            repeated, repeated_guides = self.kernel._kernel_turn_context()
+        self.assertEqual(repeated, assembly)
+        self.assertIsNot(repeated_guides, guides)
+        self.assertEqual(repeated_guides.versions(), {})
+
+    def test_story_request_loads_trusted_guide_and_finishes_typed_story_without_graph(self):
+        k = self.kernel
+        state = {'premise': 'A courier finds a lost parcel.', 'shots': [
+            {'shot_number': i, 'story_beat': f'Parcel beat {i}', 'prompt': f'Exact panel {i}',
+             'camera': 'Close-up' if i == 2 else 'Wide shot'} for i in range(1, 7)]}
+        steps = [
+            {'capability': 'story_builder', 'artifact_intent': 'update_story',
+             'tool_call': {'name': 'load_application_guide', 'arguments': '{"guide_id":"story_builder"}'}},
+            {'capability': 'story_builder', 'artifact_intent': 'update_story',
+             'tool_call': {'name': 'update_story_state', 'arguments': json.dumps({'state': state, 'update_kind': 'shot_list'})}},
+        ]
+        session = {'assistant_session_id': 'selective-story', 'provider_kind': 'codex_local', 'summary_json': {}}
+        with patch.object(k, '_sync_kernel_prompt_thread', side_effect=lambda value, _: value), patch.object(k, '_kernel_session_context', return_value={}), patch.object(k, 'resolve_assistant_provider_runtime', return_value=SimpleNamespace(provider_kind='codex_local')), patch.object(k, 'run_kernel_provider_step', side_effect=steps) as provider, patch.object(k.store_assistant, 'get_assistant_session', side_effect=lambda _: session), patch.object(k.store_assistant, 'create_or_update_assistant_session', side_effect=lambda value: value):
+            result = k.run_assistant_kernel_turn(session=session, user_text='Plan six panels; panel 2 is a close-up. Do not build or generate.', workflow=None, canvas_context={}, assistant_mode=None)
+        story = next(artifact.data['state'] for artifact in result.artifacts if artifact.kind == 'story_state')
+        self.assertEqual(len(story['shots']), 6)
+        self.assertEqual(story['shots'][1]['camera'], 'Close-up')
+        self.assertEqual(result.next_action.kind, 'none')
+        self.assertEqual(provider.call_count, 2)
+        self.assertEqual(set(result.trace.loaded_prompt_assets), {*self.assets.SHARED_PROMPT_ASSETS, k.KERNEL_CAPABILITY_PROMPTS['story_builder']})
+        calls = provider.call_args_list
+        self.assertEqual(calls[0].kwargs['thread_developer_instructions'], calls[1].kwargs['thread_developer_instructions'])
+        self.assertEqual(calls[1].kwargs['guide_context'].versions().keys(), {'story_builder'})
+
+    def test_loading_graph_guidance_keeps_the_existing_initial_reasoning_effort(self):
+        k = self.kernel
+        steps = [
+            {'capability': 'graph_builder', 'artifact_intent': 'none', 'tool_call': {'name': 'load_application_guide', 'arguments': '{"guide_id":"graph_builder"}'}},
+            {'capability': 'graph_builder', 'artifact_intent': 'none', 'reply': 'I can help plan the workflow.'},
+        ]
+        with patch.object(k, '_sync_kernel_prompt_thread', side_effect=lambda value, _: value), patch.object(k, '_kernel_session_context', return_value={}), patch.object(k, 'resolve_assistant_provider_runtime', return_value=SimpleNamespace(provider_kind='codex_local')), patch.object(k, 'run_kernel_provider_step', side_effect=steps) as provider:
+            k.run_assistant_kernel_turn(session={'summary_json': {}}, user_text='Explain the workflow planning options.', workflow=None, canvas_context={}, assistant_mode=None)
+        self.assertEqual([call.kwargs['reasoning_effort'] for call in provider.call_args_list], ['medium', 'medium'])
+
     def test_advice_and_satisfaction_do_not_create_actions_or_tools(self):
         for request, reply, state in [('Should I keep the existing framing?', 'Keep the 4:3 framing to preserve the composition.', 'unknown'), ('That is good enough.', 'The prepared direction is ready when you need it.', 'satisfied')]:
             with self.subTest(request=request):
@@ -78,6 +131,79 @@ class CommunicationTests(unittest.TestCase):
                 self.assertEqual(result.artifacts, [])
                 self.assertEqual(result.trace.guidance.satisfaction_state, state)
                 self.assertNotIn('?', result.reply)
+
+    def test_supplemental_evidence_does_not_allow_a_mid_turn_capability_switch(self):
+        result = self.run_turn([
+            {'capability': 'story_builder', 'artifact_intent': 'none',
+             'tool_call': {'name': 'read_story_state', 'arguments': '{}'}},
+            {'capability': 'graph_builder', 'artifact_intent': 'none',
+             'tool_call': {'name': 'propose_graph_operations', 'arguments': '{}'}},
+            {'capability': 'story_builder', 'artifact_intent': 'none',
+             'reply': 'Here is the existing story; no workflow changes were prepared.'},
+        ], execution=self.execution('read_story_state', {'shots': []}))
+        # run_turn also asserts that only the first tool reached execution.
+        self.assertEqual(result.capability, 'story_builder')
+        self.assertEqual(result.next_action.kind, 'none')
+        self.assertEqual(result.artifacts, [])
+        self.assertEqual(result.trace.step_count, 1)
+
+    def test_active_session_rejects_another_turn_until_the_owner_exits(self):
+        p = self.progress
+        with p.track_session('context-baseline') as event:
+            with self.assertRaises(p.AssistantSessionBusy):
+                with p.track_session('context-baseline'):
+                    self.fail('A second turn must not take ownership')
+            self.assertTrue(p.cancel_session('context-baseline'))
+            self.assertTrue(event.is_set())
+            with self.assertRaises(p.AssistantSessionBusy):
+                with p.track_session('context-baseline'):
+                    self.fail('Cancellation does not release ownership early')
+        with p.track_session('context-baseline') as next_event:
+            self.assertFalse(next_event.is_set())
+
+    def test_stopped_turn_never_calls_provider_or_tools(self):
+        from threading import Event
+        k = self.kernel
+        event = Event()
+        event.set()
+        with patch.object(k, '_sync_kernel_prompt_thread', side_effect=lambda session, _: session), patch.object(k, '_kernel_session_context', return_value={}), patch.object(k, 'resolve_assistant_provider_runtime', return_value=SimpleNamespace(provider_kind='codex_local')), patch.object(k, 'run_kernel_provider_step') as provider, patch.object(k, 'execute_kernel_tool') as tool:
+            with self.assertRaises(self.progress.AssistantRequestCancelled):
+                k.run_assistant_kernel_turn(session={'assistant_session_id': 'stopped', 'summary_json': {}}, user_text='Explain this image.', workflow=None, canvas_context={}, assistant_mode=None, cancel_event=event)
+        provider.assert_not_called()
+        tool.assert_not_called()
+
+    def test_story_correction_preserves_other_shots_and_rejects_collateral_changes(self):
+        from app.assistant import story_kernel as owner
+        state = owner.KernelStoryState(premise='A courier finds a parcel.', shots=[
+            {'shot_number': i, 'story_beat': f'Beat {i}', 'prompt': f'Exact prompt {i}', 'camera': 'Close-up'}
+            for i in range(1, 4)
+        ])
+        session = {'assistant_session_id': 'story-fixture', 'summary_json': {'kernel_story_state': state.model_dump()}}
+        context = SimpleNamespace(session_id='story-fixture', session=session, user_text='Change only panel 2 to an overhead view.')
+        revised = state.model_copy(deep=True)
+        revised.shots[1].camera = 'Overhead'
+        with patch.object(owner.store_assistant, 'get_assistant_session', return_value=session), patch.object(owner.store_assistant, 'create_or_update_assistant_session', side_effect=lambda value: value) as save:
+            result = owner.update_story_state(owner.UpdateStoryStateArguments(state=revised, update_kind='shot_revision', revised_shot_numbers=[2]), context)
+            self.assertEqual(result['changed_shot_numbers'], [2])
+            self.assertEqual(result['state']['shots'][0], state.shots[0].model_dump())
+            self.assertEqual(result['state']['shots'][2], state.shots[2].model_dump())
+            revised.shots[0].prompt = 'Unrequested rewrite'
+            with self.assertRaises(owner.StoryKernelError):
+                owner.update_story_state(owner.UpdateStoryStateArguments(state=revised, update_kind='shot_revision', revised_shot_numbers=[2]), context)
+            self.assertEqual(save.call_count, 1)
+
+    def test_story_panel_count_is_enforced_before_saving(self):
+        from app.assistant import story_kernel as owner
+        state = owner.KernelStoryState(premise='A courier finds a parcel.', shots=[
+            {'shot_number': 1, 'story_beat': 'Discovery', 'prompt': 'A courier finds a parcel.'}
+        ])
+        session = {'assistant_session_id': 'story-fixture', 'summary_json': {}}
+        context = SimpleNamespace(session_id='story-fixture', session=session, user_text='Plan a six-panel storyboard.')
+        with patch.object(owner.store_assistant, 'get_assistant_session', return_value=session), patch.object(owner.store_assistant, 'create_or_update_assistant_session') as save:
+            with self.assertRaises(owner.StoryKernelError) as failure:
+                owner.update_story_state(owner.UpdateStoryStateArguments(state=state, update_kind='shot_list'), context)
+            self.assertEqual(failure.exception.code, 'story_shot_count_mismatch')
+            save.assert_not_called()
 
     def test_narrow_edit_and_new_graph_keep_prepared_summary_and_exact_confirmation(self):
         for request, reply in [('Change only resolution to 2K.', 'Prepared the resolution change to 2K; the prompt and 4:3 framing are preserved.'), ('Prepare a new graph.', 'Prepared a prompt, image generator and preview for review.')]:
@@ -245,8 +371,10 @@ class CommunicationTests(unittest.TestCase):
                     self.assertTrue(result.next_action.confirmation_token)
 
     def test_assembled_prompts_support_all_three_journeys_without_obsolete_budget(self):
-        assembly = self.assets.assistant_thread_prompt_assembly(tuple(self.kernel.KERNEL_CAPABILITY_PROMPTS.values()), developer_addendum=self.kernel._kernel_instruction())
-        prompt = (assembly.base_instructions + assembly.developer_instructions).lower()
+        assembly, guides = self.kernel._kernel_turn_context()
+        for capability in self.kernel.KERNEL_CAPABILITY_PROMPTS:
+            self.assertNotIn('error', guides.load(capability))
+        prompt = (assembly.base_instructions + assembly.developer_instructions + json.dumps(guides.application_context())).lower()
         self.assertIn('answer the immediate question first', prompt)
         self.assertIn('preserve unrelated prompts', prompt)
         self.assertIn('prepared for review, not applied or run', prompt)
