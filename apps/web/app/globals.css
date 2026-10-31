@@ -1808,16 +1808,6 @@ textarea {
   border-color: var(--border-strong);
 }
 
-.studio-action-panel {
-  display: grid;
-  gap: 0.75rem;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-panel);
-  background: rgb(16 19 18 / 98%);
-  padding: 0.75rem;
-  box-shadow: 0 18px 38px rgb(0 0 0 / 22%);
-}
-
 .studio-inspector-backdrop {
   background: rgb(6 8 7 / 86%);
 }
