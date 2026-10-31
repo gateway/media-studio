@@ -37,7 +37,6 @@ type UseStudioSelectionResult = {
     selectedAssetHydratedJob: MediaJob | null;
     selectedMediaLightboxOpen: boolean;
     mobileInspectorPromptOpen: boolean;
-    mobileInspectorInfoOpen: boolean;
   };
   derived: {
     selectedAsset: MediaAsset | null;
@@ -59,7 +58,6 @@ type UseStudioSelectionResult = {
     setSelectedAssetHydratedJob: React.Dispatch<React.SetStateAction<MediaJob | null>>;
     setSelectedMediaLightboxOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setMobileInspectorPromptOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    setMobileInspectorInfoOpen: React.Dispatch<React.SetStateAction<boolean>>;
     resetInspector: () => void;
     openSelectedMediaLightbox: () => void;
     closeSelectedMediaLightbox: () => Promise<void>;
@@ -80,7 +78,6 @@ export function useStudioSelection({
   const [selectedAssetHydratedJob, setSelectedAssetHydratedJob] = useState<MediaJob | null>(null);
   const [selectedMediaLightboxOpen, setSelectedMediaLightboxOpen] = useState(false);
   const [mobileInspectorPromptOpen, setMobileInspectorPromptOpen] = useState(false);
-  const [mobileInspectorInfoOpen, setMobileInspectorInfoOpen] = useState(false);
   const hydratedJobCallbackRef = useRef(onHydratedJob);
   const hydratedInitialSelectedAssetIdRef = useRef<string | null>(null);
 
@@ -234,11 +231,9 @@ export function useStudioSelection({
     if (!selectedAssetId) {
       setSelectedAssetHydratedJob(null);
       setMobileInspectorPromptOpen(false);
-      setMobileInspectorInfoOpen(false);
       return;
     }
     setMobileInspectorPromptOpen(true);
-    setMobileInspectorInfoOpen(false);
   }, [selectedAssetId]);
 
   useEffect(() => {
@@ -299,7 +294,6 @@ export function useStudioSelection({
       selectedAssetHydratedJob,
       selectedMediaLightboxOpen,
       mobileInspectorPromptOpen,
-      mobileInspectorInfoOpen,
     },
     derived: {
       selectedAsset,
@@ -321,7 +315,6 @@ export function useStudioSelection({
       setSelectedAssetHydratedJob,
       setSelectedMediaLightboxOpen,
       setMobileInspectorPromptOpen,
-      setMobileInspectorInfoOpen,
       resetInspector,
       openSelectedMediaLightbox,
       closeSelectedMediaLightbox,

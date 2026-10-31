@@ -155,8 +155,12 @@ async function sourceFiles(directory) {
   return files;
 }
 
+function isStudioInspectorOwner(file) {
+  return /^apps\/web\/components\/studio\/(?:studio-asset-inspector|studio-inspector-(?:actions|info|media|utilities)|selected-asset-prompt-panel-content)\.tsx$/.test(file) || file === `${WEB}app/studio-inspector.css`;
+}
+
 function isStudioBrowserOwner(file) {
-  return /^apps\/web\/components\/(?:studio\/studio-(?:browser-|preset-browser|reference-library|project-browser|project-row)|media\/media-browser-)/.test(file) || file === `${WEB}app/studio-browsers.css`;
+  return isStudioInspectorOwner(file) || /^apps\/web\/components\/(?:studio\/studio-(?:browser-|preset-browser|reference-library|project-browser|project-row)|media\/media-browser-)/.test(file) || file === `${WEB}app/studio-browsers.css`;
 }
 
 export async function inspectRepo(root) {

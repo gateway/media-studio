@@ -112,3 +112,28 @@ test("Studio browser compositions and their stylesheet obey the shared theme con
     assert.equal(findings.some((item) => item.rule === "admin-shell"), false);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test("inspector compositions and responsive styles enforce tokens and shared control ownership", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "inspector-theme-source-"));
+  try {
+    const files = {
+      "apps/web/components/studio/studio-asset-inspector.tsx": '<Button className="rounded-xl bg-red-500" />',
+      "apps/web/components/studio/studio-inspector-info.tsx": '<div className="text-white" />',
+      "apps/web/components/studio/studio-inspector-media.tsx": '<button className="studio-media-inspector-preview" />',
+      "apps/web/components/studio/studio-inspector-actions.tsx": '<Button appearance="admin" size="touch" />',
+      "apps/web/components/studio/studio-inspector-utilities.tsx": '<Button style={{padding: 10}} />',
+      "apps/web/app/studio-inspector.css": '.studio-media-inspector { background: #abcdef; } .admin-button { padding: 2px; }',
+    };
+    for (const [file, source] of Object.entries(files)) {
+      await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+      await writeFile(path.join(root, file), source);
+    }
+    const { findings } = await inspectRepo(root);
+    assert.equal(findings.filter((item) => item.rule === "literal-color").length, 3);
+    assert.equal(findings.filter((item) => item.rule === "control-override").length, 3);
+    assert.equal(findings.filter((item) => item.rule === "control-owner").length, 1);
+    assert.equal(findings.some((item) => item.rule === "admin-shell"), false);
+    assert.equal(findings.some((item) => item.file.endsWith("studio-inspector-media.tsx")), false);
+    assert.equal(findings.some((item) => item.file.endsWith("studio-inspector-actions.tsx")), false);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

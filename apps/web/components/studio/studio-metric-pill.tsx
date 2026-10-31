@@ -27,3 +27,11 @@ export function StudioMetricPill({
     </div>
   );
 }
+
+/** The same balance and estimate pair in the gallery header and mobile composer. */
+export function StudioCreditMetrics({ remaining, estimated }: { remaining: string | null; estimated: string | null }) {
+  return <>
+    {remaining ? <StudioMetricPill icon={Coins} value={remaining} /> : null}
+    {estimated ? <StudioMetricPill icon={Coins} value={estimated} accent="highlight" /> : null}
+  </>;
+}

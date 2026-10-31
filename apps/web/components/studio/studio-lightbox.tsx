@@ -1,8 +1,9 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
+import { useDialogFocus } from "@/components/ui/use-dialog-focus";
 import { OverlayShell } from "@/components/ui/surface-primitives";
 import type { MediaAsset } from "@/lib/types";
 
@@ -27,16 +28,10 @@ export function StudioLightbox({
 }: StudioLightboxProps) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        void onClose();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  function closeLightbox() {
+    Promise.resolve(onClose()).catch(console.error);
+  }
+  const panelRef = useDialogFocus(closeLightbox);
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.touches[0];
@@ -70,10 +65,10 @@ export function StudioLightbox({
       panelClassName="flex min-h-dvh items-center justify-center border-0 bg-transparent shadow-none"
       innerClassName="p-0"
     >
-      <div data-testid="studio-lightbox" className="studio-lightbox-root" onClick={() => void onClose()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Full size media" tabIndex={-1} data-testid="studio-lightbox" className="studio-lightbox-root" onClick={closeLightbox}>
         <button
           type="button"
-          onClick={() => void onClose()}
+          onClick={closeLightbox}
           className="overlay-close-button absolute right-4 top-4 z-10 h-11 w-11 md:right-6 md:top-6"
           aria-label="Close media lightbox"
         >
@@ -90,7 +85,9 @@ export function StudioLightbox({
             <video
               ref={lightboxVideoRef}
               src={selectedAssetPlaybackVisual}
+              aria-label="Selected video artifact"
               controls
+              tabIndex={0}
               autoPlay
               playsInline
               preload="metadata"
@@ -112,6 +109,7 @@ export function StudioLightbox({
               <audio
                 src={selectedAssetPlaybackVisual}
                 controls
+              tabIndex={0}
                 autoPlay
                 preload="metadata"
                 className="w-full"

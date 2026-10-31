@@ -21,7 +21,7 @@ function studioIconTone(tone: IconButtonTone) {
 function adminIconClasses(
   tone: IconButtonTone,
   quiet: boolean,
-  size: "compact" | "default",
+  size: "compact" | "default" | "touch",
 ) {
   const variants = {
     primary: "primary",
@@ -42,6 +42,7 @@ function adminIconClasses(
     }),
     "admin-icon-control group/icon relative",
     size === "compact" && "admin-icon-control-compact",
+    size === "touch" && "admin-icon-control-touch",
     quiet && quietTones[tone],
     !quiet && tone === "danger" && "admin-icon-control-danger",
   );
@@ -58,7 +59,7 @@ export function iconButtonClassName({
   tone?: IconButtonTone;
   shape?: IconButtonShape;
   className?: string;
-  size?: "compact" | "default";
+  size?: "compact" | "default" | "touch";
   quiet?: boolean;
 }) {
   if (appearance === "admin")
@@ -93,7 +94,7 @@ export function IconButton({
   tone?: IconButtonTone;
   shape?: IconButtonShape;
   iconClassName?: string;
-  size?: "compact" | "default";
+  size?: "compact" | "default" | "touch";
   quiet?: boolean;
 }) {
   return (

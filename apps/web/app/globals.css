@@ -1808,112 +1808,53 @@ textarea {
   border-color: var(--border-strong);
 }
 
-.studio-action-panel {
-  display: grid;
-  gap: 0.75rem;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-panel);
-  background: rgba(16, 19, 18, 0.98);
-  padding: 0.75rem;
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.22);
-}
-
 .studio-inspector-backdrop {
-  background: rgba(6, 8, 7, 0.86);
-}
-
-.studio-inspector-shell {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(16, 20, 18, 0.98), rgba(10, 13, 12, 0.98));
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+  background: rgb(6 8 7 / 86%);
 }
 
 .studio-inspector-workspace {
   background:
-    radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 55%),
+    radial-gradient(circle at center, rgb(255 255 255 / 8%), transparent 55%),
     linear-gradient(180deg, #111514, #181d1b);
 }
 
 .studio-inspector-close-button {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.24);
-  color: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgb(255 255 255 / 10%);
+  background: rgb(0 0 0 / 24%);
+  color: rgb(255 255 255 / 78%);
 }
 
 .studio-inspector-close-button:hover {
   color: #fff;
 }
 
-.studio-inspector-preview-frame {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(7, 9, 8, 0.48);
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.4);
-}
 
-.studio-inspector-play-button {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(10, 12, 11, 0.72);
-  color: #fff;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
-}
-
-.studio-inspector-play-button:hover {
-  background: rgba(16, 19, 18, 0.82);
-}
 
 .studio-inspector-panel {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 4%);
   color: #fff;
-}
-
-.studio-inspector-mobile-panel {
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  background: rgba(16, 19, 18, 0.98) !important;
-  color: #fff;
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.26);
 }
 
 .studio-inspector-prompt-scroll {
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid rgb(255 255 255 / 7%);
+  background: rgb(0 0 0 / 16%);
 }
 
-.studio-inspector-chip-button {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.76);
-}
 
-.studio-inspector-success-icon {
-  color: #b8ff9f;
-}
 
-.studio-inspector-subtitle {
-  color: rgba(255, 255, 255, 0.54);
-}
 
-.studio-inspector-mobile-title {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.studio-inspector-mobile-description {
-  color: rgba(255, 255, 255, 0.74);
-}
-
-.studio-inspector-mobile-icon {
-  color: rgba(255, 255, 255, 0.64);
-}
 
 .studio-failed-icon-shell {
-  border: 1px solid rgba(255, 139, 139, 0.24);
-  background: rgba(255, 139, 139, 0.1);
+  border: 1px solid rgb(255 139 139 / 24%);
+  background: rgb(255 139 139 / 10%);
   color: #ff8b8b;
 }
 
 .studio-danger-icon-button {
-  background: rgba(40, 16, 14, 0.76);
+  background: rgb(40 16 14 / 76%);
   color: #ffb5a6;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 32%);
 }
 
 .studio-danger-label {

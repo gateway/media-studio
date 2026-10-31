@@ -3,14 +3,17 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 export type ButtonAppearance = "admin" | "studio";
-export type ButtonVariant = "primary" | "subtle" | "danger" | "ghost";
-export type ButtonSize = "compact" | "default";
+export type ButtonVariant = "primary" | "subtle" | "danger" | "ghost" | "danger-ghost" | "utility" | "media-expand";
+export type ButtonSize = "compact" | "default" | "touch" | "touch-compact" | "inline";
 
 const adminVariantClassNames: Record<ButtonVariant, string> = {
   primary: "admin-button admin-button-primary",
   subtle: "admin-button admin-button-subtle",
   danger: "admin-button admin-button-danger",
   ghost: "admin-button admin-button-ghost",
+  "danger-ghost": "admin-button admin-button-danger-ghost",
+  utility: "admin-button admin-button-subtle admin-button-utility",
+  "media-expand": "admin-button admin-button-ghost admin-button-media-expand",
 };
 
 const studioVariantClassNames: Record<ButtonVariant, string> = {
@@ -20,6 +23,9 @@ const studioVariantClassNames: Record<ButtonVariant, string> = {
     "inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-control)] border border-[var(--action-subtle-border)] bg-[var(--action-subtle-surface)] px-4 py-3 text-[0.82rem] font-semibold text-[var(--action-subtle-text)] transition hover:border-[var(--action-subtle-border-hover)] hover:bg-[var(--action-subtle-surface-hover)] hover:text-[var(--action-subtle-text-hover)] disabled:cursor-not-allowed disabled:opacity-60",
   danger:
     "inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-control)] border border-[var(--action-danger-border)] bg-[var(--action-danger-surface)] px-4 py-3 text-[0.82rem] font-semibold text-[var(--action-danger-text)] transition hover:border-[var(--action-danger-border-hover)] hover:bg-[var(--action-danger-surface-hover)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60",
+  "danger-ghost": "admin-button admin-button-danger-ghost",
+  utility: "admin-button admin-button-subtle",
+  "media-expand": "admin-button admin-button-ghost admin-button-media-expand",
   ghost:
     "inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-control)] border border-transparent bg-transparent px-4 py-3 text-[0.82rem] font-semibold text-[var(--action-subtle-text)] transition hover:border-[var(--action-subtle-border)] hover:bg-[var(--action-subtle-surface)] hover:text-[var(--action-subtle-text-hover)] disabled:cursor-not-allowed disabled:opacity-60",
 };
@@ -38,14 +44,15 @@ export function buttonClassName({
   const baseClassName =
     appearance === "admin" ? adminVariantClassNames[variant] : studioVariantClassNames[variant];
 
-  const compactClassName =
-    size === "compact"
-      ? appearance === "admin"
-        ? "admin-button-compact"
-        : "h-9 px-3 text-[0.72rem] uppercase tracking-[0.12em]"
-      : "";
+  const sizes: Record<ButtonSize, string> = {
+    default: "",
+    compact: appearance === "admin" ? "admin-button-compact" : "h-9 px-3 text-[0.72rem] uppercase tracking-[0.12em]",
+    touch: "admin-button-touch",
+    "touch-compact": "admin-button-touch admin-button-touch-compact",
+    inline: "admin-button-inline",
+  };
 
-  return cn(baseClassName, compactClassName, className);
+  return cn(baseClassName, sizes[size], className);
 }
 
 export function Button({

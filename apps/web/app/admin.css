@@ -428,3 +428,109 @@
 .admin-icon-control-accent:focus-visible {
   color: var(--accent-strong);
 }
+
+/* Reachable modal actions, shared by responsive inspector controls. */
+.admin-button-touch {
+  min-height: 52px;
+  padding-inline: 24px;
+  font-weight: 400;
+}
+
+@media (width <= 1023px) {
+  .admin-button-touch {
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 16px;
+    white-space: normal;
+  }
+
+}
+
+.admin-icon-control-touch {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.admin-button-danger-ghost {
+  color: var(--action-danger-text);
+  background: transparent;
+}
+
+.admin-button-danger-ghost:hover {
+  background: var(--action-danger-surface-hover);
+}
+
+.admin-button-inline {
+  min-height: 26px;
+  padding: 0;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  font-weight: 400;
+}
+
+@media (width <= 1023px) {
+  .admin-button-inline { min-height: 44px; }
+}
+
+.admin-button-touch-compact {
+  padding-inline: 16px;
+}
+
+@media (width <= 1023px) {
+  .admin-button-touch-compact {
+    padding-inline: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+}
+
+@media (width <= 1023px) {
+  .admin-button-utility {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .admin-button-media-expand {
+    width: 44px;
+    min-height: 44px;
+    padding: 8px;
+    border-radius: var(--radius-chip);
+    background: var(--admin-canvas);
+  }
+}
+
+@media (width <= 389px) {
+  .admin-button-touch-compact {
+    gap: 6px;
+    padding-inline: 2px;
+    font-size: 10px;
+  }
+}
+
+/* Group a destructive toolbar action without giving it primary emphasis. */
+@media (width >= 1024px) {
+  .admin-action-separated {
+    position: relative;
+    margin-inline: 8px;
+  }
+
+  .admin-action-separated::before,
+  .admin-action-separated::after {
+    position: absolute;
+    top: 50%;
+    height: 28px;
+    border-left: 1px solid var(--border-soft);
+    content: "";
+    transform: translateY(-50%);
+  }
+
+  .admin-action-separated::before {
+    left: -8px;
+  }
+
+  .admin-action-separated::after {
+    right: -8px;
+  }
+}
