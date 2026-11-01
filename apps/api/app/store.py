@@ -757,6 +757,17 @@ def active_jobs() -> List[Dict[str, Any]]:
     return [_decode_row(row) for row in rows]
 
 
+def has_pending_generation() -> bool:
+    with get_connection() as connection:
+        jobs = connection.execute(
+            "SELECT 1 FROM media_jobs WHERE (status = 'queued' AND dismissed = 0) OR status IN ('submitted', 'running') LIMIT 1"
+        ).fetchone()
+        graphs = connection.execute(
+            "SELECT 1 FROM graph_runs WHERE status NOT IN ('completed', 'failed', 'cancelled') LIMIT 1"
+        ).fetchone()
+    return bool(jobs or graphs)
+
+
 def queued_job_count() -> int:
     with get_connection() as connection:
         row = connection.execute("SELECT COUNT(*) AS count FROM media_jobs WHERE status = 'queued' AND dismissed = 0").fetchone()
