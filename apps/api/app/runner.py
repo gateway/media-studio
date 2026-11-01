@@ -153,6 +153,17 @@ class MediaRunner:
         for batch_id in store.open_batch_ids():
             store.recompute_batch_counts(batch_id)
 
+    def enable_live_submission(self) -> None:
+        # Serialize with queue processing so an offline job cannot change mode mid-tick.
+        with self._lock:
+            if not settings.kie_api_key:
+                raise ValueError("Configure a KIE API key in Connections before enabling live generation.")
+            if settings.media_enable_live_submit:
+                return
+            if store.has_pending_generation():
+                raise ValueError("Finish or cancel pending jobs and graph runs before enabling live generation.")
+            settings.media_enable_live_submit = True
+
     def tick(self) -> None:
         with self._lock:
             self.last_tick = store.utcnow_iso()

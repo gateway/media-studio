@@ -353,6 +353,23 @@ def get_credits():
     return CreditsResponse(available_credits=payload.get("available_credits"), raw=payload)
 
 
+@app.get("/media/generation-mode")
+def get_generation_mode() -> dict[str, bool]:
+    return {
+        "live_submit_enabled": settings.media_enable_live_submit,
+        "kie_api_key_configured": bool(settings.kie_api_key),
+    }
+
+
+@app.post("/media/generation-mode/enable-live")
+def enable_live_generation() -> dict[str, bool]:
+    try:
+        runner.enable_live_submission()
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return get_generation_mode()
+
+
 @app.get("/media/queue/settings", response_model=QueueSettingsResponse)
 def get_queue_settings():
     return QueueSettingsResponse(**store.get_queue_settings())

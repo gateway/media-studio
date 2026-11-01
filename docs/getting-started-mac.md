@@ -71,7 +71,9 @@ Get a key here:
 
 - [kie.ai referral](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
 
-If you skip this during onboarding, Media Studio stays in offline-safe mode until you add the key later.
+If you skip this during onboarding, KIE media nodes produce simulation placeholders until you add the key. Graph Studio shows a compact **Offline** control in the top bar and labels the run action **Run offline**; other workflow services can still make calls.
+
+With a configured KIE key, click **Offline** in the Graph toolbar, then confirm **Enable live**. The control disappears in live mode. The change applies to all Studio and Graph KIE jobs for the current API session; it does not run a workflow and is blocked while jobs or graph runs are pending. Restarting restores the startup setting (`MEDIA_ENABLE_LIVE_SUBMIT`).
 
 ## 4. Optional AI providers
 

@@ -25,6 +25,7 @@ node --test "$ROOT/scripts/check_admin_theme.test.mjs"
 node "$ROOT/scripts/check_admin_theme.mjs"
 
 "$VENV_PY" "$ROOT/scripts/check_repo_hygiene.py"
+"$VENV_PY" -B "$ROOT/scripts/test_generation_mode.py"
 "$VENV_PY" "$ROOT/scripts/check_storyboard_recipe_genericity.py"
 "$VENV_PY" "$ROOT/scripts/check_file_size_guardrails.py"
 "$VENV_PY" "$ROOT/scripts/check_style_drift.py"

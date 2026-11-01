@@ -1,8 +1,9 @@
 "use client";
 
-import { CircleDollarSign, Coins, LoaderCircle, Plus, Play, Redo2, Undo2, Workflow, X } from "lucide-react";
+import { CircleDollarSign, Coins, LoaderCircle, Plus, Redo2, Undo2, Workflow, X } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { humanizeGraphRunStatus } from "@/lib/status-language";
+import { GraphGenerationControls } from "./graph-generation-controls";
 import { GraphRunDiagnostics } from "./graph-run-diagnostics";
 import type { GraphEstimateResponse, GraphRun, GraphRunTransportMetrics, GraphWorkspaceTab } from "./types";
 import { graphEstimateToolbarLabel, graphPricingWarningLabel } from "./utils/graph-pricing";
@@ -306,6 +307,7 @@ export function GraphToolbar({
           <span>{compactPricingLabel}</span>
         </div>
       ) : null}
+      <GraphGenerationControls runActive={runActive} onRun={onRun} />
       {runActive ? (
         <button
           className={`graph-run-button graph-run-button-cancel ${runCancelling ? "graph-run-button-processing" : ""}`}
@@ -318,12 +320,7 @@ export function GraphToolbar({
           {runCancelling ? <LoaderCircle size={18} /> : <X size={18} />}
           {runCancelling ? "Cancelling" : "Cancel"}
         </button>
-      ) : (
-        <button className="graph-run-button" type="button" data-testid="graph-run-button" onClick={onRun}>
-          <Play size={18} />
-          Run
-        </button>
-      )}
+      ) : null}
     </div>
   );
 }

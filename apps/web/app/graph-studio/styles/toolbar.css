@@ -319,3 +319,43 @@
 .graph-main[data-assistant-docked="true"] > .graph-toolbar {
   grid-column: 1 / -1;
 }
+
+.graph-generation-notice {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  color: var(--graph-text);
+  background: color-mix(in srgb, var(--graph-warning) 6%, var(--graph-panel));
+  border: 1px solid color-mix(in srgb, var(--graph-warning) 24%, var(--graph-border));
+  border-radius: 8px;
+  font-size: 0.78rem;
+}
+
+.graph-toolbar .graph-generation-mode {
+  color: var(--graph-warning);
+  background: color-mix(in srgb, var(--graph-warning) 6%, var(--graph-panel));
+  border-color: color-mix(in srgb, var(--graph-warning) 30%, var(--graph-border));
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.graph-toolbar .graph-generation-mode:hover,
+.graph-toolbar .graph-generation-mode:focus-visible {
+  border-color: var(--graph-warning);
+  background: color-mix(in srgb, var(--graph-warning) 12%, var(--graph-panel));
+}
+
+.graph-generation-dialog {
+  width: min(420px, calc(100vw - 96px));
+  padding: 1rem;
+}
+
+.graph-generation-dialog p {
+  margin: 0;
+  color: var(--graph-text-muted);
+  line-height: 1.5;
+  font-size: 0.82rem;
+}
