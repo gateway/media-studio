@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .db import get_connection
+from .store_project_activity_writes import content_project_ids, touch_projects
 
 
 JSON_FIELDS = {
@@ -204,6 +205,8 @@ def upsert_table(table: str, pk_field: str, payload: Dict[str, Any]) -> Dict[str
     resolved.setdefault(pk_field, new_id(pk_field.replace("_id", "")))
     resolved.setdefault("created_at", now)
     with get_connection() as connection:
+        # Capture both owners when an asset is moved between projects.
+        previous_projects = content_project_ids(connection, table, resolved[pk_field])
         existing_columns = table_columns(connection, table)
         if "updated_at" in existing_columns:
             resolved["updated_at"] = now
@@ -219,6 +222,7 @@ def upsert_table(table: str, pk_field: str, payload: Dict[str, Any]) -> Dict[str
             % (table, ", ".join(columns), placeholders, pk_field, updates),
             values,
         )
+        touch_projects(connection, previous_projects | content_project_ids(connection, table, resolved[pk_field]), now)
     return get_table(table, pk_field, resolved[pk_field])  # type: ignore
 
 

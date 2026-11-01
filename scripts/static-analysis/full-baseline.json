@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Reviewed eight context-only clone identity changes after adding generation-mode API and idle-work query; clone bodies and token/line metrics match origin/main, no new duplication",
+  "reason": "Reviewed one unchanged search-pattern helper pair after moving project reads; duplicate function ASTs and 79-token/15-line metrics unchanged, only adjacent declaration and file context changed",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -298,6 +298,26 @@
       "tokens": 73,
       "lines": 9,
       "format": "typescript"
+    },
+    {
+      "id": "0d82012e32ed639f76eb5f67dc578b3c64f66629d5036a772e58826438f2b7d9",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_reference_media.py",
+          "start": 13,
+          "end": 27,
+          "context": "75b80eeb3b1ac776a989ce741b9f26e7b08b744b78e6e99a371aea113e2b2082"
+        },
+        {
+          "file": "apps/api/app/store.py",
+          "start": 265,
+          "end": 279,
+          "context": "fa900bf28eac4f0ca1086756e3505c5624b420dbc147ec0ec7343e94eb62bff8"
+        }
+      ],
+      "tokens": 79,
+      "lines": 15,
+      "format": "python"
     },
     {
       "id": "0f1a882d6297060cb2a9b9d4c3d9be7845e2b7e27f369f75636972bac2b82303",
@@ -4097,26 +4117,6 @@
       ],
       "tokens": 57,
       "lines": 8,
-      "format": "python"
-    },
-    {
-      "id": "c18102856fb8c09554cc42a244d52e976777a9f9fc9f86f2229cb68b681ffe1c",
-      "endpoints": [
-        {
-          "file": "apps/api/app/store_reference_media.py",
-          "start": 12,
-          "end": 26,
-          "context": "099486689d0c065a1a387eea355c656eee279adf77c76cb451e9e28bd519a5aa"
-        },
-        {
-          "file": "apps/api/app/store.py",
-          "start": 276,
-          "end": 290,
-          "context": "975e016cd2031659baf6bae2a69ed174750d85c2b333a0315802f687d5ecbc96"
-        }
-      ],
-      "tokens": 79,
-      "lines": 15,
       "format": "python"
     },
     {

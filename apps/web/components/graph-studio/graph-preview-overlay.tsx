@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
 import { useEffect } from "react";
 
 import type { GraphMediaPreview } from "./types";
@@ -38,8 +38,19 @@ export function GraphPreviewOverlay({
   }, [hasMultiple, index, onClose, onNavigate, preview, previews.length]);
 
   if (!preview) return null;
+  const mediaUrl = preview.fullUrl ?? preview.url;
   return (
     <div className="graph-preview-overlay" data-testid="graph-preview-overlay" role="dialog" aria-label="Graph media preview" onClick={onClose}>
+      <a
+        className="graph-preview-download"
+        href={mediaUrl}
+        download
+        aria-label={`Download original ${preview.mediaType}`}
+        title={`Download original ${preview.mediaType}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Download size={20} />
+      </a>
       <button className="graph-preview-close" type="button" aria-label="Close preview" onClick={onClose}>
         <X size={20} />
       </button>
@@ -74,9 +85,9 @@ export function GraphPreviewOverlay({
       ) : null}
       <div className="graph-preview-stage" onClick={(event) => event.stopPropagation()}>
         {preview.mediaType === "video" ? (
-          <video src={preview.fullUrl ?? preview.url} poster={preview.posterUrl ?? undefined} controls autoPlay />
+          <video src={mediaUrl} poster={preview.posterUrl ?? undefined} controls autoPlay />
         ) : (
-          <img src={preview.fullUrl ?? preview.url} alt={preview.label ?? "Graph media preview"} />
+          <img src={mediaUrl} alt={preview.label ?? "Graph media preview"} />
         )}
       </div>
     </div>

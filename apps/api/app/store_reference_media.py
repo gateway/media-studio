@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from .db import get_connection
+from .store_project_activity_writes import touch_projects
 from .store_support import (
     decode_row as _decode_row,
     get_table as _get_table,
@@ -47,7 +48,7 @@ def list_project_references(project_id: str, *, kind: Optional[str] = None, stat
 def attach_reference_to_project(project_id: str, reference_id: str) -> Dict[str, Any]:
     now = utcnow_iso()
     with get_connection() as connection:
-        connection.execute(
+        cursor = connection.execute(
             """
             INSERT INTO media_project_references (project_id, reference_id, created_at)
             VALUES (?, ?, ?)
@@ -55,6 +56,8 @@ def attach_reference_to_project(project_id: str, reference_id: str) -> Dict[str,
             """,
             (project_id, reference_id, now),
         )
+        if cursor.rowcount:
+            touch_projects(connection, [project_id], now)
     record = get_reference_media(reference_id)
     if not record:
         raise KeyError("reference media not found")
@@ -63,10 +66,12 @@ def attach_reference_to_project(project_id: str, reference_id: str) -> Dict[str,
 
 def detach_reference_from_project(project_id: str, reference_id: str) -> Dict[str, Any]:
     with get_connection() as connection:
-        connection.execute(
+        cursor = connection.execute(
             "DELETE FROM media_project_references WHERE project_id = ? AND reference_id = ?",
             (project_id, reference_id),
         )
+        if cursor.rowcount:
+            touch_projects(connection, [project_id], utcnow_iso())
     record = get_reference_media(reference_id)
     if not record:
         raise KeyError("reference media not found")

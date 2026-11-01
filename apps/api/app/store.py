@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from .db_backup import backup_database
 from .store_preset_listing import list_presets, list_presets_page
 from .db import get_connection
+from .store_project_activity import get_project as get_project, list_projects as list_projects
 from .settings import settings
 from .store_support import (
     asset_output_dimensions,
@@ -256,18 +257,6 @@ def delete_prompt_recipe(recipe_id: str) -> Dict[str, Any]:
     return create_or_update_prompt_recipe(record)
 
 
-def list_projects(status: Optional[str] = "active") -> List[Dict[str, Any]]:
-    clauses = ["1 = 1"]
-    params: List[Any] = []
-    if status and status != "all":
-        clauses.append("status = ?")
-        params.append(status)
-    query = "SELECT * FROM media_projects WHERE %s ORDER BY updated_at DESC, name ASC" % " AND ".join(clauses)
-    with get_connection() as connection:
-        rows = connection.execute(query, params).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
 def _visible_in_global_gallery_clause(table_name: str) -> str:
     return (
         f"({table_name}.project_id IS NULL OR {table_name}.project_id NOT IN ("
@@ -285,10 +274,6 @@ def _like_search_pattern(query: Optional[str]) -> Optional[str]:
         + cleaned.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         + "%"
     )
-
-
-def get_project(project_id: str) -> Optional[Dict[str, Any]]:
-    return _get_table("media_projects", "project_id", project_id)
 
 
 def create_or_update_project(payload: Dict[str, Any]) -> Dict[str, Any]:
