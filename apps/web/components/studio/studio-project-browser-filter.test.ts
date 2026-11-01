@@ -20,4 +20,30 @@ describe("project browsing filters", () => {
     expect(ids(filterProjects(projects, "", "30", "oldest", now))).toEqual(["month", "old", "week", "today"]);
     expect(ids(filterProjects(projects, "", "all", "recent", now)).at(-1)).toBe("unknown");
   });
+  it("combines search with each calendar window across a month boundary", () => {
+    const now = new Date(2026, 10, 1, 12);
+    const midnight = (month: number, day: number) => new Date(2026, month, day).getTime();
+    const at = (time: number) => new Date(time).toISOString();
+    const projects = [
+      project("today", "Sadi", at(midnight(10, 1))),
+      project("week", "Sadi week", at(midnight(9, 26))),
+      project("before-week", "Sadi older", at(midnight(9, 26) - 1)),
+      project("month", "Sadi month", at(midnight(9, 3))),
+      project("before-month", "Sadi old", at(midnight(9, 3) - 1)),
+      project("other", "Other", at(midnight(10, 1))),
+      project("tomorrow", "Sadi future", at(midnight(10, 2))),
+    ];
+    expect(ids(filterProjects(projects, "  SADI ", "today", "recent", now))).toEqual(["today"]);
+    expect(ids(filterProjects(projects, "sadi", "7", "oldest", now))).toEqual(["week", "today"]);
+    expect(ids(filterProjects(projects, "sadi", "30", "recent", now))).toEqual(["today", "week", "before-week", "month"]);
+    expect(filterProjects(projects, "missing", "30", "name", now)).toEqual([]);
+    expect(filterProjects(projects, "sadi", "all", "name", now)).toHaveLength(6);
+  });
+  it("breaks equal activity dates by name and ID for both date sorts", () => {
+    const projects = [project("z", "Alpha", "2026-11-01"), project("a", "Alpha", "2026-11-01"), project("b", "Beta", "2026-11-01")];
+    for (const sort of ["recent", "oldest", "name"] as const) {
+      expect(ids(filterProjects(projects, "", "all", sort))).toEqual(["a", "z", "b"]);
+    }
+  });
+
 });

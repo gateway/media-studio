@@ -76,7 +76,8 @@
   box-shadow: 0 26px 90px color-mix(in srgb, black 55%, transparent);
 }
 
-.graph-preview-close {
+.graph-preview-close,
+.graph-preview-download {
   position: fixed;
   top: 1rem;
   right: 1rem;
@@ -90,6 +91,10 @@
   color: var(--graph-text);
   background: color-mix(in srgb, var(--graph-panel-modal) 92%, transparent);
   cursor: pointer;
+}
+
+.graph-preview-download {
+  right: calc(1rem + 50px);
 }
 
 .graph-preview-nav {
@@ -111,7 +116,9 @@
 .graph-preview-nav:hover,
 .graph-preview-nav:focus-visible,
 .graph-preview-close:hover,
-.graph-preview-close:focus-visible {
+.graph-preview-close:focus-visible,
+.graph-preview-download:hover,
+.graph-preview-download:focus-visible {
   border-color: color-mix(in srgb, var(--graph-accent) 44%, transparent);
   outline: none;
 }
