@@ -1,6 +1,12 @@
 "use client";
 
-import { AudioLines, Clapperboard, Image as ImageIcon, type LucideIcon, Upload } from "lucide-react";
+import {
+  AudioLines,
+  Clapperboard,
+  ImagePlus,
+  type LucideIcon,
+  Upload,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -43,7 +49,9 @@ function inferMediaKindFromAccept(accept: string): StudioMediaSlotAddTileKind {
   return "image";
 }
 
-export function studioMediaSlotAddTileIcon(kind: StudioMediaSlotAddTileKind): LucideIcon {
+export function studioMediaSlotAddTileIcon(
+  kind: StudioMediaSlotAddTileKind,
+): LucideIcon {
   if (kind === "video") {
     return Clapperboard;
   }
@@ -53,7 +61,7 @@ export function studioMediaSlotAddTileIcon(kind: StudioMediaSlotAddTileKind): Lu
   if (kind === "mixed") {
     return Upload;
   }
-  return ImageIcon;
+  return ImagePlus;
 }
 
 export function StudioMediaSlotAddTile({
@@ -95,9 +103,7 @@ export function StudioMediaSlotAddTile({
 
   return (
     <div className={cn("studio-media-slot-add-wrapper", wrapperClassName)}>
-      {label ? (
-        <div className="studio-slot-label">{label}</div>
-      ) : null}
+      {label ? <div className="studio-slot-label">{label}</div> : null}
       <label
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -105,7 +111,9 @@ export function StudioMediaSlotAddTile({
         className={cn(
           "studio-slot-tile",
           isDragActive ? "studio-slot-tile-drag-active" : "",
-          disabled ? "cursor-not-allowed opacity-45 hover:border-white/10 hover:bg-white/[0.06]" : "",
+          disabled
+            ? "cursor-not-allowed opacity-45 hover:border-white/10 hover:bg-white/[0.06]"
+            : "",
           tileClassName,
         )}
       >
@@ -122,7 +130,9 @@ export function StudioMediaSlotAddTile({
           data-testid={testId}
           className="hidden"
           disabled={disabled}
-          onChange={(event) => onPickFiles(event.target.files, event.currentTarget)}
+          onChange={(event) =>
+            onPickFiles(event.target.files, event.currentTarget)
+          }
         />
       </label>
     </div>

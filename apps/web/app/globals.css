@@ -2785,6 +2785,7 @@ textarea {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
+    align-self: stretch;
     gap: 8px;
   }
 
@@ -2887,11 +2888,17 @@ textarea {
     .studio-icon-button {
     width: 24px;
     height: 24px;
-    border: 0;
     border-radius: var(--ms-radius-control-sm);
+    backdrop-filter: none;
+  }
+
+  :where(.studio-create-stage-immersive)
+    .studio-gallery-tile[draggable="true"]
+    :is(.studio-gallery-icon-row, .studio-gallery-video-overlay)
+    .studio-icon-button:where(:not(button)) {
+    border: 0;
     background: color-mix(in srgb, var(--ms-surface-primary) 76%, transparent);
     color: var(--text-primary);
-    backdrop-filter: none;
   }
 
   :where(.studio-create-stage-immersive)
@@ -2906,7 +2913,9 @@ textarea {
     .studio-gallery-tile[draggable="true"]
     .studio-gallery-icon-row
     > button:not(:hover, :focus-visible, .studio-icon-button-favorite) {
+    border-color: transparent;
     background: transparent;
+    color: var(--text-primary);
     filter: drop-shadow(0 1px 2px var(--ms-surface-primary));
   }
 

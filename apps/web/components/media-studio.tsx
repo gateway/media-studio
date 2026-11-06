@@ -170,6 +170,10 @@ export function MediaStudio({
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(
     null,
   );
+  const graphReturnTargetRef = useRef<{
+    pathname: string;
+    href: string;
+  } | null>(null);
   const composerShellRef = useRef<HTMLDivElement | null>(null);
   const overlayUnlockScrollOverrideRef = useRef<number | null>(null);
   const lastComposerDebugSignatureRef = useRef<string | null>(null);
@@ -1638,6 +1642,15 @@ export function MediaStudio({
   ]);
 
   useEffect(() => {
+    if (graphReturnTargetRef.current?.pathname !== pathname) {
+      const params = new URLSearchParams(window.location.search);
+      graphReturnTargetRef.current = {
+        pathname,
+        href: buildGraphStudioHref(params.get("graphTab")),
+      };
+    }
+    const graphReturnHref = graphReturnTargetRef.current.href;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         [
@@ -1658,8 +1671,7 @@ export function MediaStudio({
       });
       if (action === "open-graph") {
         event.preventDefault();
-        const params = new URLSearchParams(window.location.search);
-        void router.push(buildGraphStudioHref(params.get("graphTab")));
+        void router.push(graphReturnHref);
         return;
       }
       if (action === "open-projects") {
@@ -1688,6 +1700,7 @@ export function MediaStudio({
   }, [
     isTypingTarget,
     lockingOverlayOpen,
+    pathname,
     openContextualReferenceLibrary,
     router,
     selectedProjectId,
