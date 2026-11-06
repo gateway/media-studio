@@ -76,7 +76,11 @@ export function StudioComposerModelPicker({
   if (structuredPresetActive && presetModelChoices.length <= 1) return null;
   const modelLabel = studioComposerModelLabel(model?.label);
   const label = leading
-    ? modelLabel.replace(/ (image to image|text to image)$/i, "\n$1")
+    ? modelLabel.replace(
+        / (image to image|text to image)$/i,
+        (_, mode: string) =>
+          `\n${mode[0].toUpperCase()}${mode.slice(1).toLowerCase()}`,
+      )
     : modelLabel;
   return (
     <PillSelect
@@ -197,7 +201,7 @@ export function StudioComposerControls({
 
     const currentValue = optionValues[optionKey];
     const resolvedValue = currentValue ?? schema.default;
-    const choices = buildChoiceList(modelKey, optionKey, schema, currentValue);
+    const choices = buildChoiceList(optionKey, schema, currentValue);
     const [firstChoice = { label: "Select" }] = choices;
     const resolvedLabel =
       resolvedValue == null || resolvedValue === ""
@@ -334,7 +338,7 @@ export function StudioComposerControls({
           credits={estimatedCredits}
           hasPrice={generateButtonLabel !== "Generate"}
         />
-        <div className="flex items-center gap-2">
+        <div className="studio-composer-action-group flex items-center gap-2">
           <button
             type="button"
             onClick={onClear}

@@ -3,7 +3,7 @@ import {
   Clock3,
   Globe2,
   Monitor,
-  RectangleHorizontal,
+  Ratio,
   RectangleVertical,
   SlidersHorizontal,
   Sparkles,
@@ -11,7 +11,10 @@ import {
   Volume2,
 } from "lucide-react";
 
-import { HIDDEN_STUDIO_OPTION_KEYS, optionChoices } from "@/lib/studio-model-support";
+import {
+  HIDDEN_STUDIO_OPTION_KEYS,
+  optionChoices,
+} from "@/lib/studio-model-support";
 import type { MediaModelSummary } from "@/lib/types";
 import { isRecord } from "@/lib/utils";
 
@@ -41,9 +44,18 @@ const STUDIO_PICKER_WIDTHS: Record<string, string> = {
 };
 
 export function optionEntries(model: MediaModelSummary | null) {
-  if (Array.isArray(model?.studio_dynamic_options) && model.studio_dynamic_options.length) {
+  if (
+    Array.isArray(model?.studio_dynamic_options) &&
+    model.studio_dynamic_options.length
+  ) {
     return model.studio_dynamic_options
-      .filter((option) => option && !option.hidden_from_studio && option.key && !HIDDEN_STUDIO_OPTION_KEYS.has(option.key))
+      .filter(
+        (option) =>
+          option &&
+          !option.hidden_from_studio &&
+          option.key &&
+          !HIDDEN_STUDIO_OPTION_KEYS.has(option.key),
+      )
       .map((option) => {
         const schema: Record<string, unknown> = {
           type: option.type,
@@ -72,7 +84,9 @@ export function optionEntries(model: MediaModelSummary | null) {
 
 export function sanitizeStudioOptions(options: Record<string, unknown>) {
   return Object.fromEntries(
-    Object.entries(options).filter(([key]) => !HIDDEN_STUDIO_OPTION_KEYS.has(key)),
+    Object.entries(options).filter(
+      ([key]) => !HIDDEN_STUDIO_OPTION_KEYS.has(key),
+    ),
   );
 }
 
@@ -100,7 +114,10 @@ export function buildNormalizedStudioOptions(
     ...currentOptions,
   };
   for (const [optionKey, schema] of optionEntries(model)) {
-    if (optionKey === "sound" && !hasUsableOptionValue(currentOptions[optionKey])) {
+    if (
+      optionKey === "sound" &&
+      !hasUsableOptionValue(currentOptions[optionKey])
+    ) {
       seededOptions[optionKey] = false;
       continue;
     }
@@ -135,17 +152,22 @@ function aspectRatioIcon(value: unknown) {
   const raw = String(value ?? "").trim();
   const match = raw.match(/^(\d+(?:\.\d+)?)\s*[:x/]\s*(\d+(?:\.\d+)?)$/i);
   if (!match) {
-    return RectangleHorizontal;
+    return Ratio;
   }
   const width = Number(match[1]);
   const height = Number(match[2]);
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return RectangleHorizontal;
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    return Ratio;
   }
   if (Math.abs(width - height) < 0.001) {
     return Square;
   }
-  return width > height ? RectangleHorizontal : RectangleVertical;
+  return width > height ? Ratio : RectangleVertical;
 }
 
 export function optionIcon(optionKey: string, value?: unknown) {
@@ -162,7 +184,7 @@ export function optionIcon(optionKey: string, value?: unknown) {
     return aspectRatioIcon(value);
   }
   if (optionKey.includes("resolution") || optionKey.includes("size")) {
-    return RectangleHorizontal;
+    return Monitor;
   }
   if (optionKey.includes("preset")) {
     return Sparkles;
@@ -184,7 +206,8 @@ export function pickerWidth(pickerId: string) {
   if (pickerId.includes("audio")) return STUDIO_PICKER_WIDTHS.audio;
   if (pickerId.includes("duration")) return STUDIO_PICKER_WIDTHS.duration;
   if (pickerId.includes("ratio")) return STUDIO_PICKER_WIDTHS.aspect_ratio;
-  if (pickerId.includes("resolution") || pickerId.includes("size")) return STUDIO_PICKER_WIDTHS.resolution;
+  if (pickerId.includes("resolution") || pickerId.includes("size"))
+    return STUDIO_PICKER_WIDTHS.resolution;
   if (pickerId.includes("format")) return STUDIO_PICKER_WIDTHS.output_format;
   if (pickerId.includes("web")) return STUDIO_PICKER_WIDTHS.google_search;
   return "w-[calc(50%-0.25rem)] sm:w-[108px]";
@@ -204,11 +227,23 @@ export function serializeOptionChoice(value: unknown) {
   return String(value ?? "");
 }
 
-export function parseOptionChoice(schema: Record<string, unknown>, value: string) {
-  if (schema.type === "bool" || schema.type === "boolean" || typeof schema.default === "boolean") {
+export function parseOptionChoice(
+  schema: Record<string, unknown>,
+  value: string,
+) {
+  if (
+    schema.type === "bool" ||
+    schema.type === "boolean" ||
+    typeof schema.default === "boolean"
+  ) {
     return value === "true";
   }
-  if (schema.type === "number" || schema.type === "int_range" || schema.type === "float_range" || schema.type === "number_range") {
+  if (
+    schema.type === "number" ||
+    schema.type === "int_range" ||
+    schema.type === "float_range" ||
+    schema.type === "number_range"
+  ) {
     const parsed = Number(value);
     return Number.isNaN(parsed) ? value : parsed;
   }
@@ -256,7 +291,10 @@ export function toWholeNumber(value: unknown) {
   return null;
 }
 
-export function parseMultiShotScript(script: string, selectedDuration: unknown): MultiShotParseResult {
+export function parseMultiShotScript(
+  script: string,
+  selectedDuration: unknown,
+): MultiShotParseResult {
   const trimmed = script.trim();
   if (!trimmed) {
     return {
@@ -283,12 +321,16 @@ export function parseMultiShotScript(script: string, selectedDuration: unknown):
       const duration = Number(durationText);
 
       if (!Number.isInteger(duration) || duration <= 0) {
-        errors.push(`Line ${index + 1} needs a whole-number duration before the pipe.`);
+        errors.push(
+          `Line ${index + 1} needs a whole-number duration before the pipe.`,
+        );
         return [];
       }
 
       if (duration < 1 || duration > 12) {
-        errors.push(`Line ${index + 1} duration must stay between 1 and 12 seconds.`);
+        errors.push(
+          `Line ${index + 1} duration must stay between 1 and 12 seconds.`,
+        );
         return [];
       }
 
@@ -302,14 +344,24 @@ export function parseMultiShotScript(script: string, selectedDuration: unknown):
 
   const totalDuration = shots.reduce((sum, shot) => sum + shot.duration, 0);
   const expectedDuration = toWholeNumber(selectedDuration);
-  if (expectedDuration != null && shots.length && totalDuration !== expectedDuration) {
-    errors.push(`Shot durations total ${totalDuration}s, but the selected duration is ${expectedDuration}s.`);
+  if (
+    expectedDuration != null &&
+    shots.length &&
+    totalDuration !== expectedDuration
+  ) {
+    errors.push(
+      `Shot durations total ${totalDuration}s, but the selected duration is ${expectedDuration}s.`,
+    );
   }
 
   return { shots, errors, totalDuration };
 }
 
-export function displayChoiceLabel(optionKey: string, _schema: Record<string, unknown>, value: unknown) {
+export function displayChoiceLabel(
+  optionKey: string,
+  _schema: Record<string, unknown>,
+  value: unknown,
+) {
   if (value == null || value === "") {
     return "Select";
   }
@@ -324,7 +376,10 @@ export function displayChoiceLabel(optionKey: string, _schema: Record<string, un
   if (optionKey === "output_format" && typeof value === "string") {
     return value.toUpperCase();
   }
-  if ((optionKey === "resolution" || optionKey === "size") && typeof value === "string") {
+  if (
+    (optionKey === "resolution" || optionKey === "size") &&
+    typeof value === "string"
+  ) {
     return value.replaceAll("_", " ").toUpperCase();
   }
   if (typeof value === "boolean") {
@@ -338,29 +393,24 @@ export function displayChoiceLabel(optionKey: string, _schema: Record<string, un
   return String(value);
 }
 
-export function displayOptionControlLabel(optionKey: string, valueLabel: string) {
+export function displayOptionControlLabel(
+  optionKey: string,
+  valueLabel: string,
+) {
   if (optionKey === "duration") {
-    return valueLabel.toLowerCase() === "select" ? "Duration" : `Duration ${valueLabel}`;
+    return valueLabel.toLowerCase() === "select"
+      ? "Duration"
+      : `Duration ${valueLabel}`;
   }
   return valueLabel;
 }
 
-export function studioOptionChoices(
-  modelKey: string | null | undefined,
-  optionKey: string,
-  schema: Record<string, unknown>,
-  currentValue: unknown,
-) {
-  return optionChoices(schema, currentValue);
-}
-
 export function buildChoiceList(
-  modelKey: string | null | undefined,
   optionKey: string,
   schema: Record<string, unknown>,
   currentValue: unknown,
 ): StudioChoice[] {
-  return studioOptionChoices(modelKey, optionKey, schema, currentValue).map((choice) => ({
+  return optionChoices(schema, currentValue).map((choice) => ({
     value: serializeOptionChoice(choice),
     label: displayChoiceLabel(optionKey, schema, choice),
   }));

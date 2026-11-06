@@ -10,6 +10,7 @@ import {
 import { useState, type ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
+import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioMultiImageReferenceStrip } from "@/components/studio/studio-multi-image-reference-strip";
 import { orderedImageInputPreview } from "@/lib/studio-reference-previews";
 
@@ -20,17 +21,37 @@ function ReferenceStripHarness(
 ) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <StudioMultiImageReferenceStrip
-      {...props}
-      expanded={expanded}
-      onExpandedChange={setExpanded}
-    />
+    <StudioComposer
+      immersive
+      composerCollapsed={false}
+      mobileComposerCollapsed={false}
+      mobileComposerExpanded
+      currentModelLabel="Image model"
+      formattedRemainingCredits={null}
+      estimatedCredits={null}
+      structuredPresetActive={false}
+      presetLabel={null}
+      floatingComposerStatus={null}
+      onToggleCollapsed={vi.fn()}
+      onToggleComposerCollapsed={vi.fn()}
+      orderedImageReferences={
+        <StudioMultiImageReferenceStrip
+          {...props}
+          expanded={expanded}
+          onExpandedChange={setExpanded}
+        />
+      }
+    >
+      <label>
+        Prompt <textarea />
+      </label>
+    </StudioComposer>
   );
 }
 
 afterEach(cleanup);
 
-it("presents the same ordered references and actions when expanded", () => {
+it("keeps the ordered reference actions available when the mobile composer and references are expanded", () => {
   const first = {
     source: "attachment",
     attachment: {
@@ -99,7 +120,7 @@ it("presents the same ordered references and actions when expanded", () => {
   fireEvent.change(replace, { target: { files } });
   expect(callbacks.onReplaceImageFile).toHaveBeenCalledExactlyOnceWith(
     files,
-    1,
+    second,
     replace,
   );
 

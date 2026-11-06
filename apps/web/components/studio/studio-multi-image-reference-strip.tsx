@@ -51,7 +51,7 @@ type StudioMultiImageReferenceStripProps = {
   ) => void;
   onReplaceImageFile: (
     fileList: FileList,
-    slotIndex: number,
+    slot: OrderedImageInput,
     input: HTMLInputElement,
   ) => void;
 };
@@ -101,7 +101,7 @@ export function StudioMultiImageReferenceStrip({
             accept="image/*"
             testId={`${testId}-replace`}
             onPickFiles={(files, input) =>
-              onReplaceImageFile(files, slotIndex, input)
+              onReplaceImageFile(files, slot, input)
             }
           />
         }

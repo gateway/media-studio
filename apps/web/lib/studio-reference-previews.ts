@@ -6,7 +6,10 @@ import {
   mediaThumbnailUrl,
 } from "@/lib/studio-media-urls";
 import type { MediaAsset } from "@/lib/types";
-import type { OrderedImageInput, StudioReferencePreview } from "@/lib/media-studio-helpers";
+import type {
+  OrderedImageInput,
+  StudioReferencePreview,
+} from "@/lib/media-studio-helpers";
 import { videoMetadataLabels } from "@/lib/video-metadata";
 
 function compactVideoMetadataLabel(input: {
@@ -19,7 +22,11 @@ function compactVideoMetadataLabel(input: {
     width: input.width ?? null,
     height: input.height ?? null,
   });
-  return [labels.durationLabel, labels.resolutionLabel].filter(Boolean).join(" · ") || null;
+  return (
+    [labels.durationLabel, labels.resolutionLabel]
+      .filter(Boolean)
+      .join(" · ") || null
+  );
 }
 
 export function buildAttachmentPreview(
@@ -27,7 +34,8 @@ export function buildAttachmentPreview(
   label: string,
   previewKey = label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
 ): StudioReferencePreview | null {
-  const url = attachment?.previewUrl ?? attachment?.referenceRecord?.stored_url ?? null;
+  const url =
+    attachment?.previewUrl ?? attachment?.referenceRecord?.stored_url ?? null;
   if (!url) {
     return null;
   }
@@ -36,16 +44,60 @@ export function buildAttachmentPreview(
     label,
     url,
     kind: attachment?.kind ?? "images",
-    posterUrl: attachment?.kind === "videos" ? attachment?.referenceRecord?.poster_url ?? null : undefined,
+    posterUrl:
+      attachment?.kind === "videos"
+        ? (attachment?.referenceRecord?.poster_url ?? null)
+        : undefined,
     metadataLabel:
       attachment?.kind === "videos"
         ? compactVideoMetadataLabel({
-            durationSeconds: attachment.durationSeconds ?? attachment.referenceRecord?.duration_seconds ?? null,
-            width: attachment.width ?? attachment.referenceRecord?.width ?? null,
-            height: attachment.height ?? attachment.referenceRecord?.height ?? null,
+            durationSeconds:
+              attachment.durationSeconds ??
+              attachment.referenceRecord?.duration_seconds ??
+              null,
+            width:
+              attachment.width ?? attachment.referenceRecord?.width ?? null,
+            height:
+              attachment.height ?? attachment.referenceRecord?.height ?? null,
           })
         : null,
   };
+}
+
+function seedanceReferenceLabel(attachment: AttachmentRecord) {
+  return (
+    attachment.file?.name ??
+    attachment.referenceRecord?.original_filename ??
+    "Reference"
+  );
+}
+
+export function seedanceReferencePreview(
+  attachment: AttachmentRecord,
+  groupKey: string,
+  buildPreview: typeof buildAttachmentPreview,
+): StudioReferencePreview {
+  const label = seedanceReferenceLabel(attachment);
+  return (
+    buildPreview(attachment, label, `${groupKey}-${attachment.id}`) ?? {
+      key: `attachment:${attachment.id}`,
+      label,
+      url:
+        attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
+      kind: attachment.kind,
+      posterUrl: attachment.referenceRecord?.poster_url ?? null,
+    }
+  );
+}
+
+export function seedanceReferenceVisual(attachment: AttachmentRecord) {
+  if (attachment.kind === "audios") return null;
+  return (
+    attachment.previewUrl ??
+    attachment.referenceRecord?.thumb_url ??
+    attachment.referenceRecord?.stored_url ??
+    null
+  );
 }
 
 export function buildAssetReferencePreview(
@@ -61,7 +113,10 @@ export function buildAssetReferencePreview(
       : asset.generation_kind === "audio"
         ? ("audios" as const)
         : ("images" as const);
-  const posterUrl = kind === "videos" ? mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset) ?? null : null;
+  const posterUrl =
+    kind === "videos"
+      ? (mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset) ?? null)
+      : null;
   const url =
     (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
     mediaInlineUrl(asset) ??
@@ -100,5 +155,9 @@ export function orderedImageInputPreview(
       posterUrl: null,
     };
   }
-  return buildAttachmentPreview(slot.attachment as AttachmentRecord, label, key);
+  return buildAttachmentPreview(
+    slot.attachment as AttachmentRecord,
+    label,
+    key,
+  );
 }

@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   useTransition,
+  type SetStateAction,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -166,8 +167,25 @@ export function MediaStudio({
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(
     null,
   );
-  const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(
+  const [sourceAssetId, setSourceAsset] = useState<string | number | null>(
     null,
+  );
+  // A decoded replacement must claim the latest source, including a selection
+  // queued before React has rendered it.
+  const sourceAssetIdentity = useRef<{ assetId: typeof sourceAssetId }>({
+    assetId: null,
+  });
+  const setSourceAssetId = useCallback(
+    (update: SetStateAction<typeof sourceAssetId>) => {
+      const current = sourceAssetIdentity.current;
+      const assetId =
+        typeof update === "function" ? update(current.assetId) : update;
+      if (assetId !== current.assetId) {
+        sourceAssetIdentity.current = { assetId };
+      }
+      setSourceAsset(assetId);
+    },
+    [],
   );
   const graphReturnTargetRef = useRef<{
     pathname: string;
@@ -1389,47 +1407,43 @@ export function MediaStudio({
       onResetFileInput={resetFileInputValue}
     />
   ) : null;
-  const mobileInputsSection = !structuredPresetActive ? (
-    <StudioMobileInputsContent
-      inputRail={composerInputRail}
-      effectiveSeedanceMode={effectiveSeedanceMode}
-      imageLimitLabel={imageLimitLabel}
-      orderedImageInputs={orderedImageInputs}
-      canAddMoreImages={canAddMoreImages}
-      isDragActive={isDragActive}
-      seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
-      seedanceLastFrameAttachment={seedanceLastFrameAttachment}
-      seedanceReferenceImages={seedanceReferenceImages}
-      seedanceReferenceVideos={seedanceReferenceVideos}
-      seedanceReferenceAudios={seedanceReferenceAudios}
-      maxImageReferences={maxImageInputs}
-      maxVideoReferences={maxVideoInputs}
-      maxAudioReferences={maxAudioInputs}
-      standardComposerSectionTitle={standardComposerSectionTitle}
-      standardComposerSummaryLabel={standardComposerLayout.summaryLabel}
-      standardComposerSlots={standardComposerSlots}
-      mobileAddTileClassName={mobileAddTileClassName}
-      mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
-      buildOrderedImageInputPreview={orderedImageInputPreview}
-      {...composerMediaInteractionProps}
-      onDropIntoSourceSlot={(event, slotIndex, slot) =>
-        void handleSourceTileDrop(event, slotIndex, slot)
-      }
-      onSeedanceReferenceDrop={(event, kind) =>
-        void handleSeedanceReferenceDrop(event, kind)
-      }
-      onOpenPreview={openReferencePreview}
-      onClearOrderedImageInput={clearOrderedImageInput}
-      onRemoveAttachment={removeAttachment}
-      onClearStandardComposerSlot={clearStandardComposerSlot}
-      onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
-      onAddFiles={(files, options) => {
-        addFiles(files, options).catch(reportActionError);
-      }}
-      onAddImageFilesToOrderedSlot={addImageFilesToOrderedSlot}
-      onResetFileInput={resetFileInputValue}
-    />
-  ) : null;
+  const mobileInputsSection =
+    !structuredPresetActive && !dedicatedImageReferenceRailActive ? (
+      <StudioMobileInputsContent
+        inputRail={composerInputRail}
+        effectiveSeedanceMode={effectiveSeedanceMode}
+        orderedImageInputs={orderedImageInputs}
+        isDragActive={isDragActive}
+        seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
+        seedanceLastFrameAttachment={seedanceLastFrameAttachment}
+        seedanceReferenceImages={seedanceReferenceImages}
+        seedanceReferenceVideos={seedanceReferenceVideos}
+        seedanceReferenceAudios={seedanceReferenceAudios}
+        maxImageReferences={maxImageInputs}
+        maxVideoReferences={maxVideoInputs}
+        maxAudioReferences={maxAudioInputs}
+        standardComposerSectionTitle={standardComposerSectionTitle}
+        standardComposerSummaryLabel={standardComposerLayout.summaryLabel}
+        standardComposerSlots={standardComposerSlots}
+        mobileAddTileClassName={mobileAddTileClassName}
+        mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
+        {...composerMediaInteractionProps}
+        onDropIntoSourceSlot={(event, slotIndex, slot) =>
+          void handleSourceTileDrop(event, slotIndex, slot)
+        }
+        onSeedanceReferenceDrop={(event, kind) =>
+          void handleSeedanceReferenceDrop(event, kind)
+        }
+        onOpenPreview={openReferencePreview}
+        onRemoveAttachment={removeAttachment}
+        onClearStandardComposerSlot={clearStandardComposerSlot}
+        onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
+        onAddFiles={(files, options) => {
+          addFiles(files, options).catch(reportActionError);
+        }}
+        onResetFileInput={resetFileInputValue}
+      />
+    ) : null;
 
   useEffect(() => {
     setHasMounted(true);
@@ -2135,25 +2149,45 @@ export function MediaStudio({
     resetFileInputValue(input ?? null);
   }
 
+  function claimSourceImageForReplacement(
+    assetId: string | number,
+    identity: typeof sourceAssetIdentity.current,
+  ) {
+    if (
+      sourceAssetIdentity.current !== identity ||
+      identity.assetId === null ||
+      String(identity.assetId) !== String(assetId)
+    )
+      return false;
+    clearSourceAsset();
+    return true;
+  }
+
   function replaceOrderedImageFile(
     files: FileList,
-    slotIndex: number,
+    slot: (typeof orderedImageInputs)[number],
     input: HTMLInputElement,
   ) {
-    const slot = orderedImageInputs[slotIndex];
-    if (!slot) return;
-
-    // The gallery source is outside the attachment list; subsequent slots are
-    // indexed one position earlier by the existing attachment replacement.
-    const hasGallerySource = orderedImageInputs[0]?.source === "asset";
-    const attachmentIndex = Math.max(0, slotIndex - Number(hasGallerySource));
+    const sourceIdentity = sourceAssetIdentity.current;
+    const replacement =
+      slot.source === "asset"
+        ? {
+            claimSourceImage: () =>
+              claimSourceImageForReplacement(
+                slot.asset.asset_id,
+                sourceIdentity,
+              ),
+          }
+        : {
+            replaceAttachmentId:
+              slot.source === "reference"
+                ? slot.attachmentId
+                : slot.attachment.id,
+          };
     expandStudioComposer();
     addFiles(files, {
       allowedKinds: ["images"],
-      insertImageIndex: attachmentIndex,
-      replaceImageIndex: slot.source === "asset" ? null : attachmentIndex,
-      onReplaceSourceImage:
-        slot.source === "asset" ? clearSourceAsset : undefined,
+      ...replacement,
     }).catch(reportActionError);
     resetFileInputValue(input);
   }
@@ -2368,13 +2402,8 @@ export function MediaStudio({
                 structuredPresetActive={structuredPresetActive}
                 presetLabel={currentPreset?.label ?? null}
                 modelPicker={leadingModelPicker}
-                externalTopContent={
-                  multiImageReferenceStrip || seedanceReferenceStrip ? (
-                    <div className="hidden space-y-3 md:block">
-                      {multiImageReferenceStrip ?? seedanceReferenceStrip}
-                    </div>
-                  ) : null
-                }
+                externalTopContent={seedanceReferenceStrip}
+                orderedImageReferences={multiImageReferenceStrip}
                 mobileInputsContent={mobileInputsSection}
                 sourceAttachmentStrip={sourceAttachmentStrip}
                 floatingComposerStatus={floatingComposerStatus}
@@ -2466,7 +2495,7 @@ export function MediaStudio({
                     modelPickerLeadsComposer &&
                     currentModel?.generation_kind === "image"
                   }
-                  showEstimate={modelPickerLeadsComposer}
+                  showEstimate={immersive}
                   estimatedCredits={estimatedCredits}
                   modelMaxOutputs={modelMaxOutputs}
                   outputCount={outputCount}

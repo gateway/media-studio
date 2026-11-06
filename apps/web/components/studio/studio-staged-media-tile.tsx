@@ -146,16 +146,18 @@ export function StudioStagedMediaReplaceControl({
   label,
   accept,
   testId,
+  className = "studio-slot-utility-button",
   onPickFiles,
 }: {
   label: string;
   accept: string;
   testId?: string;
+  className?: string;
   onPickFiles: (files: FileList, input: HTMLInputElement) => void;
 }) {
   return (
     <label
-      className="studio-slot-utility-button inline-flex h-8 w-8 cursor-pointer"
+      className={cn("inline-flex h-8 w-8 cursor-pointer", className)}
       title={label}
     >
       <ImagePlus aria-hidden="true" className="size-3.5" />

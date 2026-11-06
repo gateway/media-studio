@@ -17,11 +17,13 @@ type AttachmentMaterializeInput = {
 type AttachmentPlacement = {
   insertImageIndex?: number | null;
   replaceImageIndex?: number | null;
+  replaceAttachmentId?: string;
 };
 
 export function buildStagedAttachments(
   inputs: AttachmentMaterializeInput[],
-  idFactory: () => string = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+  idFactory: () => string = () =>
+    crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
 ) {
   return inputs.map((input) => ({
     id: `${input.file?.name ?? input.referenceId ?? input.kind}-${input.file?.size ?? 0}-${idFactory()}`,
@@ -42,17 +44,36 @@ export function applyAttachmentInsertOrReplace(
   next: AttachmentRecord[],
   placement: AttachmentPlacement = {},
 ) {
+  if (placement.replaceAttachmentId !== undefined) {
+    const index = current.findIndex(
+      ({ id }) => id === placement.replaceAttachmentId,
+    );
+    return index === -1
+      ? current
+      : [...current.slice(0, index), ...next, ...current.slice(index + 1)];
+  }
   // Ordered image positions are computed against image attachments only, so mixed media
   // attachments keep their relative ordering while image slots are inserted or replaced.
-  const normalizedReplaceIndex = placement.replaceImageIndex != null ? Math.max(0, placement.replaceImageIndex) : null;
-  const normalizedInsertIndex = placement.insertImageIndex != null ? Math.max(0, placement.insertImageIndex) : null;
+  const normalizedReplaceIndex =
+    placement.replaceImageIndex != null
+      ? Math.max(0, placement.replaceImageIndex)
+      : null;
+  const normalizedInsertIndex =
+    placement.insertImageIndex != null
+      ? Math.max(0, placement.insertImageIndex)
+      : null;
 
   let nextCurrent = current;
   if (normalizedReplaceIndex != null) {
     let imageIndex = 0;
     let removed = false;
     nextCurrent = current.filter((attachment) => {
-      if (!removed && attachment.kind === "images" && !attachment.role && imageIndex++ === normalizedReplaceIndex) {
+      if (
+        !removed &&
+        attachment.kind === "images" &&
+        !attachment.role &&
+        imageIndex++ === normalizedReplaceIndex
+      ) {
         removed = true;
         return false;
       }

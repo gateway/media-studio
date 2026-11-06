@@ -237,9 +237,7 @@ export function PillSelect({
         className={pillSelectButtonClassName(appearance)}
       >
         {SelectedIcon ? (
-          <SelectedIcon
-            className={cn("shrink-0", "size-4 text-[var(--accent-strong)]")}
-          />
+          <SelectedIcon className="size-4 shrink-0 text-[var(--studio-picker-icon-color,var(--accent-strong))]" />
         ) : null}
         <span className="min-w-0 flex-1 truncate">{label}</span>
         <ChevronDown
@@ -286,6 +284,10 @@ export function PillSelect({
               <button
                 type="button"
                 data-testid={`studio-picker-option-${pickerId}-${selectedChoice.value || "empty"}`}
+                aria-pressed={choicePressed(
+                  selectedValue,
+                  selectedChoice.value,
+                )}
                 onClick={() => selectChoice(selectedChoice.value)}
                 className="studio-select-option-current flex items-center gap-2.5 rounded-[14px] border border-[var(--action-subtle-border)] px-2.5 py-2.5 text-left transition hover:border-[var(--action-warning-border)]"
               >
@@ -309,7 +311,7 @@ export function PillSelect({
                   choice,
                   groupedFallbackChoices[index - 1]?.choice,
                 );
-                const isSelected = choice.value === selectedValue;
+                const pressed = choicePressed(selectedValue, choice.value);
                 return (
                   <div
                     key={`${pickerId}:${choice.value}`}
@@ -329,7 +331,7 @@ export function PillSelect({
                       appearance={appearance}
                       choice={choice}
                       icon={ChoiceIcon}
-                      isSelected={isSelected}
+                      pressed={pressed}
                       pickerId={pickerId}
                       onSelect={selectChoice}
                     />
@@ -364,27 +366,32 @@ function shouldShowGroupLabel(
   );
 }
 
+function choicePressed(selectedValue: string | undefined, value: string) {
+  return selectedValue === undefined ? undefined : selectedValue === value;
+}
+
 function PillSelectOption({
   appearance,
   choice,
   icon: Icon,
-  isSelected,
+  pressed,
   pickerId,
   onSelect,
 }: {
   appearance: "admin" | "studio";
   choice: PillSelectChoice;
   icon?: LucideIcon | null;
-  isSelected: boolean;
+  pressed?: boolean;
   pickerId: string;
   onSelect: (value: string) => void;
 }) {
   const studio = appearance === "studio";
-  const selected = studio && isSelected;
+  const selected = studio && pressed;
   return (
     <button
       type="button"
       data-testid={`studio-picker-option-${pickerId}-${choice.value || "empty"}`}
+      aria-pressed={pressed}
       onClick={() => onSelect(choice.value)}
       className={cn(
         studio

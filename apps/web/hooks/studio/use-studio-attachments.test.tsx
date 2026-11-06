@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useStudioAttachments } from "@/hooks/studio/use-studio-attachments";
+import { buildAttachmentPreviewUrl } from "@/lib/studio-composer-file-utils";
 import type {
   AttachmentRecord,
   ComposerStatusMessage,
@@ -132,15 +133,21 @@ describe("useStudioAttachments", () => {
   });
 });
 
-it("replaces a gallery source at the image limit and keeps the following attachment", async () => {
-  const following: AttachmentRecord = {
-    id: "second",
-    file: null,
-    kind: "images",
-    previewUrl: "/second.png",
-  };
-  const setAttachments = vi.fn();
-  const onReplaceSourceImage = vi.fn();
+function imageAttachment(
+  id: string,
+  role?: AttachmentRecord["role"],
+): AttachmentRecord {
+  return { id, role, file: null, kind: "images", previewUrl: `/${id}.png` };
+}
+
+function renderFileStaging(initial: AttachmentRecord[], sourceCount = 0) {
+  let attachments = initial;
+  const setAttachments = vi.fn(
+    (update: React.SetStateAction<AttachmentRecord[]>) => {
+      attachments = typeof update === "function" ? update(attachments) : update;
+    },
+  );
+  URL.revokeObjectURL = vi.fn();
   const { result } = renderHook(() =>
     useStudioAttachments({
       seedanceComposer: false,
@@ -149,10 +156,10 @@ it("replaces a gallery source at the image limit and keeps the following attachm
       seedanceReferenceImages: [],
       seedanceReferenceVideos: [],
       seedanceReferenceAudios: [],
-      maxImageInputs: 2,
+      maxImageInputs: initial.length + sourceCount,
       maxVideoInputs: 0,
       maxAudioInputs: 0,
-      stagedImageCount: 2,
+      stagedImageCount: initial.length + sourceCount,
       stagedVideoCount: 0,
       stagedAudioCount: 0,
       setFormMessage: vi.fn(),
@@ -160,22 +167,92 @@ it("replaces a gallery source at the image limit and keeps the following attachm
       setPresetSlotStates: vi.fn(),
     }),
   );
-  const config = {
-    allowedKinds: ["images"] as "images"[],
-    insertImageIndex: 0,
-    onReplaceSourceImage,
+  return {
+    actions: result.current,
+    attachments: () => attachments,
+    setAttachments,
   };
-  const video = new File([], "video.mp4", { type: "video/mp4" });
-  await result.current.addFiles([video], config);
-  expect(onReplaceSourceImage).not.toHaveBeenCalled();
-  expect(setAttachments).not.toHaveBeenCalled();
+}
 
-  const image = new File([], "replacement.png", { type: "image/png" });
-  await result.current.addFiles([image], config);
-  expect(onReplaceSourceImage).toHaveBeenCalledTimes(1);
-  expect(setAttachments).toHaveBeenCalledTimes(1);
-  expect(setAttachments.mock.calls[0][0]([following])).toEqual([
+const replacement = () =>
+  new File([], "replacement.png", { type: "image/png" });
+const imageKinds: AttachmentRecord["kind"][] = ["images"];
+
+it("replaces a gallery source at the image limit ahead of a following library reference", async () => {
+  const following = imageAttachment("library", "reference");
+  const staging = renderFileStaging([following], 1);
+  const claimSourceImage = vi.fn(() => true);
+  const config = { allowedKinds: imageKinds, claimSourceImage };
+  const video = new File([], "video.mp4", { type: "video/mp4" });
+  await staging.actions.addFiles([video], config);
+  expect(claimSourceImage).not.toHaveBeenCalled();
+  expect(staging.setAttachments).not.toHaveBeenCalled();
+
+  const image = replacement();
+  await staging.actions.addFiles([image], config);
+  expect(claimSourceImage).toHaveBeenCalledTimes(1);
+  expect(staging.attachments()).toEqual([
     expect.objectContaining({ file: image }),
     following,
   ]);
 });
+
+it("discards a decoded file if its gallery source is no longer staged", async () => {
+  const following = imageAttachment("library", "reference");
+  const staging = renderFileStaging([following], 1);
+  await staging.actions.addFiles([replacement()], {
+    allowedKinds: imageKinds,
+    claimSourceImage: () => false,
+  });
+  expect(staging.attachments()).toEqual([following]);
+  expect(staging.setAttachments).not.toHaveBeenCalled();
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
+});
+
+it("replaces the library item at its exact position among uploaded images", async () => {
+  const library = imageAttachment("library", "reference");
+  const uploaded = imageAttachment("uploaded");
+  const staging = renderFileStaging([library, uploaded]);
+  const image = replacement();
+  await staging.actions.addFiles([image], {
+    allowedKinds: imageKinds,
+    replaceAttachmentId: library.id,
+  });
+  expect(staging.attachments()).toEqual([
+    expect.objectContaining({ file: image }),
+    uploaded,
+  ]);
+});
+
+it.each(["A", "B"])(
+  "resolves replacement of B by identity after %s is removed during preview decoding",
+  async (removedId) => {
+    const first = imageAttachment("A");
+    const target = imageAttachment("B");
+    const last = imageAttachment("C");
+    const staging = renderFileStaging([first, target, last]);
+    const image = replacement();
+    let resolvePreview!: (url: string) => void;
+    vi.mocked(buildAttachmentPreviewUrl).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePreview = resolve;
+      }),
+    );
+    const pending = staging.actions.addFiles([image], {
+      allowedKinds: imageKinds,
+      replaceAttachmentId: target.id,
+    });
+    staging.actions.removeAttachment(removedId);
+    resolvePreview("blob:delayed");
+    await pending;
+    if (removedId === target.id) {
+      expect(staging.attachments()).toEqual([first, last]);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:delayed");
+    } else {
+      expect(staging.attachments()).toEqual([
+        expect.objectContaining({ file: image }),
+        last,
+      ]);
+    }
+  },
+);

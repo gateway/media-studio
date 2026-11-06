@@ -22,6 +22,7 @@ type StudioComposerProps = {
   presetLabel: string | null;
   modelPicker?: React.ReactNode;
   externalTopContent?: React.ReactNode;
+  orderedImageReferences?: React.ReactNode;
   mobileInputsContent?: React.ReactNode;
   sourceAttachmentStrip?: React.ReactNode;
   floatingComposerStatus: FloatingComposerStatus | null;
@@ -42,6 +43,7 @@ export function StudioComposer({
   presetLabel,
   modelPicker,
   externalTopContent,
+  orderedImageReferences,
   mobileInputsContent,
   sourceAttachmentStrip,
   floatingComposerStatus,
@@ -50,9 +52,12 @@ export function StudioComposer({
   children,
 }: StudioComposerProps) {
   const hasSidebar = Boolean(sourceAttachmentStrip);
-  const hasReferenceInputs = Boolean(
-    externalTopContent || sourceAttachmentStrip || mobileInputsContent,
-  );
+  const hasReferenceInputs = [
+    orderedImageReferences,
+    externalTopContent,
+    sourceAttachmentStrip,
+    mobileInputsContent,
+  ].some(Boolean);
   const dockedComposerClassName = immersive
     ? "fixed bottom-4 left-4 right-4 z-[70] md:bottom-6 md:left-6 md:right-6"
     : "absolute bottom-4 left-4 right-4 z-20 md:bottom-6 md:left-6 md:right-6";
@@ -191,6 +196,7 @@ export function StudioComposer({
             )}
           >
             {modelPicker}
+            {orderedImageReferences}
             {modelPicker ? externalInputs : null}
             <div
               className={cn(

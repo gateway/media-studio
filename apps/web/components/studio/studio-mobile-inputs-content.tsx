@@ -2,8 +2,14 @@
 
 import type { DragEvent } from "react";
 
-import { StudioMediaSlotAddTile, studioMediaSlotAddTileIcon } from "@/components/studio/studio-media-slot-add-tile";
-import { StudioMobileInputsGroup, StudioMobileInputsSection } from "@/components/studio/studio-mobile-inputs-section";
+import {
+  StudioMediaSlotAddTile,
+  studioMediaSlotAddTileIcon,
+} from "@/components/studio/studio-media-slot-add-tile";
+import {
+  StudioMobileInputsGroup,
+  StudioMobileInputsSection,
+} from "@/components/studio/studio-mobile-inputs-section";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
 import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
 import type {
@@ -12,31 +18,30 @@ import type {
 } from "@/components/studio/studio-composer-input-types";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
 import {
-  orderedImageInputKey,
-  orderedImageInputVisual,
   type OrderedImageInput,
   type StudioComposerSlot,
   type StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
 import type { StudioComposerInputRail } from "@/lib/studio-model-support";
+import {
+  seedanceReferencePreview,
+  seedanceReferenceVisual,
+} from "@/lib/studio-reference-previews";
 import { cn } from "@/lib/utils";
 
 const MOBILE_INPUT_TILE_CLASS = "h-[72px] w-[72px]";
-const MOBILE_INPUT_RAIL_TILE_CLASS = `${MOBILE_INPUT_TILE_CLASS} shrink-0`;
-const MOBILE_INPUT_DROP_ZONE_CLASS = "rounded-[18px] border border-white/8 bg-white/[0.025] p-2 transition";
-const MOBILE_INPUT_DROP_ZONE_ACTIVE_CLASS = "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]";
+const MOBILE_INPUT_DROP_ZONE_CLASS =
+  "rounded-[18px] border border-white/8 bg-white/[0.025] p-2 transition";
+const MOBILE_INPUT_DROP_ZONE_ACTIVE_CLASS =
+  "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]";
 const MOBILE_INPUT_INLINE_ADD_TILE_CLASS =
   "flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]";
 const MOBILE_INPUT_MORE_TILE_CLASS =
   "flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58";
-const MOBILE_INPUT_ACCENT_BORDER_SOFT = "border-[rgba(216,141,67,0.2)]";
-
 type StudioMobileInputsContentProps = {
   inputRail: StudioComposerInputRail;
   effectiveSeedanceMode: string;
-  imageLimitLabel: string | null;
   orderedImageInputs: OrderedImageInput[];
-  canAddMoreImages: boolean;
   isDragActive: boolean;
   seedanceFirstFrameAttachment: AttachmentRecord | null;
   seedanceLastFrameAttachment: AttachmentRecord | null;
@@ -51,9 +56,11 @@ type StudioMobileInputsContentProps = {
   standardComposerSlots: StudioComposerSlot[];
   mobileAddTileClassName: string;
   mobileAddTilePlusIconClassName: string;
-  buildOrderedImageInputPreview: (slot: OrderedImageInput | null, label: string, previewKey: string) => StudioReferencePreview | null;
   buildAttachmentPreview: AttachmentPreviewBuilder;
-  standardComposerSlotPreview: (slot: StudioComposerSlot, previewKey: string) => StudioReferencePreview | null;
+  standardComposerSlotPreview: (
+    slot: StudioComposerSlot,
+    previewKey: string,
+  ) => StudioReferencePreview | null;
   standardComposerSlotVisual: (slot: StudioComposerSlot) => string | null;
   onSetDragActive: (value: boolean) => void;
   onSetFormWarning: (text: string) => void;
@@ -62,9 +69,11 @@ type StudioMobileInputsContentProps = {
     slotIndex?: number,
     slot?: StudioComposerSlot,
   ) => void;
-  onSeedanceReferenceDrop: (event: DragEvent<HTMLDivElement>, kind: "images" | "videos" | "audios") => void;
+  onSeedanceReferenceDrop: (
+    event: DragEvent<HTMLDivElement>,
+    kind: "images" | "videos" | "audios",
+  ) => void;
   onOpenPreview: (preview: StudioReferencePreview | null) => void;
-  onClearOrderedImageInput: (slot: OrderedImageInput | null) => void;
   onRemoveAttachment: (attachmentId: string) => void;
   onClearStandardComposerSlot: (slot: StudioComposerSlot) => void;
   onPickStandardComposerSlotFiles: (
@@ -74,16 +83,13 @@ type StudioMobileInputsContentProps = {
     replaceFilled?: boolean,
   ) => void;
   onAddFiles: StudioAddFilesHandler;
-  onAddImageFilesToOrderedSlot: (fileList: FileList | null, slotIndex: number, input: HTMLInputElement) => void;
   onResetFileInput: (input: HTMLInputElement | null) => void;
 };
 
 export function StudioMobileInputsContent({
   inputRail,
   effectiveSeedanceMode,
-  imageLimitLabel,
   orderedImageInputs,
-  canAddMoreImages,
   isDragActive,
   seedanceFirstFrameAttachment,
   seedanceLastFrameAttachment,
@@ -98,7 +104,6 @@ export function StudioMobileInputsContent({
   standardComposerSlots,
   mobileAddTileClassName,
   mobileAddTilePlusIconClassName,
-  buildOrderedImageInputPreview,
   buildAttachmentPreview,
   standardComposerSlotPreview,
   standardComposerSlotVisual,
@@ -107,60 +112,12 @@ export function StudioMobileInputsContent({
   onDropIntoSourceSlot,
   onSeedanceReferenceDrop,
   onOpenPreview,
-  onClearOrderedImageInput,
   onRemoveAttachment,
   onClearStandardComposerSlot,
   onPickStandardComposerSlotFiles,
   onAddFiles,
-  onAddImageFilesToOrderedSlot,
   onResetFileInput,
 }: StudioMobileInputsContentProps) {
-  if (inputRail === "multi-image") {
-    return (
-      <StudioMobileInputsSection title="Image references" summary={imageLimitLabel}>
-        <div className="studio-mobile-input-rail">
-          {orderedImageInputs.map((slot, slotIndex) => {
-            const slotVisual = orderedImageInputVisual(slot);
-            const slotLabel = `Image reference ${slotIndex + 1}`;
-            const slotPreview = buildOrderedImageInputPreview(slot, slotLabel, `mobile-multi-image-${slotIndex + 1}`);
-            return slotPreview ? (
-              <StudioStagedMediaTile
-                key={orderedImageInputKey(slot, slotIndex)}
-                preview={slotPreview}
-                visualUrl={slotVisual}
-                onOpenPreview={onOpenPreview}
-                onRemove={() => onClearOrderedImageInput(slot)}
-                className={MOBILE_INPUT_RAIL_TILE_CLASS}
-                tileClassName={MOBILE_INPUT_ACCENT_BORDER_SOFT}
-                testId={`studio-mobile-multi-image-slot-${slotIndex + 1}`}
-              />
-            ) : null;
-          })}
-          {canAddMoreImages ? (
-            <StudioMediaSlotAddTile
-              accept="image/*"
-              multiple
-              isDragActive={isDragActive}
-              testId="studio-mobile-multi-image-input"
-              wrapperClassName="shrink-0"
-              tileClassName={mobileAddTileClassName}
-              plusIconClassName={mobileAddTilePlusIconClassName}
-              onDragOver={(event) => {
-                event.preventDefault();
-                onSetDragActive(true);
-              }}
-              onDragLeave={() => onSetDragActive(false)}
-              onDrop={(event) => onDropIntoSourceSlot(event, orderedImageInputs.length)}
-              onPickFiles={(fileList, input) => {
-                onAddImageFilesToOrderedSlot(fileList, orderedImageInputs.length, input);
-              }}
-            />
-          ) : null}
-        </div>
-      </StudioMobileInputsSection>
-    );
-  }
-
   if (inputRail === "seedance") {
     const groups = [
       {
@@ -216,16 +173,33 @@ export function StudioMobileInputsContent({
           >
             <div className="scrollbar-none studio-mobile-input-rail">
               {[
-                { label: "Start frame", role: "first_frame" as const, attachment: seedanceFirstFrameAttachment },
+                {
+                  label: "Start frame",
+                  role: "first_frame" as const,
+                  attachment: seedanceFirstFrameAttachment,
+                },
                 ...(effectiveSeedanceMode === "first_last_frames"
-                  ? [{ label: "End frame", role: "last_frame" as const, attachment: seedanceLastFrameAttachment }]
+                  ? [
+                      {
+                        label: "End frame",
+                        role: "last_frame" as const,
+                        attachment: seedanceLastFrameAttachment,
+                      },
+                    ]
                   : []),
               ].map((slot, slotIndex) => {
                 const attachmentPreview = slot.attachment
-                  ? buildAttachmentPreview(slot.attachment, slot.label, `mobile-seedance-${slot.role}`)
+                  ? buildAttachmentPreview(
+                      slot.attachment,
+                      slot.label,
+                      `mobile-seedance-${slot.role}`,
+                    )
                   : null;
                 return (
-                  <div key={`mobile-seedance-${slot.role}`} className="shrink-0">
+                  <div
+                    key={`mobile-seedance-${slot.role}`}
+                    className="shrink-0"
+                  >
                     {slot.attachment && attachmentPreview ? (
                       <div
                         onDragOver={(event) => {
@@ -233,14 +207,18 @@ export function StudioMobileInputsContent({
                           onSetDragActive(true);
                         }}
                         onDragLeave={() => onSetDragActive(false)}
-                        onDrop={(event) => onDropIntoSourceSlot(event, slotIndex)}
+                        onDrop={(event) =>
+                          onDropIntoSourceSlot(event, slotIndex)
+                        }
                         className={MOBILE_INPUT_TILE_CLASS}
                       >
                         <StudioStagedMediaTile
                           preview={attachmentPreview}
                           visualUrl={slot.attachment.previewUrl}
                           onOpenPreview={onOpenPreview}
-                          onRemove={() => onRemoveAttachment(slot.attachment?.id ?? "")}
+                          onRemove={() =>
+                            onRemoveAttachment(slot.attachment?.id ?? "")
+                          }
                           className={MOBILE_INPUT_TILE_CLASS}
                           testId={`studio-mobile-seedance-slot-${slot.role}`}
                         />
@@ -259,10 +237,17 @@ export function StudioMobileInputsContent({
                           onSetDragActive(true);
                         }}
                         onDragLeave={() => onSetDragActive(false)}
-                        onDrop={(event) => onDropIntoSourceSlot(event, slotIndex)}
+                        onDrop={(event) =>
+                          onDropIntoSourceSlot(event, slotIndex)
+                        }
                         onPickFiles={(fileList, input) => {
-                          if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
-                            onSetFormWarning("Add a start frame before the end frame.");
+                          if (
+                            slot.role === "last_frame" &&
+                            !seedanceFirstFrameAttachment
+                          ) {
+                            onSetFormWarning(
+                              "Add a start frame before the end frame.",
+                            );
                             onResetFileInput(input);
                             return;
                           }
@@ -299,38 +284,37 @@ export function StudioMobileInputsContent({
                 )}
               >
                 <div className="scrollbar-none flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden pb-1">
-                  {group.attachments.slice(0, group.maxVisibleTiles).map((attachment) => (
-                    <StudioStagedMediaTile
-                      key={attachment.id}
-                      preview={
-                        buildAttachmentPreview(
+                  {group.attachments
+                    .slice(0, group.maxVisibleTiles)
+                    .map((attachment) => (
+                      <StudioStagedMediaTile
+                        key={attachment.id}
+                        preview={seedanceReferencePreview(
                           attachment,
-                          attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                          `mobile-${group.key}-${attachment.id}`,
-                        ) ?? {
-                          key: `attachment:${attachment.id}`,
-                          label: attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                          url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
-                          kind: attachment.kind,
-                          posterUrl: attachment.referenceRecord?.poster_url ?? null,
-                        }
-                      }
-                      visualUrl={
-                        attachment.kind === "audios"
-                          ? null
-                          : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null
-                      }
-                      onOpenPreview={onOpenPreview}
-                      onRemove={() => onRemoveAttachment(attachment.id)}
-                      className={cn("shrink-0", group.tileClassName)}
-                      testId={`studio-mobile-seedance-group-tile-${group.key}-${attachment.id}`}
-                    />
-                  ))}
+                          `mobile-${group.key}`,
+                          buildAttachmentPreview,
+                        )}
+                        visualUrl={seedanceReferenceVisual(attachment)}
+                        onOpenPreview={onOpenPreview}
+                        onRemove={() => onRemoveAttachment(attachment.id)}
+                        className={cn("shrink-0", group.tileClassName)}
+                        testId={`studio-mobile-seedance-group-tile-${group.key}-${attachment.id}`}
+                      />
+                    ))}
                   {group.attachments.length < group.maxLabel ? (
-                    <label className={cn(MOBILE_INPUT_INLINE_ADD_TILE_CLASS, group.addTileClassName)}>
+                    <label
+                      className={cn(
+                        MOBILE_INPUT_INLINE_ADD_TILE_CLASS,
+                        group.addTileClassName,
+                      )}
+                    >
                       {(() => {
                         const AddIcon = studioMediaSlotAddTileIcon(
-                          group.key === "videos" ? "video" : group.key === "audios" ? "audio" : "image",
+                          group.key === "videos"
+                            ? "video"
+                            : group.key === "audios"
+                              ? "audio"
+                              : "image",
                         );
                         return <AddIcon className={group.plusIconClassName} />;
                       })()}
@@ -351,7 +335,12 @@ export function StudioMobileInputsContent({
                     </label>
                   ) : null}
                   {group.attachments.length > group.maxVisibleTiles ? (
-                    <div className={cn(MOBILE_INPUT_MORE_TILE_CLASS, group.addTileClassName)}>
+                    <div
+                      className={cn(
+                        MOBILE_INPUT_MORE_TILE_CLASS,
+                        group.addTileClassName,
+                      )}
+                    >
                       +{group.attachments.length - group.maxVisibleTiles}
                     </div>
                   ) : null}
@@ -366,7 +355,10 @@ export function StudioMobileInputsContent({
 
   if (inputRail === "standard") {
     return (
-      <StudioMobileInputsSection title={standardComposerSectionTitle} summary={standardComposerSummaryLabel}>
+      <StudioMobileInputsSection
+        title={standardComposerSectionTitle}
+        summary={standardComposerSummaryLabel}
+      >
         <div className="studio-mobile-input-rail">
           <StudioStandardSlotRail
             slots={standardComposerSlots}
@@ -376,9 +368,14 @@ export function StudioMobileInputsContent({
             mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
             buildPreview={standardComposerSlotPreview}
             resolveVisualUrl={standardComposerSlotVisual}
-            isAssetBackedImageSlot={(slot) => slot.kind === "image" && orderedImageInputs[slot.slotIndex]?.source === "asset"}
+            isAssetBackedImageSlot={(slot) =>
+              slot.kind === "image" &&
+              orderedImageInputs[slot.slotIndex]?.source === "asset"
+            }
             onSetDragActive={onSetDragActive}
-            onSlotDrop={(event, slot) => onDropIntoSourceSlot(event, slot.slotIndex, slot)}
+            onSlotDrop={(event, slot) =>
+              onDropIntoSourceSlot(event, slot.slotIndex, slot)
+            }
             onOpenPreview={onOpenPreview}
             onClearSlot={onClearStandardComposerSlot}
             onPickFiles={onPickStandardComposerSlotFiles}

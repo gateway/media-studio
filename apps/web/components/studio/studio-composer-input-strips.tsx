@@ -2,13 +2,14 @@
 
 import type { DragEvent } from "react";
 
-import { ImagePlus } from "lucide-react";
-
 import {
   StudioMediaSlotAddTile,
   studioMediaSlotAddTileIcon,
 } from "@/components/studio/studio-media-slot-add-tile";
-import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
+import {
+  StudioStagedMediaReplaceControl,
+  StudioStagedMediaTile,
+} from "@/components/studio/studio-staged-media-tile";
 import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
 import type {
   AttachmentPreviewBuilder,
@@ -20,6 +21,10 @@ import type {
   StudioComposerSlot,
   StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
+import {
+  seedanceReferencePreview,
+  seedanceReferenceVisual,
+} from "@/lib/studio-reference-previews";
 import { cn } from "@/lib/utils";
 
 export { StudioMobileInputsContent } from "@/components/studio/studio-mobile-inputs-content";
@@ -47,42 +52,6 @@ type StudioSeedanceReferenceStripProps = {
   onAddFiles: StudioAddFilesHandler;
   onResetFileInput: (input: HTMLInputElement | null) => void;
 };
-
-function seedanceReferenceLabel(attachment: AttachmentRecord) {
-  return (
-    attachment.file?.name ??
-    attachment.referenceRecord?.original_filename ??
-    "Reference"
-  );
-}
-
-function seedanceReferencePreview(
-  attachment: AttachmentRecord,
-  groupKey: string,
-  buildPreview: AttachmentPreviewBuilder,
-): StudioReferencePreview {
-  const label = seedanceReferenceLabel(attachment);
-  return (
-    buildPreview(attachment, label, `${groupKey}-${attachment.id}`) ?? {
-      key: `attachment:${attachment.id}`,
-      label,
-      url:
-        attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
-      kind: attachment.kind,
-      posterUrl: attachment.referenceRecord?.poster_url ?? null,
-    }
-  );
-}
-
-function seedanceReferenceVisual(attachment: AttachmentRecord) {
-  if (attachment.kind === "audios") return null;
-  return (
-    attachment.previewUrl ??
-    attachment.referenceRecord?.thumb_url ??
-    attachment.referenceRecord?.stored_url ??
-    null
-  );
-}
 
 export function StudioSeedanceReferenceStrip({
   isDragActive,
@@ -350,33 +319,30 @@ export function StudioSourceAttachmentStrip({
                         onOpenPreview={onOpenPreview}
                         onRemove={() => onRemoveAttachment(attachment.id)}
                         replaceControl={
-                          <label className="studio-composer-replace-control inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition">
-                            <ImagePlus className="size-3.5" />
-                            <input
-                              type="file"
-                              accept="image/*"
-                              data-testid={`seedance-slot-input-${slot.role}`}
-                              className="hidden"
-                              onChange={(event) => {
-                                if (
-                                  slot.role === "last_frame" &&
-                                  !seedanceFirstFrameAttachment
-                                ) {
-                                  onSetFormWarning(
-                                    "Add a start frame before the end frame.",
-                                  );
-                                  onResetFileInput(event.currentTarget);
-                                  return;
-                                }
-                                onRemoveAttachment(attachment.id);
-                                onAddFiles(event.target.files, {
-                                  role: slot.role,
-                                  allowedKinds: ["images"],
-                                });
-                                onResetFileInput(event.currentTarget);
-                              }}
-                            />
-                          </label>
+                          <StudioStagedMediaReplaceControl
+                            label={`Replace ${slot.label.toLowerCase()}`}
+                            accept="image/*"
+                            testId={`seedance-slot-input-${slot.role}`}
+                            className="studio-composer-replace-control items-center justify-center rounded-full transition"
+                            onPickFiles={(files, input) => {
+                              if (
+                                slot.role === "last_frame" &&
+                                !seedanceFirstFrameAttachment
+                              ) {
+                                onSetFormWarning(
+                                  "Add a start frame before the end frame.",
+                                );
+                                onResetFileInput(input);
+                                return;
+                              }
+                              onRemoveAttachment(attachment.id);
+                              onAddFiles(files, {
+                                role: slot.role,
+                                allowedKinds: ["images"],
+                              });
+                              onResetFileInput(input);
+                            }}
+                          />
                         }
                         className="h-full w-full"
                         testId={`seedance-slot-filled-${slot.role}`}

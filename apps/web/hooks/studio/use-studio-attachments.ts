@@ -29,7 +29,8 @@ type FileAddConfig = {
   allowedKinds?: AttachmentRecord["kind"][];
   insertImageIndex?: number | null;
   replaceImageIndex?: number | null;
-  onReplaceSourceImage?: () => void;
+  replaceAttachmentId?: string;
+  claimSourceImage?: () => boolean;
 };
 
 type UseStudioAttachmentsOptions = {
@@ -88,16 +89,48 @@ async function probeVideoAttachmentMetadata(
 
 function imageReplacementAllowance(
   index: number | null,
-  onReplaceSourceImage?: () => void,
+  config: FileAddConfig,
 ) {
-  return Number(index != null || Boolean(onReplaceSourceImage));
+  return Number(
+    index != null ||
+      Boolean(config.replaceAttachmentId || config.claimSourceImage),
+  );
 }
 
-function replaceSourceImageIfStaged(
-  attachments: AttachmentRecord[],
-  onReplace?: () => void,
+function releaseFilePreview(attachment: AttachmentRecord) {
+  if (attachment.previewUrl && attachment.file) {
+    URL.revokeObjectURL(attachment.previewUrl);
+  }
+}
+
+function stagePickedAttachments(
+  setAttachments: UseStudioAttachmentsOptions["setAttachments"],
+  next: AttachmentRecord[],
+  { claimSourceImage, replaceAttachmentId }: FileAddConfig,
+  insertImageIndex: number | null,
+  replaceImageIndex: number | null,
 ) {
-  if (attachments.some(({ kind }) => kind === "images")) onReplace?.();
+  if (claimSourceImage) {
+    if (claimSourceImage()) {
+      setAttachments((current) => [...next, ...current]);
+    } else {
+      next.forEach(releaseFilePreview);
+    }
+    return;
+  }
+  setAttachments((current) => {
+    const staged = applyAttachmentInsertOrReplace(current, next, {
+      insertImageIndex,
+      replaceImageIndex,
+      replaceAttachmentId,
+    });
+    if (staged === current) next.forEach(releaseFilePreview);
+    const replaced =
+      replaceAttachmentId &&
+      current.find(({ id }) => id === replaceAttachmentId);
+    if (replaced) releaseFilePreview(replaced);
+    return staged;
+  });
 }
 
 export function useStudioAttachments({
@@ -158,10 +191,7 @@ export function useStudioAttachments({
       0,
       maxImageInputs -
         stagedImageCount +
-        imageReplacementAllowance(
-          replaceImageIndex,
-          config.onReplaceSourceImage,
-        ),
+        imageReplacementAllowance(replaceImageIndex, config),
     );
     let remainingVideoCapacity = Math.max(0, maxVideoInputs - stagedVideoCount);
     let remainingAudioCapacity = Math.max(0, maxAudioInputs - stagedAudioCount);
@@ -244,12 +274,12 @@ export function useStudioAttachments({
         height: videoMetadata[index]?.height ?? null,
       })),
     );
-    replaceSourceImageIfStaged(nextAttachments, config.onReplaceSourceImage);
-    setAttachments((current) =>
-      applyAttachmentInsertOrReplace(current, nextAttachments, {
-        insertImageIndex,
-        replaceImageIndex,
-      }),
+    stagePickedAttachments(
+      setAttachments,
+      nextAttachments,
+      config,
+      insertImageIndex,
+      replaceImageIndex,
     );
     if (rejectedKinds.size) {
       setFormMessage({
@@ -585,9 +615,7 @@ export function useStudioAttachments({
       const match = current.find(
         (attachment) => attachment.id === attachmentId,
       );
-      if (match?.previewUrl && match.file) {
-        URL.revokeObjectURL(match.previewUrl);
-      }
+      if (match) releaseFilePreview(match);
       return current.filter((attachment) => attachment.id !== attachmentId);
     });
   }

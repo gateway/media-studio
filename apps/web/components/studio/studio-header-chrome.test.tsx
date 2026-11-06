@@ -43,7 +43,13 @@ describe("StudioHeaderChrome", () => {
     const callbacks = renderHeader();
     const trigger = screen.getByRole("button", { name: "All media" });
     fireEvent.click(trigger);
-    const images = screen.getByRole("button", { name: "Images" });
+    expect(
+      screen.getByRole("button", { name: "All media", pressed: true }),
+    ).toBeTruthy();
+    const images = screen.getByRole("button", {
+      name: "Images",
+      pressed: false,
+    });
     images.focus();
     fireEvent.keyDown(images, { key: "Escape" });
     expect(document.activeElement).toBe(trigger);
@@ -64,7 +70,9 @@ describe("StudioHeaderChrome", () => {
     const library = screen.getByRole("button", { name: "Library" });
     fireEvent.click(library);
     expect(screen.getAllByRole("button", { name: "Projects" })).toHaveLength(1);
-    fireEvent.click(screen.getByRole("button", { name: "Media Presets" }));
+    const presets = screen.getByRole("button", { name: "Media Presets" });
+    expect(presets.hasAttribute("aria-pressed")).toBe(false);
+    fireEvent.click(presets);
     fireEvent.click(library);
     fireEvent.click(screen.getByRole("button", { name: "Reference library" }));
     fireEvent.click(screen.getByRole("button", { name: "Projects" }));
