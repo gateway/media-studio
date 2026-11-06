@@ -20,6 +20,7 @@ type StudioComposerProps = {
   estimatedCredits: string | null;
   structuredPresetActive: boolean;
   presetLabel: string | null;
+  modelPicker?: React.ReactNode;
   externalTopContent?: React.ReactNode;
   mobileInputsContent?: React.ReactNode;
   sourceAttachmentStrip?: React.ReactNode;
@@ -39,6 +40,7 @@ export function StudioComposer({
   estimatedCredits,
   structuredPresetActive,
   presetLabel,
+  modelPicker,
   externalTopContent,
   mobileInputsContent,
   sourceAttachmentStrip,
@@ -61,6 +63,18 @@ export function StudioComposer({
       : "lg:absolute lg:inset-x-6 lg:bottom-6 lg:top-auto lg:z-20 lg:block lg:overflow-visible lg:bg-transparent lg:p-0 lg:backdrop-blur-none",
   );
 
+  const externalInputs = externalTopContent ? (
+    <div
+      className={cn(
+        "studio-composer-external-inputs pointer-events-auto mb-3 hidden w-full md:block",
+        mobileComposerExpanded ? "md:hidden lg:mx-auto lg:block" : "mx-auto",
+        immersive ? "max-w-[1480px]" : "max-w-[1240px]",
+      )}
+    >
+      {externalTopContent}
+    </div>
+  ) : null;
+
   return (
     <div
       data-structured-preset-active={structuredPresetActive}
@@ -71,19 +85,7 @@ export function StudioComposer({
           : dockedComposerClassName,
       )}
     >
-      {composerCollapsed ? null : externalTopContent ? (
-        <div
-          className={cn(
-            "pointer-events-auto mb-3 hidden w-full md:block",
-            mobileComposerExpanded
-              ? "md:hidden lg:mx-auto lg:block"
-              : "mx-auto",
-            immersive ? "max-w-[1480px]" : "max-w-[1240px]",
-          )}
-        >
-          {externalTopContent}
-        </div>
-      ) : null}
+      {!composerCollapsed && !modelPicker ? externalInputs : null}
       {floatingComposerStatus ? (
         <div
           className={cn(
@@ -181,12 +183,15 @@ export function StudioComposer({
           </div>
           <div
             className={cn(
+              "studio-composer-body",
               mobileComposerCollapsed ? "hidden md:block" : "block",
               mobileComposerExpanded
                 ? "min-h-0 flex-1 overflow-y-auto pr-0 md:pr-1 lg:flex-none lg:overflow-visible lg:pr-0"
                 : "",
             )}
           >
+            {modelPicker}
+            {modelPicker ? externalInputs : null}
             <div
               className={cn(
                 "studio-composer-layout grid gap-4 md:items-stretch",
@@ -196,15 +201,15 @@ export function StudioComposer({
               )}
             >
               {hasSidebar ? (
-                <div className="hidden md:flex md:items-end md:justify-between md:gap-3 md:order-none md:grid md:min-h-full md:content-start md:justify-stretch">
+                <div className="studio-composer-sidebar hidden md:flex md:items-end md:justify-between md:gap-3 md:order-none md:grid md:min-h-full md:content-start md:justify-stretch">
                   {sourceAttachmentStrip}
                 </div>
               ) : null}
-              <div className="grid gap-3">
+              <div className="studio-composer-main grid gap-3">
                 {mobileInputsContent ? (
                   <div className="md:hidden">{mobileInputsContent}</div>
                 ) : null}
-                <div>{children}</div>
+                <div className="studio-composer-content">{children}</div>
               </div>
             </div>
           </div>

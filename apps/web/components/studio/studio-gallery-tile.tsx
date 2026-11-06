@@ -1,19 +1,8 @@
 "use client";
 
-import {
-  AlertTriangle,
-  Clapperboard,
-  Heart,
-  Image as ImageIcon,
-  LoaderCircle,
-  Music2,
-  Play,
-} from "lucide-react";
+import { AlertTriangle, Clapperboard, Heart, Image as ImageIcon, LoaderCircle, Music2, Play } from "lucide-react";
 
-import {
-  mediaThumbnailUrl,
-  prettifyModelLabel,
-} from "@/lib/media-studio-helpers";
+import { mediaThumbnailUrl, prettifyModelLabel } from "@/lib/media-studio-helpers";
 import { galleryTileSizeBand, type GalleryTile } from "@/lib/studio-gallery";
 import type { MediaAsset } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -25,10 +14,7 @@ type StudioGalleryTileProps = {
   favoriteAssetIdBusy: string | number | null;
   onSelectAsset: (assetId: string | number) => void;
   onSelectFailedJob: (jobId: string) => void;
-  onDragAsset: (
-    event: React.DragEvent<HTMLDivElement>,
-    asset: MediaAsset | null,
-  ) => void;
+  onDragAsset: (event: React.DragEvent<HTMLDivElement>, asset: MediaAsset | null) => void;
   onToggleFavorite: (asset: MediaAsset | null) => void;
 };
 
@@ -62,20 +48,13 @@ export function StudioGalleryTile({
   const batchJob = tile.job;
   const jobPreview = preview;
   const eagerTile = index < 4;
-  const selected =
-    tile.asset?.asset_id != null &&
-    tile.asset.asset_id === selectedAssetId &&
-    !batchTile;
+  const selected = tile.asset?.asset_id != null && tile.asset.asset_id === selectedAssetId && !batchTile;
   const failedBatchTile = Boolean(batchTile && batchJob?.status === "failed");
 
   return (
     <div
-      data-testid={
-        batchTile ? "studio-gallery-batch-card" : "studio-gallery-card"
-      }
-      data-asset-id={
-        tile.asset?.asset_id != null ? String(tile.asset.asset_id) : undefined
-      }
+      data-testid={batchTile ? "studio-gallery-batch-card" : "studio-gallery-card"}
+      data-asset-id={tile.asset?.asset_id != null ? String(tile.asset.asset_id) : undefined}
       data-job-id={tile.job?.job_id ?? undefined}
       data-generation-kind={tile.asset?.generation_kind ?? undefined}
       key={
@@ -93,9 +72,7 @@ export function StudioGalleryTile({
         selected ? "studio-gallery-tile-selected" : "",
         failedBatchTile ? "cursor-pointer" : "",
         tile.asset?.asset_id != null && !batchTile ? "cursor-pointer" : "",
-        tile.asset?.asset_id != null && !batchTile
-          ? "cursor-grab active:cursor-grabbing"
-          : "",
+        tile.asset?.asset_id != null && !batchTile ? "cursor-grab active:cursor-grabbing" : "",
       )}
       onClick={() => {
         if (tile.asset?.asset_id != null && !batchTile) {
@@ -142,9 +119,7 @@ export function StudioGalleryTile({
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent-strong)] [animation-delay:360ms]" />
                     </div>
                   </div>
-                  <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--text-primary)]">
-                    Queued
-                  </div>
+                  <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--text-primary)]">Queued</div>
                 </div>
               ) : batchJob?.status === "failed" ? (
                 <AlertTriangle className="size-6 text-[var(--feedback-danger-text)]" />
@@ -181,23 +156,14 @@ export function StudioGalleryTile({
                   disabled={favoriteAssetIdBusy === tile.asset.asset_id}
                   className={cn(
                     "studio-icon-button studio-gallery-icon-button-sm",
-                    tile.asset?.favorited ? "studio-icon-button-favorite" : "",
-                    favoriteAssetIdBusy === tile.asset.asset_id
-                      ? "opacity-60"
-                      : "",
-                  )}
-                  aria-label={
                     tile.asset?.favorited
-                      ? "Unfavorite media asset"
-                      : "Favorite media asset"
-                  }
+                      ? "studio-icon-button-favorite"
+                      : "",
+                    favoriteAssetIdBusy === tile.asset.asset_id ? "opacity-60" : "",
+                  )}
+                  aria-label={tile.asset?.favorited ? "Unfavorite media asset" : "Favorite media asset"}
                 >
-                  <Heart
-                    className={cn(
-                      "size-3.5",
-                      tile.asset?.favorited ? "fill-current" : "",
-                    )}
-                  />
+                  <Heart className={cn("size-3.5", tile.asset?.favorited ? "fill-current" : "")} />
                 </button>
               ) : null}
               <div className="studio-icon-button studio-gallery-icon-button-sm">

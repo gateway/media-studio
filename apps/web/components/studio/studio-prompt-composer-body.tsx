@@ -56,73 +56,76 @@ export function StudioPromptComposerBody<
 }: StudioPromptComposerBodyProps<Choice>) {
   return (
     <div className="relative">
-      <textarea
-        data-testid="studio-prompt-input"
-        ref={promptInputRef}
-        value={prompt}
-        onChange={(event) => {
-          onPromptChange(event.target.value);
-          onPromptReferenceDismissedChange(false);
-          onPromptCursorSync(event.currentTarget);
-        }}
-        onFocus={(event) => {
-          onPromptFocusChange(true);
-          onPromptReferenceDismissedChange(false);
-          onPromptCursorSync(event.currentTarget);
-        }}
-        onBlur={() => {
-          onPromptFocusChange(false);
-        }}
-        onClick={(event) => onPromptCursorSync(event.currentTarget)}
-        onKeyUp={(event) => onPromptCursorSync(event.currentTarget)}
-        onSelect={(event) => onPromptCursorSync(event.currentTarget)}
-        onKeyDown={(event) => {
-          if (!promptReferencePickerOpen || !promptReferenceChoices.length) {
-            return;
+      <label className="block">
+        <span className="studio-prompt-label">Prompt</span>
+        <textarea
+          data-testid="studio-prompt-input"
+          ref={promptInputRef}
+          value={prompt}
+          onChange={(event) => {
+            onPromptChange(event.target.value);
+            onPromptReferenceDismissedChange(false);
+            onPromptCursorSync(event.currentTarget);
+          }}
+          onFocus={(event) => {
+            onPromptFocusChange(true);
+            onPromptReferenceDismissedChange(false);
+            onPromptCursorSync(event.currentTarget);
+          }}
+          onBlur={() => {
+            onPromptFocusChange(false);
+          }}
+          onClick={(event) => onPromptCursorSync(event.currentTarget)}
+          onKeyUp={(event) => onPromptCursorSync(event.currentTarget)}
+          onSelect={(event) => onPromptCursorSync(event.currentTarget)}
+          onKeyDown={(event) => {
+            if (!promptReferencePickerOpen || !promptReferenceChoices.length) {
+              return;
+            }
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              onPromptReferenceActiveIndexChange(
+                (current) => (current + 1) % promptReferenceChoices.length,
+              );
+              return;
+            }
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              onPromptReferenceActiveIndexChange((current) =>
+                current === 0 ? promptReferenceChoices.length - 1 : current - 1,
+              );
+              return;
+            }
+            if (["Enter", "Tab"].includes(event.key)) {
+              event.preventDefault();
+              onApplyPromptReferenceChoice(
+                promptReferenceChoices[promptReferenceActiveIndex] ?? null,
+              );
+              return;
+            }
+            if (event.key === "Escape") {
+              onPromptReferenceDismissedChange(true);
+            }
+          }}
+          onDragOver={(event) => {
+            if (event.dataTransfer?.files?.length) {
+              event.preventDefault();
+            }
+          }}
+          onDrop={(event) => {
+            if (event.dataTransfer?.files?.length) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
+          placeholder={
+            multiShotsEnabled
+              ? "3 | Wide shot of the skyline\n2 | Hero steps into frame on the rooftop"
+              : "Describe the scene you imagine"
           }
-          if (event.key === "ArrowDown") {
-            event.preventDefault();
-            onPromptReferenceActiveIndexChange(
-              (current) => (current + 1) % promptReferenceChoices.length,
-            );
-            return;
-          }
-          if (event.key === "ArrowUp") {
-            event.preventDefault();
-            onPromptReferenceActiveIndexChange((current) =>
-              current === 0 ? promptReferenceChoices.length - 1 : current - 1,
-            );
-            return;
-          }
-          if (event.key === "Enter" || event.key === "Tab") {
-            event.preventDefault();
-            onApplyPromptReferenceChoice(
-              promptReferenceChoices[promptReferenceActiveIndex] ?? null,
-            );
-            return;
-          }
-          if (event.key === "Escape") {
-            onPromptReferenceDismissedChange(true);
-          }
-        }}
-        onDragOver={(event) => {
-          if (event.dataTransfer?.files?.length) {
-            event.preventDefault();
-          }
-        }}
-        onDrop={(event) => {
-          if (event.dataTransfer?.files?.length) {
-            event.preventDefault();
-            event.stopPropagation();
-          }
-        }}
-        placeholder={
-          multiShotsEnabled
-            ? "3 | Wide shot of the skyline\n2 | Hero steps into frame on the rooftop"
-            : "Describe the scene you imagine"
-        }
-        className={cn("scrollbar-none studio-prompt-textarea")}
-      />
+          className={cn("scrollbar-none studio-prompt-textarea")}
+        />
+      </label>
       {promptReferencePickerOpen ? (
         <div className="studio-prompt-reference-picker">
           <div className="studio-prompt-reference-options">
