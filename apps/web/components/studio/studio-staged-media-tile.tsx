@@ -146,20 +146,22 @@ export function StudioStagedMediaReplaceControl({
   label,
   accept,
   testId,
-  className,
+  appearance = "slot",
   onPickFiles,
 }: {
   label: string;
   accept: string;
   testId?: string;
-  className?: string;
+  appearance?: "slot" | "seedance-frame";
   onPickFiles: (files: FileList, input: HTMLInputElement) => void;
 }) {
   return (
     <label
       className={cn(
-        "studio-slot-utility-button inline-flex h-8 w-8 cursor-pointer",
-        className,
+        "studio-staged-media-replace-input inline-flex h-8 w-8 cursor-pointer items-center justify-center",
+        appearance === "seedance-frame"
+          ? "studio-composer-replace-control rounded-full transition"
+          : "studio-slot-utility-button",
       )}
       title={label}
     >

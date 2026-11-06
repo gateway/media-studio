@@ -63,6 +63,7 @@ export function StudioComposer({
     sourceAttachmentStrip,
     mobileInputsContent,
   ].some(Boolean);
+  const overlayExpanded = !composerCollapsed && mobileComposerExpanded;
   const dockedComposerClassName = immersive
     ? "fixed bottom-4 left-4 right-4 z-[70] md:bottom-6 md:left-6 md:right-6"
     : "absolute bottom-4 left-4 right-4 z-20 md:bottom-6 md:left-6 md:right-6";
@@ -88,9 +89,10 @@ export function StudioComposer({
   return (
     <div
       data-structured-preset-active={structuredPresetActive}
+      data-mobile-overlay-expanded={overlayExpanded}
       className={cn(
         "studio-composer-rail",
-        !composerCollapsed && mobileComposerExpanded
+        overlayExpanded
           ? mobileExpandedComposerClassName
           : dockedComposerClassName,
       )}

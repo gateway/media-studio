@@ -2755,7 +2755,7 @@ textarea {
   height: 30px;
 }
 
-.studio-slot-utility-button:has(> input:focus-visible),
+.studio-staged-media-replace-input:has(> input:focus-visible),
 .studio-slot-tile:has(> input:focus-visible),
 .studio-ordered-reference-tile button:focus-visible {
   outline: 2px solid var(--accent-strong);
@@ -2843,6 +2843,12 @@ textarea {
     backdrop-filter: none;
   }
 
+  .studio-composer-top-inline-picker .studio-model-picker-with-mode > button {
+    height: 44px;
+  }
+}
+
+@media (width < 1024px) {
   .studio-composer-mobile-balance {
     display: flex;
     grid-column: 1 / -1;
@@ -2856,12 +2862,16 @@ textarea {
     height: 14px;
   }
 
-  .studio-composer-top-inline-picker .studio-model-picker-with-mode > button {
-    height: 44px;
+  /* The expanded composer owns the balance while it covers the header. */
+  :where(
+      .studio-create-stage-immersive:has(
+        .studio-composer-rail[data-mobile-overlay-expanded="true"]
+      )
+    )
+    .studio-header-balance {
+    visibility: hidden;
   }
-}
 
-@media (width < 1024px) {
   :where(.studio-create-stage-immersive) .studio-ordered-references {
     margin-block: 12px;
   }

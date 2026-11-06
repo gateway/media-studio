@@ -323,7 +323,7 @@ export function StudioSourceAttachmentStrip({
                             label={`Replace ${slot.label.toLowerCase()}`}
                             accept="image/*"
                             testId={`seedance-slot-input-${slot.role}`}
-                            className="studio-composer-replace-control items-center justify-center rounded-full transition"
+                            appearance="seedance-frame"
                             onPickFiles={(files, input) => {
                               if (
                                 slot.role === "last_frame" &&

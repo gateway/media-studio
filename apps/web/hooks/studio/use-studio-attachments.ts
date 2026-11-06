@@ -104,28 +104,32 @@ function imageReplacementAllowance(
   );
 }
 
-function releaseFilePreview(attachment: AttachmentRecord) {
-  if (attachment.previewUrl && attachment.file) {
-    URL.revokeObjectURL(attachment.previewUrl);
-  }
+function filePreviewObjectUrls(attachments: AttachmentRecord[]) {
+  return attachments.flatMap(({ file, previewUrl }) =>
+    file && previewUrl?.startsWith("blob:") ? [previewUrl] : [],
+  );
+}
+
+function releaseFilePreviews(attachments: AttachmentRecord[]) {
+  filePreviewObjectUrls(attachments).forEach((url) => URL.revokeObjectURL(url));
 }
 
 function useDecodedReplacementCleanup(attachments: AttachmentRecord[]) {
-  const pending = useRef(new Set<AttachmentRecord>());
+  const pending = useRef(new Map<symbol, string[]>());
   const mounted = useRef(true);
-  const [checks, setChecks] = useState<AttachmentRecord[]>([]);
+  const [checks, setChecks] = useState<symbol[]>([]);
 
   useEffect(() => {
     if (pending.current.size === 0) return;
     const committedUrls = new Set(
       attachments.map(({ previewUrl }) => previewUrl),
     );
-    for (const attachment of checks) {
-      if (
-        pending.current.delete(attachment) &&
-        !committedUrls.has(attachment.previewUrl)
-      ) {
-        releaseFilePreview(attachment);
+    for (const check of checks) {
+      const urls = pending.current.get(check);
+      if (!urls) continue;
+      pending.current.delete(check);
+      for (const url of urls) {
+        if (!committedUrls.has(url)) URL.revokeObjectURL(url);
       }
     }
   }, [attachments, checks]);
@@ -135,19 +139,24 @@ function useDecodedReplacementCleanup(attachments: AttachmentRecord[]) {
     const unresolved = pending.current;
     return () => {
       mounted.current = false;
-      unresolved.forEach(releaseFilePreview);
+      for (const urls of unresolved.values()) {
+        urls.forEach((url) => URL.revokeObjectURL(url));
+      }
       unresolved.clear();
     };
   }, []);
 
   function checkAfterCommit(decoded: AttachmentRecord[]) {
-    const unresolved = new Set(pending.current);
-    decoded.forEach((attachment) => pending.current.add(attachment));
-    // Schedule a check even if the attachment update returns the same array.
-    // Both updates run at the priority of the completed decode.
+    const urls = filePreviewObjectUrls(decoded);
+    if (!urls.length) return;
+    const unresolved = new Set(pending.current.keys());
+    const check = Symbol();
+    pending.current.set(check, urls);
+    // Check after commit even when the attachment update returns the same array.
+    // Keep only lightweight keys in React state and release settled URLs from the map.
     setChecks((current) => [
-      ...current.filter((attachment) => unresolved.has(attachment)),
-      ...decoded,
+      ...current.filter((key) => unresolved.has(key)),
+      check,
     ]);
   }
 
@@ -182,7 +191,7 @@ export function useStudioAttachments({
     replaceImageIndex: number | null,
   ) {
     if (!mounted.current) {
-      next.forEach(releaseFilePreview);
+      releaseFilePreviews(next);
       return;
     }
     if (claimSourceImage) {
@@ -190,7 +199,7 @@ export function useStudioAttachments({
         setAttachments((current) => [...next, ...current]);
         checkAfterCommit(next);
       } else {
-        next.forEach(releaseFilePreview);
+        releaseFilePreviews(next);
       }
       return;
     }
