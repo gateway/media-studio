@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Check, ChevronDown, ChevronUp, type LucideIcon } from "lucide-react";
 
 import { pickerMenuHeightCap } from "@/lib/media-studio-helpers";
@@ -63,17 +69,23 @@ export function PillSelect({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [menuPlacement, setMenuPlacement] = useState<"up" | "down">("down");
-  const [menuMaxHeight, setMenuMaxHeight] = useState(appearance === "studio" ? 280 : 320);
+  const [menuMaxHeight, setMenuMaxHeight] = useState(
+    appearance === "studio" ? 280 : 320,
+  );
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
-  const normalizedTitle = (menuTitle ?? pickerId.replaceAll("-", " ").replaceAll("_", " "))
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const normalizedTitle = (
+    menuTitle ?? pickerId.replaceAll("-", " ").replaceAll("_", " ")
+  ).replace(/\b\w/g, (letter) => letter.toUpperCase());
   const selectedChoice =
     choices.find((choice) => choice.value === selectedValue) ??
     choices.find((choice) => choice.label === label) ??
     null;
-  const SelectedIcon = selectedChoice ? choiceIcon?.(selectedChoice) ?? Icon : Icon;
-  const showSelectedChoiceFirst = selectedChoiceFirst ?? appearance === "studio";
+  const SelectedIcon = selectedChoice
+    ? (choiceIcon?.(selectedChoice) ?? Icon)
+    : Icon;
+  const showSelectedChoiceFirst =
+    selectedChoiceFirst ?? appearance === "studio";
   const fallbackChoices =
     appearance === "studio" && showSelectedChoiceFirst && selectedChoice
       ? choices.filter((choice) => choice.value !== selectedChoice.value)
@@ -126,7 +138,8 @@ export function PillSelect({
       return;
     }
     const nextCanScrollUp = menu.scrollTop > 4;
-    const nextCanScrollDown = menu.scrollTop + menu.clientHeight < menu.scrollHeight - 4;
+    const nextCanScrollDown =
+      menu.scrollTop + menu.clientHeight < menu.scrollHeight - 4;
     setCanScrollUp(nextCanScrollUp);
     setCanScrollDown(nextCanScrollDown);
   }, []);
@@ -142,10 +155,14 @@ export function PillSelect({
         return;
       }
       const rect = container.getBoundingClientRect();
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const viewportHeight =
+        window.visualViewport?.height ?? window.innerHeight;
       const gutter = 20;
       const gap = 12;
-      const spaceBelow = Math.max(0, viewportHeight - rect.bottom - gutter - gap);
+      const spaceBelow = Math.max(
+        0,
+        viewportHeight - rect.bottom - gutter - gap,
+      );
       const spaceAbove = Math.max(0, rect.top - gutter - gap);
       const desiredCap = pickerMenuHeightCap(pickerId);
       const minUsableHeight = Math.min(220, desiredCap);
@@ -155,7 +172,9 @@ export function PillSelect({
           : "up";
       const availableSpace = nextPlacement === "down" ? spaceBelow : spaceAbove;
       setMenuPlacement(nextPlacement);
-      setMenuMaxHeight(Math.max(160, Math.min(Math.max(availableSpace, 0), desiredCap)));
+      setMenuMaxHeight(
+        Math.max(160, Math.min(Math.max(availableSpace, 0), desiredCap)),
+      );
     }
 
     updateMenuPlacement();
@@ -184,14 +203,24 @@ export function PillSelect({
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [open, updateScrollIndicators, fallbackChoices.length, selectedChoice?.value]);
+  }, [
+    open,
+    updateScrollIndicators,
+    fallbackChoices.length,
+    selectedChoice?.value,
+  ]);
 
   return (
     <div
       ref={containerRef}
       data-studio-picker
       data-picker-id={pickerId}
-      className={cn("relative", widthClassName, open ? "z-40" : "z-10", className)}
+      className={cn(
+        "relative",
+        widthClassName,
+        open ? "z-40" : "z-10",
+        className,
+      )}
     >
       <button
         type="button"
@@ -200,9 +229,21 @@ export function PillSelect({
         onClick={onToggle}
         className={pillSelectButtonClassName(appearance)}
       >
-        {SelectedIcon ? <SelectedIcon className={cn("shrink-0", "size-4 text-[var(--accent-strong)]")} /> : null}
+        {SelectedIcon ? (
+          <SelectedIcon
+            className={cn("shrink-0", "size-4 text-[var(--accent-strong)]")}
+          />
+        ) : null}
         <span className="min-w-0 flex-1 truncate">{label}</span>
-        <ChevronDown className={cn("size-4 shrink-0 transition", appearance === "studio" ? "studio-select-chevron size-3.5" : "text-white/42", open ? "rotate-180" : "")} />
+        <ChevronDown
+          className={cn(
+            "size-4 shrink-0 transition",
+            appearance === "studio"
+              ? "studio-select-chevron size-3.5"
+              : "text-white/42",
+            open ? "rotate-180" : "",
+          )}
+        />
       </button>
 
       {open ? (
@@ -212,7 +253,9 @@ export function PillSelect({
           onScroll={updateScrollIndicators}
           className={cn(
             pillSelectMenuClassName(appearance),
-            menuPlacement === "down" ? "top-[calc(100%+0.65rem)]" : "bottom-[calc(100%+0.65rem)]",
+            menuPlacement === "down"
+              ? "top-[calc(100%+0.65rem)]"
+              : "bottom-[calc(100%+0.65rem)]",
           )}
         >
           {canScrollUp ? (
@@ -230,7 +273,9 @@ export function PillSelect({
               </div>
             ) : null}
 
-            {appearance === "studio" && showSelectedChoiceFirst && selectedChoice ? (
+            {appearance === "studio" &&
+            showSelectedChoiceFirst &&
+            selectedChoice ? (
               <button
                 type="button"
                 data-testid={`studio-picker-option-${pickerId}-${selectedChoice.value || "empty"}`}
@@ -245,7 +290,9 @@ export function PillSelect({
                     <SelectedIcon className="size-4 text-[var(--accent-strong)]" />
                   </span>
                 ) : null}
-                <span className="min-w-0 flex-1 truncate text-[0.9rem] font-medium text-[var(--text-primary)]">{selectedChoice.label}</span>
+                <span className="min-w-0 flex-1 truncate text-[0.9rem] font-medium text-[var(--text-primary)]">
+                  {selectedChoice.label}
+                </span>
                 <Check className="studio-select-check size-4 shrink-0" />
               </button>
             ) : null}
@@ -253,16 +300,25 @@ export function PillSelect({
             <div className="grid gap-1">
               {groupedFallbackChoices.map(({ choice }, index) => {
                 const ChoiceIcon = choiceIcon?.(choice) ?? Icon;
-                const previousChoice = groupedFallbackChoices[index - 1]?.choice ?? null;
+                const previousChoice =
+                  groupedFallbackChoices[index - 1]?.choice ?? null;
                 const showGroupLabel =
                   appearance === "studio" &&
                   Boolean(choice.groupLabel) &&
                   choice.groupLabel !== previousChoice?.groupLabel;
                 const isSelected = choice.value === selectedValue;
                 return (
-                  <div key={`${pickerId}:${choice.value}`} className="grid gap-1">
+                  <div
+                    key={`${pickerId}:${choice.value}`}
+                    className="grid gap-1"
+                  >
                     {showGroupLabel ? (
-                      <div className={cn("studio-select-group-label px-2.5 pb-0.5 text-[0.56rem] font-semibold uppercase tracking-[0.18em]", index > 0 ? "pt-2" : "pt-0")}>
+                      <div
+                        className={cn(
+                          "studio-select-group-label px-2.5 pb-0.5 text-[0.56rem] font-semibold uppercase tracking-[0.18em]",
+                          index > 0 ? "pt-2" : "pt-0",
+                        )}
+                      >
                         {choice.groupLabel}
                       </div>
                     ) : null}
@@ -277,7 +333,9 @@ export function PillSelect({
                         appearance === "studio"
                           ? "studio-select-option flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium transition"
                           : "admin-select-option",
-                        appearance === "studio" && isSelected ? "studio-select-option-selected text-[var(--text-primary)]" : "",
+                        appearance === "studio" && isSelected
+                          ? "studio-select-option-selected text-[var(--text-primary)]"
+                          : "",
                       )}
                     >
                       {appearance === "studio" && ChoiceIcon ? (
@@ -285,8 +343,12 @@ export function PillSelect({
                           <ChoiceIcon className="size-3.5 text-[var(--text-muted)]" />
                         </span>
                       ) : null}
-                      <span className="min-w-0 flex-1 truncate">{choice.label}</span>
-                      {appearance === "studio" && isSelected ? <Check className="studio-select-check size-3.5 shrink-0" /> : null}
+                      <span className="min-w-0 flex-1 truncate">
+                        {choice.label}
+                      </span>
+                      {appearance === "studio" && isSelected ? (
+                        <Check className="studio-select-check size-3.5 shrink-0" />
+                      ) : null}
                     </button>
                   </div>
                 );

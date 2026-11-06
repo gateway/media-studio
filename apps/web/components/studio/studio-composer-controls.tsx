@@ -13,7 +13,11 @@ import {
   serializeOptionChoice,
   type StudioChoice,
 } from "@/lib/media-studio-helpers";
-import type { MediaModelSummary, MediaPreset, MediaValidationResponse } from "@/lib/types";
+import type {
+  MediaModelSummary,
+  MediaPreset,
+  MediaValidationResponse,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type StudioComposerControlsProps = {
@@ -39,7 +43,10 @@ type StudioComposerControlsProps = {
   onModelChange: (modelKey: string) => void;
   onResetModelScopedSelection: () => void;
   onValidationChange: (validation: MediaValidationResponse | null) => void;
-  onPresetSelection: (value: string, options?: { preferredModelKey?: string | null }) => void;
+  onPresetSelection: (
+    value: string,
+    options?: { preferredModelKey?: string | null },
+  ) => void;
   onOutputCountChange: (count: number) => void;
   onOptionChange: (optionKey: string, value: unknown) => void;
   onClear: () => void;
@@ -87,11 +94,15 @@ export function StudioComposerControls({
           <PillSelect
             pickerId="model"
             open={openPicker === "model"}
-            onToggle={() => onOpenPickerChange(openPicker === "model" ? null : "model")}
+            onToggle={() =>
+              onOpenPickerChange(openPicker === "model" ? null : "model")
+            }
             onClose={() => onOpenPickerChange(null)}
             widthClassName={pickerWidth("model")}
             icon={currentModelIcon}
-            choiceIcon={(choice) => modelIconByKey.get(choice.value) ?? Clapperboard}
+            choiceIcon={(choice) =>
+              modelIconByKey.get(choice.value) ?? Clapperboard
+            }
             label={currentModelLabel}
             selectedValue={modelKey ?? ""}
             menuTitle="Model"
@@ -109,17 +120,23 @@ export function StudioComposerControls({
             }}
           />
 
-          {!structuredPresetActive && (selectedPresetId || modelPresets.length) ? (
+          {!structuredPresetActive &&
+          (selectedPresetId || modelPresets.length) ? (
             <PillSelect
               pickerId="preset"
               open={openPicker === "preset"}
-              onToggle={() => onOpenPickerChange(openPicker === "preset" ? null : "preset")}
+              onToggle={() =>
+                onOpenPickerChange(openPicker === "preset" ? null : "preset")
+              }
               onClose={() => onOpenPickerChange(null)}
               widthClassName={pickerWidth("preset")}
               icon={Sparkles}
               label={
-                modelPresets.find((preset) => preset.preset_id === selectedPresetId)?.label ??
-                modelPresets.find((preset) => preset.key === selectedPresetId)?.label ??
+                modelPresets.find(
+                  (preset) => preset.preset_id === selectedPresetId,
+                )?.label ??
+                modelPresets.find((preset) => preset.key === selectedPresetId)
+                  ?.label ??
                 "Preset"
               }
               selectedValue={selectedPresetId}
@@ -131,7 +148,9 @@ export function StudioComposerControls({
                   label: preset.label,
                 })),
               ]}
-              onSelect={(value) => onPresetSelection(value, { preferredModelKey: modelKey })}
+              onSelect={(value) =>
+                onPresetSelection(value, { preferredModelKey: modelKey })
+              }
             />
           ) : null}
         </>
@@ -141,7 +160,11 @@ export function StudioComposerControls({
         <PillSelect
           pickerId="output-count"
           open={openPicker === "output-count"}
-          onToggle={() => onOpenPickerChange(openPicker === "output-count" ? null : "output-count")}
+          onToggle={() =>
+            onOpenPickerChange(
+              openPicker === "output-count" ? null : "output-count",
+            )
+          }
           onClose={() => onOpenPickerChange(null)}
           widthClassName={pickerWidth("output-count")}
           icon={Copy}
@@ -152,23 +175,34 @@ export function StudioComposerControls({
             value: String(index + 1),
             label: String(index + 1),
           }))}
-          onSelect={(value) => onOutputCountChange(Math.max(1, Number(value) || 1))}
+          onSelect={(value) =>
+            onOutputCountChange(Math.max(1, Number(value) || 1))
+          }
         />
       ) : null}
 
       {compactOptionEntries
         .filter(
           ([optionKey]) =>
-            !(modelKey === "kling-3.0-i2v" && inferredInputPattern === "first_last_frames" && optionKey === "aspect_ratio"),
+            !(
+              modelKey === "kling-3.0-i2v" &&
+              inferredInputPattern === "first_last_frames" &&
+              optionKey === "aspect_ratio"
+            ),
         )
         .map(([optionKey, schema]) => {
           const currentValue = optionValues[optionKey];
           const Icon = optionIcon(optionKey, currentValue);
-          const choices = buildChoiceList(modelKey, optionKey, schema, currentValue);
+          const choices = buildChoiceList(
+            modelKey,
+            optionKey,
+            schema,
+            currentValue,
+          );
           const resolvedValue = currentValue ?? schema.default ?? null;
           const resolvedLabel =
             resolvedValue == null || resolvedValue === ""
-              ? choices[0]?.label ?? "Select"
+              ? (choices[0]?.label ?? "Select")
               : displayChoiceLabel(optionKey, schema, resolvedValue);
           if (!choices.length && schema.type === "int_range") {
             const min = typeof schema.min === "number" ? schema.min : undefined;
@@ -179,7 +213,9 @@ export function StudioComposerControls({
                 key={optionKey}
                 className="flex h-10 w-[calc(50%-0.25rem)] items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-[0.72rem] text-white/78 sm:w-[112px]"
               >
-                <span className="truncate capitalize">{optionKey.replaceAll("_", " ")}</span>
+                <span className="truncate capitalize">
+                  {optionKey.replaceAll("_", " ")}
+                </span>
                 <input
                   type="number"
                   min={min}
@@ -187,7 +223,12 @@ export function StudioComposerControls({
                   value={Number.isFinite(numericValue) ? numericValue : ""}
                   onChange={(event) => {
                     const parsed = Number(event.currentTarget.value);
-                    onOptionChange(optionKey, Number.isFinite(parsed) ? parsed : event.currentTarget.value);
+                    onOptionChange(
+                      optionKey,
+                      Number.isFinite(parsed)
+                        ? parsed
+                        : event.currentTarget.value,
+                    );
                   }}
                   className="min-w-0 flex-1 bg-transparent text-right text-white outline-none"
                 />
@@ -199,11 +240,15 @@ export function StudioComposerControls({
               key={optionKey}
               pickerId={optionKey}
               open={openPicker === optionKey}
-              onToggle={() => onOpenPickerChange(openPicker === optionKey ? null : optionKey)}
+              onToggle={() =>
+                onOpenPickerChange(openPicker === optionKey ? null : optionKey)
+              }
               onClose={() => onOpenPickerChange(null)}
               widthClassName={pickerWidth(optionKey)}
               icon={Icon}
-              choiceIcon={(choice) => optionIcon(optionKey, parseOptionChoice(schema, choice.value))}
+              choiceIcon={(choice) =>
+                optionIcon(optionKey, parseOptionChoice(schema, choice.value))
+              }
               label={displayOptionControlLabel(optionKey, resolvedLabel)}
               selectedValue={serializeOptionChoice(resolvedValue ?? "")}
               menuTitle={optionKey.replaceAll("_", " ")}
@@ -217,7 +262,9 @@ export function StudioComposerControls({
                       },
                     ]
               }
-              onSelect={(value) => onOptionChange(optionKey, parseOptionChoice(schema, value))}
+              onSelect={(value) =>
+                onOptionChange(optionKey, parseOptionChoice(schema, value))
+              }
             />
           );
         })}

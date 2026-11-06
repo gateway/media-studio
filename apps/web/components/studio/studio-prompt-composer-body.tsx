@@ -10,27 +10,32 @@ export type StudioPromptReferenceChoice = {
   visualUrl: string | null;
 };
 
-type StudioPromptComposerBodyProps<Choice extends StudioPromptReferenceChoice> = {
-  promptInputRef: React.RefObject<HTMLTextAreaElement | null>;
-  prompt: string;
-  multiShotsEnabled: boolean;
-  promptReferencePickerOpen: boolean;
-  promptReferenceChoices: Choice[];
-  promptReferenceActiveIndex: number;
-  enhanceEnabledForModel: boolean;
-  enhanceConfiguredForModel: boolean;
-  enhanceHasSavedSystemPrompt: boolean;
-  onPromptChange: (prompt: string) => void;
-  onPromptFocusChange: (focused: boolean) => void;
-  onPromptReferenceDismissedChange: (dismissed: boolean) => void;
-  onPromptCursorSync: (target: HTMLTextAreaElement | null) => void;
-  onPromptReferenceActiveIndexChange: (updater: (current: number) => number) => void;
-  onApplyPromptReferenceChoice: (choice: Choice | null) => void;
-  onOpenEnhanceDialog: () => void;
-  onOpenEnhancementSetup: () => void;
-};
+type StudioPromptComposerBodyProps<Choice extends StudioPromptReferenceChoice> =
+  {
+    promptInputRef: React.RefObject<HTMLTextAreaElement | null>;
+    prompt: string;
+    multiShotsEnabled: boolean;
+    promptReferencePickerOpen: boolean;
+    promptReferenceChoices: Choice[];
+    promptReferenceActiveIndex: number;
+    enhanceEnabledForModel: boolean;
+    enhanceConfiguredForModel: boolean;
+    enhanceHasSavedSystemPrompt: boolean;
+    onPromptChange: (prompt: string) => void;
+    onPromptFocusChange: (focused: boolean) => void;
+    onPromptReferenceDismissedChange: (dismissed: boolean) => void;
+    onPromptCursorSync: (target: HTMLTextAreaElement | null) => void;
+    onPromptReferenceActiveIndexChange: (
+      updater: (current: number) => number,
+    ) => void;
+    onApplyPromptReferenceChoice: (choice: Choice | null) => void;
+    onOpenEnhanceDialog: () => void;
+    onOpenEnhancementSetup: () => void;
+  };
 
-export function StudioPromptComposerBody<Choice extends StudioPromptReferenceChoice>({
+export function StudioPromptComposerBody<
+  Choice extends StudioPromptReferenceChoice,
+>({
   promptInputRef,
   prompt,
   multiShotsEnabled,
@@ -77,7 +82,9 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
           }
           if (event.key === "ArrowDown") {
             event.preventDefault();
-            onPromptReferenceActiveIndexChange((current) => (current + 1) % promptReferenceChoices.length);
+            onPromptReferenceActiveIndexChange(
+              (current) => (current + 1) % promptReferenceChoices.length,
+            );
             return;
           }
           if (event.key === "ArrowUp") {
@@ -89,7 +96,9 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
           }
           if (event.key === "Enter" || event.key === "Tab") {
             event.preventDefault();
-            onApplyPromptReferenceChoice(promptReferenceChoices[promptReferenceActiveIndex] ?? null);
+            onApplyPromptReferenceChoice(
+              promptReferenceChoices[promptReferenceActiveIndex] ?? null,
+            );
             return;
           }
           if (event.key === "Escape") {
@@ -112,9 +121,7 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
             ? "3 | Wide shot of the skyline\n2 | Hero steps into frame on the rooftop"
             : "Describe the scene you imagine"
         }
-        className={cn(
-          "scrollbar-none studio-prompt-textarea",
-        )}
+        className={cn("scrollbar-none studio-prompt-textarea")}
       />
       {promptReferencePickerOpen ? (
         <div className="studio-prompt-reference-picker">
@@ -130,12 +137,18 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
                 onClick={() => onApplyPromptReferenceChoice(choice)}
                 className={cn(
                   "studio-prompt-reference-option",
-                  promptReferenceActiveIndex === index ? "studio-prompt-reference-option-active" : "",
+                  promptReferenceActiveIndex === index
+                    ? "studio-prompt-reference-option-active"
+                    : "",
                 )}
               >
                 <span
                   className="studio-prompt-reference-thumb"
-                  style={choice.visualUrl ? { backgroundImage: `url("${choice.visualUrl}")` } : undefined}
+                  style={
+                    choice.visualUrl
+                      ? { backgroundImage: `url("${choice.visualUrl}")` }
+                      : undefined
+                  }
                 >
                   {!choice.visualUrl ? (
                     <span className="studio-prompt-reference-thumb-empty">
@@ -143,7 +156,9 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
                     </span>
                   ) : null}
                 </span>
-                <span className="studio-prompt-reference-label">{choice.label}</span>
+                <span className="studio-prompt-reference-label">
+                  {choice.label}
+                </span>
               </button>
             ))}
           </div>
@@ -155,8 +170,16 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
             type="button"
             data-testid="studio-open-enhance-dialog"
             onClick={onOpenEnhanceDialog}
-            aria-label={enhanceHasSavedSystemPrompt ? "Open enhance dialog" : "Enhance unavailable until a model prompt is saved"}
-            title={enhanceHasSavedSystemPrompt ? "Open enhance dialog" : "Save an enhancement system prompt in Models"}
+            aria-label={
+              enhanceHasSavedSystemPrompt
+                ? "Open enhance dialog"
+                : "Enhance unavailable until a model prompt is saved"
+            }
+            title={
+              enhanceHasSavedSystemPrompt
+                ? "Open enhance dialog"
+                : "Save an enhancement system prompt in Models"
+            }
             disabled={!enhanceHasSavedSystemPrompt}
             className={cn(
               "studio-prompt-enhance-button",

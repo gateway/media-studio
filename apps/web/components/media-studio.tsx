@@ -1,7 +1,14 @@
 "use client";
 
 import { resolveStudioComposerInputRail } from "@/lib/studio-model-support";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { FolderPlus, X } from "lucide-react";
 
@@ -75,7 +82,10 @@ import {
   studioPresetSupportedModels,
   jobStatusLabel,
 } from "@/lib/media-studio-helpers";
-import { buildGraphStudioHref, buildStudioScopedHref } from "@/lib/studio-navigation";
+import {
+  buildGraphStudioHref,
+  buildStudioScopedHref,
+} from "@/lib/studio-navigation";
 import {
   mobileComposerCollapsedForProgrammaticExpand,
   revealStudioComposer,
@@ -95,7 +105,8 @@ import {
 } from "@/lib/studio-reference-previews";
 import { resolveStudioShortcutAction } from "@/lib/studio-shortcuts";
 
-const STUDIO_COMPOSER_COLLAPSED_STORAGE_KEY = "media-studio:desktop-composer-collapsed";
+const STUDIO_COMPOSER_COLLAPSED_STORAGE_KEY =
+  "media-studio:desktop-composer-collapsed";
 export function MediaStudio({
   apiHealthy,
   models,
@@ -124,21 +135,39 @@ export function MediaStudio({
   const { showActivity } = useGlobalActivity();
   const [, startRefresh] = useTransition();
   const [hasMounted, setHasMounted] = useState(false);
-  const [desktopComposerCollapsed, setDesktopComposerCollapsed] = useState(false);
-  const [localRemainingCredits, setLocalRemainingCredits] = useState<number | null>(remainingCredits ?? null);
+  const [desktopComposerCollapsed, setDesktopComposerCollapsed] =
+    useState(false);
+  const [localRemainingCredits, setLocalRemainingCredits] = useState<
+    number | null
+  >(remainingCredits ?? null);
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
   const [presetBrowserOpen, setPresetBrowserOpen] = useState(false);
-  const [hydratedStudioPresets, setHydratedStudioPresets] = useState<MediaPreset[]>([]);
+  const [hydratedStudioPresets, setHydratedStudioPresets] = useState<
+    MediaPreset[]
+  >([]);
   const [projectBrowserOpen, setProjectBrowserOpen] = useState(false);
-  const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
-  const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
-  const [studioHarnessFixtureState, setStudioHarnessFixtureState] = useState<StudioHarnessFixtureState | null>(null);
-  const [promptCursorIndex, setPromptCursorIndex] = useState<number | null>(null);
+  const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(
+    null,
+  );
+  const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(
+    null,
+  );
+  const [studioHarnessFixtureState, setStudioHarnessFixtureState] =
+    useState<StudioHarnessFixtureState | null>(null);
+  const [promptCursorIndex, setPromptCursorIndex] = useState<number | null>(
+    null,
+  );
   const [promptHasFocus, setPromptHasFocus] = useState(false);
-  const [promptReferenceDismissed, setPromptReferenceDismissed] = useState(false);
-  const [promptReferenceActiveIndex, setPromptReferenceActiveIndex] = useState(0);
-  const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
-  const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
+  const [promptReferenceDismissed, setPromptReferenceDismissed] =
+    useState(false);
+  const [promptReferenceActiveIndex, setPromptReferenceActiveIndex] =
+    useState(0);
+  const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(
+    null,
+  );
+  const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(
+    null,
+  );
   const graphReturnHref = useMemo(() => {
     if (typeof window === "undefined") {
       return "/graph-studio";
@@ -151,22 +180,25 @@ export function MediaStudio({
   const lastComposerDebugSignatureRef = useRef<string | null>(null);
   const settleRefreshTimerRef = useRef<number | null>(null);
   const settleRefreshPendingRef = useRef(false);
-  const pollJobProxyRef = useRef<(jobId: string) => Promise<void>>(async () => {});
-  const pollBatchProxyRef = useRef<(batchId: string) => Promise<void>>(async () => {});
+  const pollJobProxyRef = useRef<(jobId: string) => Promise<void>>(
+    async () => {},
+  );
+  const pollBatchProxyRef = useRef<(batchId: string) => Promise<void>>(
+    async () => {},
+  );
   const openEnhanceDialogProxyRef = useRef<() => void>(() => undefined);
-  const requestEnhancementPreviewProxyRef = useRef<() => Promise<void>>(async () => undefined);
+  const requestEnhancementPreviewProxyRef = useRef<() => Promise<void>>(
+    async () => undefined,
+  );
   const applyEnhancementPromptProxyRef = useRef<() => boolean>(() => false);
   const appliedStudioHarnessFixtureRef = useRef<string | null>(null);
-  const {
-    studioPresetCatalog,
-    enabledStudioModelChoices,
-    modelIconByKey,
-  } = useStudioShellCatalog({
-    models,
-    presets,
-    hydratedPresets: hydratedStudioPresets,
-    queuePolicies,
-  });
+  const { studioPresetCatalog, enabledStudioModelChoices, modelIconByKey } =
+    useStudioShellCatalog({
+      models,
+      presets,
+      hydratedPresets: hydratedStudioPresets,
+      queuePolicies,
+    });
   const {
     localProjects,
     selectedProjectId,
@@ -202,7 +234,10 @@ export function MediaStudio({
       const payload = (await response.json()) as {
         available_credits?: number | null;
         remaining_credits?: number | null;
-        raw?: { available_credits?: number | null; remaining_credits?: number | null } | null;
+        raw?: {
+          available_credits?: number | null;
+          remaining_credits?: number | null;
+        } | null;
       };
       const nextCredits =
         typeof payload.available_credits === "number"
@@ -267,7 +302,10 @@ export function MediaStudio({
     presets: studioPresetCatalog,
     onHydratedJob: (job) => {
       gallery.actions.setLocalJobs((current) =>
-        [job, ...current.filter((entry) => entry.job_id !== job.job_id)].slice(0, 24),
+        [job, ...current.filter((entry) => entry.job_id !== job.job_id)].slice(
+          0,
+          24,
+        ),
       );
     },
   });
@@ -281,9 +319,13 @@ export function MediaStudio({
     favoritesOnly,
     favoriteAssets,
   } = gallery.state;
-  const { activeGalleryHasMore, activeGalleryLoadingMore, galleryTiles } = gallery.derived;
+  const { activeGalleryHasMore, activeGalleryLoadingMore, galleryTiles } =
+    gallery.derived;
   const visibleGalleryAssetIds = useMemo(
-    () => galleryTiles.map((tile) => tile.asset?.asset_id).filter((assetId): assetId is string | number => assetId != null),
+    () =>
+      galleryTiles
+        .map((tile) => tile.asset?.asset_id)
+        .filter((assetId): assetId is string | number => assetId != null),
     [galleryTiles],
   );
   const { galleryLoadMoreRef } = gallery.refs;
@@ -460,9 +502,7 @@ export function MediaStudio({
     maxVideoInputs,
     maxAudioInputs,
   } = composer.derived;
-  const {
-    promptInputRef,
-  } = composer.refs;
+  const { promptInputRef } = composer.refs;
   const {
     setModelKey,
     setSelectedPresetId,
@@ -519,7 +559,12 @@ export function MediaStudio({
       modelKey,
       inputPatterns: currentModel?.input_patterns ?? [],
     });
-  }, [busyState, composerStatusMessage, currentModel?.input_patterns, modelKey]);
+  }, [
+    busyState,
+    composerStatusMessage,
+    currentModel?.input_patterns,
+    modelKey,
+  ]);
 
   const polling = useStudioPolling({
     showActivity,
@@ -547,8 +592,14 @@ export function MediaStudio({
     watchJobs: localJobs,
   });
   const { favoriteAssetIdBusy } = polling.state;
-  const { pollJob, pollBatch, dismissJob, dismissAsset, toggleAssetFavorite } = polling.actions;
-  const { copyPromptStatus, downloadActionLabel, copyPromptFromAsset, downloadAsset } = useStudioAssetActions({
+  const { pollJob, pollBatch, dismissJob, dismissAsset, toggleAssetFavorite } =
+    polling.actions;
+  const {
+    copyPromptStatus,
+    downloadActionLabel,
+    copyPromptFromAsset,
+    downloadAsset,
+  } = useStudioAssetActions({
     hasMounted,
     onMessage: setFormMessage,
     showActivity,
@@ -558,12 +609,15 @@ export function MediaStudio({
     if (!structuredPresetActive) {
       return [];
     }
-    const supportedModelKeys = new Set(studioPresetSupportedModels(currentPreset, models));
-      return models
+    const supportedModelKeys = new Set(
+      studioPresetSupportedModels(currentPreset, models),
+    );
+    return models
       .filter((model) => supportedModelKeys.has(model.key))
       .map(studioComposerModelChoice);
   }, [currentPreset, models, structuredPresetActive]);
-  const showStructuredPresetModelPicker = structuredPresetActive && structuredPresetModelChoices.length > 1;
+  const showStructuredPresetModelPicker =
+    structuredPresetActive && structuredPresetModelChoices.length > 1;
   const selectedProjectMetric = selectedProject ? (
     <div className="studio-project-metric hidden md:flex items-center overflow-hidden rounded-[14px]">
       <button
@@ -594,12 +648,22 @@ export function MediaStudio({
 
   const expandStudioComposer = useCallback(() => {
     setDesktopComposerCollapsed(false);
-    setMobileComposerCollapsed((collapsed) => mobileComposerCollapsedForProgrammaticExpand(isCoarsePointerDevice(), collapsed));
+    setMobileComposerCollapsed((collapsed) =>
+      mobileComposerCollapsedForProgrammaticExpand(
+        isCoarsePointerDevice(),
+        collapsed,
+      ),
+    );
   }, [setMobileComposerCollapsed]);
 
   function revealComposer(options: StudioComposerRevealOptions = {}) {
     setDesktopComposerCollapsed(false);
-    setMobileComposerCollapsed((collapsed) => mobileComposerCollapsedForProgrammaticExpand(isCoarsePointerDevice(), collapsed));
+    setMobileComposerCollapsed((collapsed) =>
+      mobileComposerCollapsedForProgrammaticExpand(
+        isCoarsePointerDevice(),
+        collapsed,
+      ),
+    );
 
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
@@ -620,14 +684,18 @@ export function MediaStudio({
   }
 
   function applyEnhancementPrompt() {
-    const nextPrompt = enhancePreview?.final_prompt_used || enhancePreview?.enhanced_prompt;
+    const nextPrompt =
+      enhancePreview?.final_prompt_used || enhancePreview?.enhanced_prompt;
     if (!nextPrompt) {
       return false;
     }
     setDesktopComposerCollapsed(false);
     setPrompt(nextPrompt);
     setEnhanceDialogOpen(false);
-    setFormMessage({ tone: "healthy", text: "Loaded the enhanced prompt into the composer." });
+    setFormMessage({
+      tone: "healthy",
+      text: "Loaded the enhanced prompt into the composer.",
+    });
     return true;
   }
   openEnhanceDialogProxyRef.current = openEnhanceDialog;
@@ -638,10 +706,16 @@ export function MediaStudio({
     void router.push(enhanceSetupHref);
   };
 
-  async function loadPresetIntoStudio(presetIdOrKey: string, presetDetail?: MediaPreset | null) {
+  async function loadPresetIntoStudio(
+    presetIdOrKey: string,
+    presetDetail?: MediaPreset | null,
+  ) {
     try {
-      const hydratedPreset = presetDetail ?? await fetchStudioPresetDetail(presetIdOrKey);
-      setHydratedStudioPresets((current) => mergeStudioPresetDetail(current, hydratedPreset));
+      const hydratedPreset =
+        presetDetail ?? (await fetchStudioPresetDetail(presetIdOrKey));
+      setHydratedStudioPresets((current) =>
+        mergeStudioPresetDetail(current, hydratedPreset),
+      );
       applyPresetSelection(hydratedPreset.preset_id ?? hydratedPreset.key, {
         preferredModelKey: modelKey,
         presetOverride: hydratedPreset,
@@ -649,7 +723,10 @@ export function MediaStudio({
     } catch (error) {
       setFormMessage({
         tone: "danger",
-        text: error instanceof Error ? error.message : "Unable to load preset details.",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Unable to load preset details.",
       });
       return;
     }
@@ -661,7 +738,10 @@ export function MediaStudio({
     setSelectedReferencePreview(null);
     setOpenPicker(null);
     revealComposer({ focusPresetField: true, scroll: false });
-    setFormMessage({ tone: "healthy", text: "Preset loaded into the composer." });
+    setFormMessage({
+      tone: "healthy",
+      text: "Preset loaded into the composer.",
+    });
   }
 
   useEffect(() => {
@@ -677,10 +757,16 @@ export function MediaStudio({
     maxAudioInputs,
   });
   const dedicatedImageReferenceRailActive = composerInputRail === "multi-image";
-  const standardComposerSlots = standardComposerLayout.slots.filter((slot) => slot.visible);
-  const standardComposerSectionTitle = standardComposerSlots.some((slot) => slot.role === "driving_video")
+  const standardComposerSlots = standardComposerLayout.slots.filter(
+    (slot) => slot.visible,
+  );
+  const standardComposerSectionTitle = standardComposerSlots.some(
+    (slot) => slot.role === "driving_video",
+  )
     ? "Motion inputs"
-    : standardComposerSlots.some((slot) => slot.role === "start_frame" || slot.role === "end_frame")
+    : standardComposerSlots.some(
+          (slot) => slot.role === "start_frame" || slot.role === "end_frame",
+        )
       ? "Frames"
       : standardComposerSlots.length > 0
         ? "Input"
@@ -711,7 +797,8 @@ export function MediaStudio({
     assignPresetSlotReference,
     clearSourceAsset,
     addReferenceMediaAsAttachment,
-    orderedImageInputSourceAt: (slotIndex) => orderedImageInputs[slotIndex]?.source ?? null,
+    orderedImageInputSourceAt: (slotIndex) =>
+      orderedImageInputs[slotIndex]?.source ?? null,
   });
   const studioHarnessFixtures = useMemo<StudioTestFixtureControls>(() => {
     const closeStudioOverlays = () => {
@@ -749,7 +836,11 @@ export function MediaStudio({
           modelInputLimit(model, "audio_inputs") === 0,
       );
     const findSeedanceModel = () =>
-      models.find((model) => model.studio_exposed !== false && model.key.startsWith("seedance-2.0"));
+      models.find(
+        (model) =>
+          model.studio_exposed !== false &&
+          model.key.startsWith("seedance-2.0"),
+      );
     const findStandardModel = () =>
       models.find(
         (model) =>
@@ -761,8 +852,14 @@ export function MediaStudio({
           !model.key.startsWith("seedance"),
       );
     const findMotionControlModel = (preferredKey = "kling-3.0-motion") =>
-      models.find((model) => model.studio_exposed !== false && model.key === preferredKey) ??
-      models.find((model) => model.studio_exposed !== false && (model.input_patterns ?? []).includes("motion_control"));
+      models.find(
+        (model) => model.studio_exposed !== false && model.key === preferredKey,
+      ) ??
+      models.find(
+        (model) =>
+          model.studio_exposed !== false &&
+          (model.input_patterns ?? []).includes("motion_control"),
+      );
 
     return {
       reset: () => {
@@ -773,12 +870,20 @@ export function MediaStudio({
         clearComposer();
         closeStudioOverlays();
         setDesktopComposerCollapsed(false);
-        setMobileComposerCollapsed((collapsed) => mobileComposerCollapsedForProgrammaticExpand(isCoarsePointerDevice(), collapsed));
+        setMobileComposerCollapsed((collapsed) =>
+          mobileComposerCollapsedForProgrammaticExpand(
+            isCoarsePointerDevice(),
+            collapsed,
+          ),
+        );
       },
       mountPromptReferencePicker: () => {
         const targetModel = findMultiImageModel();
         if (!targetModel) {
-          return { ok: false, reason: "No non-Seedance multi-image Studio model is available." };
+          return {
+            ok: false,
+            reason: "No non-Seedance multi-image Studio model is available.",
+          };
         }
         prepareComposerFixture();
         clearSourceAsset();
@@ -813,7 +918,8 @@ export function MediaStudio({
             job_id: "studio-fixture-job-1",
             model_key: currentModel?.key ?? modelKey,
             status: "completed",
-            raw_prompt: "Fixture job used only to mount Studio context panel chrome.",
+            raw_prompt:
+              "Fixture job used only to mount Studio context panel chrome.",
             created_at: "2026-06-18T00:00:00.000Z",
             provider_task_id: "local-fixture",
           } as MediaJob,
@@ -824,7 +930,8 @@ export function MediaStudio({
         setValidation({
           state: "ready",
           resolved_system_prompt: {
-            rendered_system_prompt: "Fixture preflight text for context-panel visual verification.",
+            rendered_system_prompt:
+              "Fixture preflight text for context-panel visual verification.",
           },
         } as MediaValidationResponse);
         return { ok: true };
@@ -843,7 +950,10 @@ export function MediaStudio({
       mountMotionControlVideo: (preferredKey = "kling-3.0-motion") => {
         const targetModel = findMotionControlModel(preferredKey);
         if (!targetModel) {
-          return { ok: false, reason: "No motion-control Studio model is available." };
+          return {
+            ok: false,
+            reason: "No motion-control Studio model is available.",
+          };
         }
         prepareComposerFixture();
         setModelKey(targetModel.key);
@@ -853,7 +963,9 @@ export function MediaStudio({
         ]);
         setOptionValues({ character_orientation: "image", mode: "720p" });
         setOutputCount(1);
-        setPrompt("Motion-control fixture with a 20.083333 second driving video.");
+        setPrompt(
+          "Motion-control fixture with a 20.083333 second driving video.",
+        );
         return { ok: true };
       },
       mountMobileInputs: (mode = "multi-image") => {
@@ -861,7 +973,10 @@ export function MediaStudio({
         if (mode === "seedance") {
           const targetModel = findSeedanceModel();
           if (!targetModel) {
-            return { ok: false, reason: "No Seedance Studio model is available." };
+            return {
+              ok: false,
+              reason: "No Seedance Studio model is available.",
+            };
           }
           setModelKey(targetModel.key);
           setAttachments([
@@ -876,7 +991,10 @@ export function MediaStudio({
         if (mode === "standard") {
           const targetModel = findStandardModel();
           if (!targetModel) {
-            return { ok: false, reason: "No standard image-input Studio model is available." };
+            return {
+              ok: false,
+              reason: "No standard image-input Studio model is available.",
+            };
           }
           setModelKey(targetModel.key);
           setAttachments([]);
@@ -885,7 +1003,10 @@ export function MediaStudio({
         }
         const targetModel = findMultiImageModel();
         if (!targetModel) {
-          return { ok: false, reason: "No multi-image Studio model is available." };
+          return {
+            ok: false,
+            reason: "No multi-image Studio model is available.",
+          };
         }
         setModelKey(targetModel.key);
         setAttachments([
@@ -932,7 +1053,10 @@ export function MediaStudio({
       return;
     }
     const hostname = window.location.hostname;
-    const localHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+    const localHost =
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1";
     if (!localHost) {
       return;
     }
@@ -1029,34 +1153,63 @@ export function MediaStudio({
   });
   const promptReferenceMention =
     dedicatedImageReferenceRailActive && promptHasFocus
-      ? detectPromptReferenceMention(prompt, promptCursorIndex ?? promptInputRef.current?.selectionStart ?? prompt.length)
+      ? detectPromptReferenceMention(
+          prompt,
+          promptCursorIndex ??
+            promptInputRef.current?.selectionStart ??
+            prompt.length,
+        )
       : null;
   const promptReferenceChoices = useMemo(() => {
     if (!dedicatedImageReferenceRailActive) {
       return [];
     }
-    const normalizedQuery = (promptReferenceMention?.query ?? "").replace(/\s+/g, " ").trim();
+    const normalizedQuery = (promptReferenceMention?.query ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
     return orderedImageInputs
       .map((slot, index) => {
         const label = `Image reference ${index + 1}`;
-        const preview = orderedImageInputPreview(slot, label, `prompt-reference-${index + 1}`);
+        const preview = orderedImageInputPreview(
+          slot,
+          label,
+          `prompt-reference-${index + 1}`,
+        );
         return {
           id: `image-reference-${index + 1}`,
           label,
           token: `[image reference ${index + 1}]`,
           search: `${label.toLowerCase()} ref ${index + 1} image ${index + 1}`,
           preview,
-          visualUrl: orderedImageInputVisual(slot) ?? preview?.posterUrl ?? preview?.url ?? null,
+          visualUrl:
+            orderedImageInputVisual(slot) ??
+            preview?.posterUrl ??
+            preview?.url ??
+            null,
         };
       })
-      .filter((choice) => !normalizedQuery || choice.search.includes(normalizedQuery));
-  }, [dedicatedImageReferenceRailActive, orderedImageInputs, promptReferenceMention?.query]);
-  const promptReferencePickerOpen = Boolean(promptReferenceMention && promptReferenceChoices.length > 0 && !promptReferenceDismissed);
+      .filter(
+        (choice) => !normalizedQuery || choice.search.includes(normalizedQuery),
+      );
+  }, [
+    dedicatedImageReferenceRailActive,
+    orderedImageInputs,
+    promptReferenceMention?.query,
+  ]);
+  const promptReferencePickerOpen = Boolean(
+    promptReferenceMention &&
+    promptReferenceChoices.length > 0 &&
+    !promptReferenceDismissed,
+  );
 
   useEffect(() => {
     setPromptReferenceActiveIndex(0);
     setPromptReferenceDismissed(false);
-  }, [promptReferenceMention?.start, promptReferenceMention?.query, promptReferenceChoices.length]);
+  }, [
+    promptReferenceMention?.start,
+    promptReferenceMention?.query,
+    promptReferenceChoices.length,
+  ]);
 
   function syncPromptCursorIndex(target: HTMLTextAreaElement | null) {
     if (!target) {
@@ -1065,11 +1218,17 @@ export function MediaStudio({
     setPromptCursorIndex(target.selectionStart ?? target.value.length);
   }
 
-  function applyPromptReferenceChoice(choice: (typeof promptReferenceChoices)[number] | null) {
+  function applyPromptReferenceChoice(
+    choice: (typeof promptReferenceChoices)[number] | null,
+  ) {
     if (!choice || !promptReferenceMention) {
       return;
     }
-    const nextPromptState = applyPromptReferenceMention(prompt, promptReferenceMention, choice.token);
+    const nextPromptState = applyPromptReferenceMention(
+      prompt,
+      promptReferenceMention,
+      choice.token,
+    );
     expandStudioComposer();
     setPrompt(nextPromptState.prompt);
     setPromptCursorIndex(nextPromptState.caretIndex);
@@ -1079,7 +1238,10 @@ export function MediaStudio({
         return;
       }
       input.focus();
-      input.setSelectionRange(nextPromptState.caretIndex, nextPromptState.caretIndex);
+      input.setSelectionRange(
+        nextPromptState.caretIndex,
+        nextPromptState.caretIndex,
+      );
     });
   }
 
@@ -1093,37 +1255,59 @@ export function MediaStudio({
       onOpenPreview={openReferencePreview}
       onClearOrderedImageInput={clearOrderedImageInput}
       onSetDragActive={setIsDragActive}
-      onDropIntoSlot={(event, slotIndex) => void handleSourceTileDrop(event, slotIndex)}
+      onDropIntoSlot={(event, slotIndex) =>
+        void handleSourceTileDrop(event, slotIndex)
+      }
       onAddImageFilesToOrderedSlot={addImageFilesToOrderedSlot}
     />
   ) : null;
-  const motionControlVideoAsset = currentSourceAsset?.generation_kind === "video" ? currentSourceAsset : null;
-  const motionControlVideoAttachment =
-    motionControlVideoAsset ? null : attachments.find((attachment) => attachment.kind === "videos") ?? null;
+  const motionControlVideoAsset =
+    currentSourceAsset?.generation_kind === "video" ? currentSourceAsset : null;
+  const motionControlVideoAttachment = motionControlVideoAsset
+    ? null
+    : (attachments.find((attachment) => attachment.kind === "videos") ?? null);
   const motionControlVideoPreview = motionControlVideoAsset
     ? buildAssetReferencePreview(motionControlVideoAsset, "Driving video")
-    : buildAttachmentPreview(motionControlVideoAttachment, "Driving video", "motion-control-video");
+    : buildAttachmentPreview(
+        motionControlVideoAttachment,
+        "Driving video",
+        "motion-control-video",
+      );
   const motionControlVideoVisual = motionControlVideoAsset
-    ? mediaThumbnailUrl(motionControlVideoAsset) ?? mediaDisplayUrl(motionControlVideoAsset)
-    : motionControlVideoAttachment?.previewUrl ??
+    ? (mediaThumbnailUrl(motionControlVideoAsset) ??
+      mediaDisplayUrl(motionControlVideoAsset))
+    : (motionControlVideoAttachment?.previewUrl ??
       motionControlVideoAttachment?.referenceRecord?.thumb_url ??
       motionControlVideoAttachment?.referenceRecord?.stored_url ??
-      null;
-  function standardComposerSlotPreview(slot: StudioComposerSlot, previewKey: string) {
+      null);
+  function standardComposerSlotPreview(
+    slot: StudioComposerSlot,
+    previewKey: string,
+  ) {
     if (slot.kind === "image") {
-      return orderedImageInputPreview(orderedImageInputs[slot.slotIndex] ?? null, slot.label, previewKey);
+      return orderedImageInputPreview(
+        orderedImageInputs[slot.slotIndex] ?? null,
+        slot.label,
+        previewKey,
+      );
     }
     if (slot.role === "driving_video") {
       return motionControlVideoAsset
         ? buildAssetReferencePreview(motionControlVideoAsset, slot.label)
-        : buildAttachmentPreview(motionControlVideoAttachment, slot.label, previewKey);
+        : buildAttachmentPreview(
+            motionControlVideoAttachment,
+            slot.label,
+            previewKey,
+          );
     }
     return null;
   }
 
   function standardComposerSlotVisual(slot: StudioComposerSlot) {
     if (slot.kind === "image") {
-      return orderedImageInputVisual(orderedImageInputs[slot.slotIndex] ?? null);
+      return orderedImageInputVisual(
+        orderedImageInputs[slot.slotIndex] ?? null,
+      );
     }
     if (slot.role === "driving_video") {
       return motionControlVideoVisual;
@@ -1160,7 +1344,12 @@ export function MediaStudio({
       if (replaceFilled && currentSlot?.source === "asset") {
         clearSourceAsset();
       }
-      addImageFilesToOrderedSlot(fileList, slot.slotIndex, input, replaceFilled);
+      addImageFilesToOrderedSlot(
+        fileList,
+        slot.slotIndex,
+        input,
+        replaceFilled,
+      );
       return;
     }
     if (slot.role === "driving_video") {
@@ -1181,48 +1370,57 @@ export function MediaStudio({
     standardComposerSlotPreview,
     standardComposerSlotVisual,
     onSetDragActive: setIsDragActive,
-    onSetFormWarning: (text: string) => setFormMessage({ tone: "warning", text }),
+    onSetFormWarning: (text: string) =>
+      setFormMessage({ tone: "warning", text }),
   };
 
-  const sourceAttachmentStrip = composerInputRail === "seedance" || composerInputRail === "standard" ? (
-    <StudioSourceAttachmentStrip
-      inputRail={composerInputRail}
-      isDragActive={isDragActive}
-      seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
-      seedanceLastFrameAttachment={seedanceLastFrameAttachment}
-      standardComposerSlots={standardComposerSlots}
-      orderedImageInputs={orderedImageInputs}
-      mobileAddTileClassName={mobileAddTileClassName}
-      mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
-      {...composerMediaInteractionProps}
-      onDropIntoSourceSlot={(event, slotIndex, slot) => void handleSourceTileDrop(event, slotIndex, slot)}
-      onOpenPreview={openReferencePreview}
-      onRemoveAttachment={removeAttachment}
-      onClearStandardComposerSlot={clearStandardComposerSlot}
-      onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
-      onAddFiles={(files, options) => { addFiles(files, options).catch(reportActionError); }}
-      onResetFileInput={resetFileInputValue}
-    />
-  ) : null;
-  const seedanceReferenceStrip =
-    seedanceComposer ? (
-      <StudioSeedanceReferenceStrip
+  const sourceAttachmentStrip =
+    composerInputRail === "seedance" || composerInputRail === "standard" ? (
+      <StudioSourceAttachmentStrip
+        inputRail={composerInputRail}
         isDragActive={isDragActive}
-        referenceImages={seedanceReferenceImages}
-        referenceVideos={seedanceReferenceVideos}
-        referenceAudios={seedanceReferenceAudios}
-        maxImageReferences={maxImageInputs}
-        maxVideoReferences={maxVideoInputs}
-        maxAudioReferences={maxAudioInputs}
-        buildAttachmentPreview={buildAttachmentPreview}
-        onSetDragActive={setIsDragActive}
-        onReferenceDrop={(event, kind) => void handleSeedanceReferenceDrop(event, kind)}
+        seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
+        seedanceLastFrameAttachment={seedanceLastFrameAttachment}
+        standardComposerSlots={standardComposerSlots}
+        orderedImageInputs={orderedImageInputs}
+        mobileAddTileClassName={mobileAddTileClassName}
+        mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
+        {...composerMediaInteractionProps}
+        onDropIntoSourceSlot={(event, slotIndex, slot) =>
+          void handleSourceTileDrop(event, slotIndex, slot)
+        }
         onOpenPreview={openReferencePreview}
         onRemoveAttachment={removeAttachment}
-        onAddFiles={(files, options) => { addFiles(files, options).catch(reportActionError); }}
+        onClearStandardComposerSlot={clearStandardComposerSlot}
+        onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
+        onAddFiles={(files, options) => {
+          addFiles(files, options).catch(reportActionError);
+        }}
         onResetFileInput={resetFileInputValue}
       />
     ) : null;
+  const seedanceReferenceStrip = seedanceComposer ? (
+    <StudioSeedanceReferenceStrip
+      isDragActive={isDragActive}
+      referenceImages={seedanceReferenceImages}
+      referenceVideos={seedanceReferenceVideos}
+      referenceAudios={seedanceReferenceAudios}
+      maxImageReferences={maxImageInputs}
+      maxVideoReferences={maxVideoInputs}
+      maxAudioReferences={maxAudioInputs}
+      buildAttachmentPreview={buildAttachmentPreview}
+      onSetDragActive={setIsDragActive}
+      onReferenceDrop={(event, kind) =>
+        void handleSeedanceReferenceDrop(event, kind)
+      }
+      onOpenPreview={openReferencePreview}
+      onRemoveAttachment={removeAttachment}
+      onAddFiles={(files, options) => {
+        addFiles(files, options).catch(reportActionError);
+      }}
+      onResetFileInput={resetFileInputValue}
+    />
+  ) : null;
   const mobileInputsSection = !structuredPresetActive ? (
     <StudioMobileInputsContent
       inputRail={composerInputRail}
@@ -1246,14 +1444,20 @@ export function MediaStudio({
       mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
       buildOrderedImageInputPreview={orderedImageInputPreview}
       {...composerMediaInteractionProps}
-      onDropIntoSourceSlot={(event, slotIndex, slot) => void handleSourceTileDrop(event, slotIndex, slot)}
-      onSeedanceReferenceDrop={(event, kind) => void handleSeedanceReferenceDrop(event, kind)}
+      onDropIntoSourceSlot={(event, slotIndex, slot) =>
+        void handleSourceTileDrop(event, slotIndex, slot)
+      }
+      onSeedanceReferenceDrop={(event, kind) =>
+        void handleSeedanceReferenceDrop(event, kind)
+      }
       onOpenPreview={openReferencePreview}
       onClearOrderedImageInput={clearOrderedImageInput}
       onRemoveAttachment={removeAttachment}
       onClearStandardComposerSlot={clearStandardComposerSlot}
       onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
-      onAddFiles={(files, options) => { addFiles(files, options).catch(reportActionError); }}
+      onAddFiles={(files, options) => {
+        addFiles(files, options).catch(reportActionError);
+      }}
       onAddImageFilesToOrderedSlot={addImageFilesToOrderedSlot}
       onResetFileInput={resetFileInputValue}
     />
@@ -1261,18 +1465,26 @@ export function MediaStudio({
 
   useEffect(() => {
     setHasMounted(true);
-    setDesktopComposerCollapsed(window.localStorage.getItem(STUDIO_COMPOSER_COLLAPSED_STORAGE_KEY) === "1");
+    setDesktopComposerCollapsed(
+      window.localStorage.getItem(STUDIO_COMPOSER_COLLAPSED_STORAGE_KEY) ===
+        "1",
+    );
   }, []);
 
   useEffect(() => {
     if (!hasMounted) {
       return;
     }
-    window.localStorage.setItem(STUDIO_COMPOSER_COLLAPSED_STORAGE_KEY, desktopComposerCollapsed ? "1" : "0");
+    window.localStorage.setItem(
+      STUDIO_COMPOSER_COLLAPSED_STORAGE_KEY,
+      desktopComposerCollapsed ? "1" : "0",
+    );
   }, [desktopComposerCollapsed, hasMounted]);
 
   useEffect(() => {
-    setOutputCount((current) => Math.min(Math.max(1, current), modelMaxOutputs));
+    setOutputCount((current) =>
+      Math.min(Math.max(1, current), modelMaxOutputs),
+    );
   }, [modelMaxOutputs]);
 
   const lockingOverlayOpen =
@@ -1288,7 +1500,12 @@ export function MediaStudio({
       return false;
     }
     const tagName = target.tagName.toLowerCase();
-    return target.isContentEditable || tagName === "input" || tagName === "textarea" || tagName === "select";
+    return (
+      target.isContentEditable ||
+      tagName === "input" ||
+      tagName === "textarea" ||
+      tagName === "select"
+    );
   }, []);
 
   useEffect(() => {
@@ -1303,7 +1520,8 @@ export function MediaStudio({
     const previousBodyRight = document.body.style.right;
     const previousBodyWidth = document.body.style.width;
     const previousHtmlOverflow = document.documentElement.style.overflow;
-    const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+    const previousHtmlOverscroll =
+      document.documentElement.style.overscrollBehavior;
     document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
     document.body.style.top = `-${scrollY}px`;
@@ -1322,7 +1540,8 @@ export function MediaStudio({
       document.body.style.right = previousBodyRight;
       document.body.style.width = previousBodyWidth;
       document.documentElement.style.overflow = previousHtmlOverflow;
-      document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
+      document.documentElement.style.overscrollBehavior =
+        previousHtmlOverscroll;
       window.scrollTo(0, restoreScrollY);
     };
   }, [lockingOverlayOpen]);
@@ -1332,7 +1551,9 @@ export function MediaStudio({
       setPendingGalleryStep(null);
       return;
     }
-    const currentIndex = visibleGalleryAssetIds.findIndex((assetId) => String(assetId) === String(selectedAsset.asset_id));
+    const currentIndex = visibleGalleryAssetIds.findIndex(
+      (assetId) => String(assetId) === String(selectedAsset.asset_id),
+    );
     if (currentIndex === -1) {
       setPendingGalleryStep(null);
       return;
@@ -1359,7 +1580,13 @@ export function MediaStudio({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      ) {
         return;
       }
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
@@ -1368,7 +1595,11 @@ export function MediaStudio({
       if (isTypingTarget(event.target)) {
         return;
       }
-      if (event.key === "ArrowRight" && currentIndex === visibleGalleryAssetIds.length - 1 && activeGalleryHasMore) {
+      if (
+        event.key === "ArrowRight" &&
+        currentIndex === visibleGalleryAssetIds.length - 1 &&
+        activeGalleryHasMore
+      ) {
         event.preventDefault();
         if (!activeGalleryLoadingMore && pendingGalleryStep == null) {
           setPendingGalleryStep("next");
@@ -1377,9 +1608,14 @@ export function MediaStudio({
         return;
       }
       const direction = event.key === "ArrowRight" ? 1 : -1;
-      const nextIndex = (currentIndex + direction + visibleGalleryAssetIds.length) % visibleGalleryAssetIds.length;
+      const nextIndex =
+        (currentIndex + direction + visibleGalleryAssetIds.length) %
+        visibleGalleryAssetIds.length;
       const nextAssetId = visibleGalleryAssetIds[nextIndex];
-      if (nextAssetId == null || String(nextAssetId) === String(selectedAsset.asset_id)) {
+      if (
+        nextAssetId == null ||
+        String(nextAssetId) === String(selectedAsset.asset_id)
+      ) {
         return;
       }
       event.preventDefault();
@@ -1402,7 +1638,13 @@ export function MediaStudio({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      ) {
         return;
       }
       const action = resolveStudioShortcutAction({
@@ -1453,20 +1695,31 @@ export function MediaStudio({
       if (!selectedAsset || visibleGalleryAssetIds.length < 2) {
         return false;
       }
-      const currentIndex = visibleGalleryAssetIds.findIndex((assetId) => String(assetId) === String(selectedAsset.asset_id));
+      const currentIndex = visibleGalleryAssetIds.findIndex(
+        (assetId) => String(assetId) === String(selectedAsset.asset_id),
+      );
       if (currentIndex === -1) {
         return false;
       }
-      if (direction === 1 && currentIndex === visibleGalleryAssetIds.length - 1 && activeGalleryHasMore) {
+      if (
+        direction === 1 &&
+        currentIndex === visibleGalleryAssetIds.length - 1 &&
+        activeGalleryHasMore
+      ) {
         if (!activeGalleryLoadingMore && pendingGalleryStep == null) {
           setPendingGalleryStep("next");
           void loadMoreActiveGalleryAssets();
         }
         return true;
       }
-      const nextIndex = (currentIndex + direction + visibleGalleryAssetIds.length) % visibleGalleryAssetIds.length;
+      const nextIndex =
+        (currentIndex + direction + visibleGalleryAssetIds.length) %
+        visibleGalleryAssetIds.length;
       const nextAssetId = visibleGalleryAssetIds[nextIndex];
-      if (nextAssetId == null || String(nextAssetId) === String(selectedAsset.asset_id)) {
+      if (
+        nextAssetId == null ||
+        String(nextAssetId) === String(selectedAsset.asset_id)
+      ) {
         return false;
       }
       setSelectedFailedJobId(null);
@@ -1492,21 +1745,34 @@ export function MediaStudio({
     event.preventDefault();
     event.stopPropagation();
     setIsDragActive(false);
-    const galleryAssetId = event.dataTransfer.getData("application/x-bumblebee-media-asset-id");
+    const galleryAssetId = event.dataTransfer.getData(
+      "application/x-bumblebee-media-asset-id",
+    );
     if (standardSlot) {
       if (galleryAssetId) {
-        const asset = findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
+        const asset =
+          findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ??
+          null;
         if (!asset) {
-          setFormMessage({ tone: "danger", text: "The dragged gallery asset could not be found." });
+          setFormMessage({
+            tone: "danger",
+            text: "The dragged gallery asset could not be found.",
+          });
           return;
         }
         if (standardSlot.kind === "image") {
           if (asset.generation_kind !== "image") {
-            setFormMessage({ tone: "danger", text: `${standardSlot.label} only accepts image assets.` });
+            setFormMessage({
+              tone: "danger",
+              text: `${standardSlot.label} only accepts image assets.`,
+            });
             return;
           }
           if (slotIndex > orderedImageInputs.length) {
-            setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+            setFormMessage({
+              tone: "warning",
+              text: "Fill the earlier image slot first.",
+            });
             return;
           }
           if (slotIndex === 0) {
@@ -1524,7 +1790,10 @@ export function MediaStudio({
           return;
         }
         if (asset.generation_kind !== "video") {
-          setFormMessage({ tone: "danger", text: `${standardSlot.label} only accepts video assets.` });
+          setFormMessage({
+            tone: "danger",
+            text: `${standardSlot.label} only accepts video assets.`,
+          });
           return;
         }
         if (motionControlVideoAsset) {
@@ -1537,7 +1806,10 @@ export function MediaStudio({
       }
       if (standardSlot.kind === "image") {
         if (slotIndex > orderedImageInputs.length) {
-          setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+          setFormMessage({
+            tone: "warning",
+            text: "Fill the earlier image slot first.",
+          });
           return;
         }
         const currentSlot = orderedImageInputs[slotIndex] ?? null;
@@ -1555,22 +1827,32 @@ export function MediaStudio({
       return;
     }
     if (galleryAssetId) {
-      const asset = findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
+      const asset =
+        findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
       if (!asset) {
-        setFormMessage({ tone: "danger", text: "The dragged gallery asset could not be found." });
+        setFormMessage({
+          tone: "danger",
+          text: "The dragged gallery asset could not be found.",
+        });
         return;
       }
       if (explicitMotionControlSlots) {
         if (slotIndex === 0) {
           if (asset.generation_kind !== "image") {
-            setFormMessage({ tone: "danger", text: "The motion image slot only accepts image assets." });
+            setFormMessage({
+              tone: "danger",
+              text: "The motion image slot only accepts image assets.",
+            });
             return;
           }
           useAssetAsSource(asset, false);
           return;
         }
         if (asset.generation_kind !== "video") {
-          setFormMessage({ tone: "danger", text: "The motion video slot only accepts video assets." });
+          setFormMessage({
+            tone: "danger",
+            text: "The motion video slot only accepts video assets.",
+          });
           return;
         }
         if (motionControlVideoAsset) {
@@ -1582,11 +1864,17 @@ export function MediaStudio({
         return;
       }
       if (asset.generation_kind !== "image") {
-        setFormMessage({ tone: "danger", text: "Only image cards can be staged as source media." });
+        setFormMessage({
+          tone: "danger",
+          text: "Only image cards can be staged as source media.",
+        });
         return;
       }
       if (slotIndex > orderedImageInputs.length) {
-        setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+        setFormMessage({
+          tone: "warning",
+          text: "Fill the earlier image slot first.",
+        });
         return;
       }
       if (seedanceComposer) {
@@ -1603,7 +1891,10 @@ export function MediaStudio({
     }
     if (seedanceComposer) {
       if (slotIndex > 0 && !seedanceFirstFrameAttachment) {
-        setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
+        setFormMessage({
+          tone: "warning",
+          text: "Add a start frame before the end frame.",
+        });
         return;
       }
       addFiles(event.dataTransfer.files, {
@@ -1614,14 +1905,23 @@ export function MediaStudio({
     }
     if (explicitMotionControlSlots) {
       if (slotIndex === 0) {
-        addFiles(event.dataTransfer.files, { allowedKinds: ["images"], insertImageIndex: 0 });
+        addFiles(event.dataTransfer.files, {
+          allowedKinds: ["images"],
+          insertImageIndex: 0,
+        });
         return;
       }
       stageDroppedDrivingVideo(event.dataTransfer.files);
       return;
     }
-    if ((dedicatedImageReferenceRailActive || explicitVideoImageSlots) && slotIndex > orderedImageInputs.length) {
-      setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+    if (
+      (dedicatedImageReferenceRailActive || explicitVideoImageSlots) &&
+      slotIndex > orderedImageInputs.length
+    ) {
+      setFormMessage({
+        tone: "warning",
+        text: "Fill the earlier image slot first.",
+      });
       return;
     }
     if (explicitVideoImageSlots) {
@@ -1649,44 +1949,69 @@ export function MediaStudio({
   ) {
     event.preventDefault();
     setIsDragActive(false);
-    const galleryAssetId = event.dataTransfer.getData("application/x-bumblebee-media-asset-id");
+    const galleryAssetId = event.dataTransfer.getData(
+      "application/x-bumblebee-media-asset-id",
+    );
     if (galleryAssetId) {
-      const asset = findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
+      const asset =
+        findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
       if (!asset) {
-        setFormMessage({ tone: "danger", text: "The dragged gallery asset could not be found." });
+        setFormMessage({
+          tone: "danger",
+          text: "The dragged gallery asset could not be found.",
+        });
         return;
       }
       void addGalleryAssetAsAttachment(asset, "reference", [allowedKind]);
       return;
     }
-    addFiles(event.dataTransfer.files, { role: "reference", allowedKinds: [allowedKind] });
+    addFiles(event.dataTransfer.files, {
+      role: "reference",
+      allowedKinds: [allowedKind],
+    });
   }
 
-  function handlePresetSlotDrop(event: React.DragEvent<HTMLElement>, slotKey: string) {
+  function handlePresetSlotDrop(
+    event: React.DragEvent<HTMLElement>,
+    slotKey: string,
+  ) {
     event.preventDefault();
     expandStudioComposer();
-    const galleryAssetId = event.dataTransfer.getData("application/x-bumblebee-media-asset-id");
+    const galleryAssetId = event.dataTransfer.getData(
+      "application/x-bumblebee-media-asset-id",
+    );
     if (galleryAssetId) {
-      const asset = findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
+      const asset =
+        findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
       assignPresetSlotAsset(slotKey, asset);
       return;
     }
-    const droppedFile = Array.from(event.dataTransfer.files).find((file) => file.type.startsWith("image/")) ?? null;
+    const droppedFile =
+      Array.from(event.dataTransfer.files).find((file) =>
+        file.type.startsWith("image/"),
+      ) ?? null;
     assignPresetSlotFile(slotKey, droppedFile);
   }
 
   function stageDroppedDrivingVideo(files: FileList) {
     if (motionControlVideoAsset) clearSourceAsset();
-    else if (motionControlVideoAttachment) removeAttachment(motionControlVideoAttachment.id);
+    else if (motionControlVideoAttachment)
+      removeAttachment(motionControlVideoAttachment.id);
     addFiles(files, { allowedKinds: ["videos"] }).catch(reportActionError);
   }
 
-  function handleGalleryAssetDragStart(event: React.DragEvent<HTMLDivElement>, asset: MediaAsset | null) {
+  function handleGalleryAssetDragStart(
+    event: React.DragEvent<HTMLDivElement>,
+    asset: MediaAsset | null,
+  ) {
     if (!asset) {
       event.preventDefault();
       return;
     }
-    event.dataTransfer.setData("application/x-bumblebee-media-asset-id", String(asset.asset_id));
+    event.dataTransfer.setData(
+      "application/x-bumblebee-media-asset-id",
+      String(asset.asset_id),
+    );
     event.dataTransfer.effectAllowed = "copy";
     const preview = mediaThumbnailUrl(asset);
     if (preview && typeof document !== "undefined") {
@@ -1719,15 +2044,31 @@ export function MediaStudio({
     if (!asset) {
       return;
     }
-    if (!animate && !seedanceComposer && !structuredPresetActive && !canUseSourceAsset && !explicitVideoImageSlots && !dedicatedImageReferenceRailActive) {
-      setFormMessage({ tone: "warning", text: "The selected model is text-to-video only, so Studio is hiding source image inputs." });
+    if (
+      !animate &&
+      !seedanceComposer &&
+      !structuredPresetActive &&
+      !canUseSourceAsset &&
+      !explicitVideoImageSlots &&
+      !dedicatedImageReferenceRailActive
+    ) {
+      setFormMessage({
+        tone: "warning",
+        text: "The selected model is text-to-video only, so Studio is hiding source image inputs.",
+      });
       return;
     }
     setDesktopComposerCollapsed(false);
     if (animate && asset.generation_kind === "image") {
-      const animateTargetModel = resolveImageToVideoAnimationModel(models, currentModel);
+      const animateTargetModel = resolveImageToVideoAnimationModel(
+        models,
+        currentModel,
+      );
       if (!animateTargetModel) {
-        setFormMessage({ tone: "warning", text: "No image-to-video model is available for this image." });
+        setFormMessage({
+          tone: "warning",
+          text: "No image-to-video model is available for this image.",
+        });
         return;
       }
       stageSourceAsset(asset);
@@ -1736,7 +2077,10 @@ export function MediaStudio({
       }
       closeAssetInspector();
       setMobileComposerCollapsed(!isCoarsePointerDevice());
-      setFormMessage({ tone: "warning", text: "The selected image is now staged for the animate flow." });
+      setFormMessage({
+        tone: "warning",
+        text: "The selected image is now staged for the animate flow.",
+      });
       return;
     }
     if (explicitMotionControlSlots) {
@@ -1748,13 +2092,19 @@ export function MediaStudio({
         }
         void addGalleryAssetAsAttachment(asset, null, ["videos"]);
         closeAssetInspector();
-        setFormMessage({ tone: "warning", text: "The selected asset is now staged as the driving video." });
+        setFormMessage({
+          tone: "warning",
+          text: "The selected asset is now staged as the driving video.",
+        });
         return;
       }
       stageSourceAsset(asset);
       closeAssetInspector();
       setMobileComposerCollapsed(!isCoarsePointerDevice());
-      setFormMessage({ tone: "warning", text: "The selected asset is now staged as the source image." });
+      setFormMessage({
+        tone: "warning",
+        text: "The selected asset is now staged as the source image.",
+      });
       return;
     }
     if (seedanceComposer) {
@@ -1777,7 +2127,12 @@ export function MediaStudio({
       });
       return;
     }
-    if (structuredPresetActive && !animate && asset.generation_kind === "image" && structuredPresetImageSlots.length) {
+    if (
+      structuredPresetActive &&
+      !animate &&
+      asset.generation_kind === "image" &&
+      structuredPresetImageSlots.length
+    ) {
       const nextSlot =
         structuredPresetImageSlots.find((slot) => {
           const slotState = presetSlotStates[slot.key];
@@ -1785,7 +2140,10 @@ export function MediaStudio({
         }) ?? structuredPresetImageSlots[0];
       assignPresetSlotAsset(nextSlot.key, asset);
       closeAssetInspector();
-      setFormMessage({ tone: "warning", text: `${asset.prompt_summary ? "Image" : "Selected asset"} assigned to ${nextSlot.label}.` });
+      setFormMessage({
+        tone: "warning",
+        text: `${asset.prompt_summary ? "Image" : "Selected asset"} assigned to ${nextSlot.label}.`,
+      });
       return;
     }
     // Keep the gallery asset in ordered slot zero so subsequent image attachments
@@ -1809,7 +2167,10 @@ export function MediaStudio({
     replaceFilled = false,
   ) {
     if (slotIndex > orderedImageInputs.length) {
-      setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+      setFormMessage({
+        tone: "warning",
+        text: "Fill the earlier image slot first.",
+      });
       resetFileInputValue(input ?? null);
       return;
     }
@@ -1822,7 +2183,9 @@ export function MediaStudio({
     resetFileInputValue(input ?? null);
   }
 
-  function clearOrderedImageInput(slot: (typeof orderedImageInputs)[number] | null) {
+  function clearOrderedImageInput(
+    slot: (typeof orderedImageInputs)[number] | null,
+  ) {
     if (!slot) {
       return;
     }
@@ -1832,7 +2195,9 @@ export function MediaStudio({
       return;
     }
     if (slot.source === "reference") {
-      const match = attachments.find((attachment) => attachment.id === slot.attachmentId);
+      const match = attachments.find(
+        (attachment) => attachment.id === slot.attachmentId,
+      );
       if (match) {
         removeAttachment(match.id);
       }
@@ -1841,27 +2206,28 @@ export function MediaStudio({
     removeAttachment(slot.attachment.id);
   }
 
-  const { retryFailedJobInStudio, reviseSelectedAssetInStudio } = useStudioRestoreCoordination({
-    inspector,
-    composer,
-    selectedAssetJob,
-    models,
-    presets: studioPresetCatalog,
-    localAssets,
-    favoriteAssets,
-    selectedProjectId,
-    setSelectedProjectId,
-    studioHrefForProject,
-    setLocalAssets,
-    setLocalJobs,
-    upsertBatch,
-    setSelectedFailedJobId,
-    setSelectedAssetId,
-    setSelectedMediaLightboxOpen,
-    clearSelectedReferencePreview: () => setSelectedReferencePreview(null),
-    setFormMessage,
-    revealComposer,
-  });
+  const { retryFailedJobInStudio, reviseSelectedAssetInStudio } =
+    useStudioRestoreCoordination({
+      inspector,
+      composer,
+      selectedAssetJob,
+      models,
+      presets: studioPresetCatalog,
+      localAssets,
+      favoriteAssets,
+      selectedProjectId,
+      setSelectedProjectId,
+      studioHrefForProject,
+      setLocalAssets,
+      setLocalJobs,
+      upsertBatch,
+      setSelectedFailedJobId,
+      setSelectedAssetId,
+      setSelectedMediaLightboxOpen,
+      clearSelectedReferencePreview: () => setSelectedReferencePreview(null),
+      setFormMessage,
+      revealComposer,
+    });
 
   function clearGallerySelection() {
     resetInspector();
@@ -1883,261 +2249,312 @@ export function MediaStudio({
     toggleFavoritesFilter();
   }
 
-  const renderedGalleryTiles = studioHarnessFixtureState?.galleryEmpty ? [] : galleryTiles;
-  const renderedGalleryHasMore = studioHarnessFixtureState?.galleryEmpty ? false : activeGalleryHasMore;
-  const renderedGalleryLoadingMore = studioHarnessFixtureState?.galleryEmpty ? false : activeGalleryLoadingMore;
+  const renderedGalleryTiles = studioHarnessFixtureState?.galleryEmpty
+    ? []
+    : galleryTiles;
+  const renderedGalleryHasMore = studioHarnessFixtureState?.galleryEmpty
+    ? false
+    : activeGalleryHasMore;
+  const renderedGalleryLoadingMore = studioHarnessFixtureState?.galleryEmpty
+    ? false
+    : activeGalleryLoadingMore;
 
   const stageAssetAsSource = useAssetAsSource;
 
   function reportActionError(error: unknown) {
-    setFormMessage({ tone: "danger", text: error instanceof Error ? error.message : "Studio could not complete this action." });
+    setFormMessage({
+      tone: "danger",
+      text:
+        error instanceof Error
+          ? error.message
+          : "Studio could not complete this action.",
+    });
   }
 
   return (
     <div className={immersive ? "min-h-dvh" : "space-y-7"}>
       <StudioCreateStage immersive={immersive}>
-          <StudioHeaderChrome
-            immersive={immersive}
-            apiHealthy={apiHealthy}
-            galleryModelFilter={galleryModelFilter}
-            models={models}
-            favoritesOnly={favoritesOnly}
-            galleryKindFilter={galleryKindFilter}
-            projectWorkspaceActive={Boolean(selectedProject)}
-            metrics={
-              !selectedAsset ? (
-                <div className="hidden items-center gap-2 md:flex">
-                  {selectedProjectMetric}
-                  <StudioCreditMetrics remaining={formattedRemainingCredits} estimated={estimatedCredits} />
-                </div>
-              ) : null
-            }
-            onGalleryModelFilterChange={handleGalleryModelFilterChange}
-            onActivateGalleryKindFilter={handleGalleryKindFilterChange}
-            onToggleFavoritesFilter={handleFavoritesFilterToggle}
-            onOpenProjects={() => setProjectBrowserOpen(true)}
-            onOpenPresets={() => setPresetBrowserOpen(true)}
-            onOpenLibrary={openContextualReferenceLibrary}
-            onOpenSettings={() => void router.push(buildStudioScopedHref("/settings", selectedProjectId))}
-          />
-
-          <StudioGallery
-            apiHealthy={apiHealthy}
-            immersive={immersive}
-            galleryTiles={renderedGalleryTiles}
-            activeGalleryHasMore={renderedGalleryHasMore}
-            firstGalleryPageFailed={gallery.state.firstGalleryPageFailed}
-            activeGalleryLoadingMore={renderedGalleryLoadingMore}
-            selectedAssetId={selectedAssetId}
-            favoriteAssetIdBusy={favoriteAssetIdBusy}
-            galleryLoadMoreRef={galleryLoadMoreRef}
-            onLoadMore={() => { loadMoreActiveGalleryAssets().catch(reportActionError); }}
-            onSelectAsset={(assetId) => {
-              setSelectedFailedJobId(null);
-              setSelectedAssetId(assetId);
-            }}
-            onSelectFailedJob={(jobId) => {
-              setSelectedMediaLightboxOpen(false);
-              setSelectedAssetId(null);
-              setSelectedFailedJobId(jobId);
-            }}
-            onDragAsset={handleGalleryAssetDragStart}
-            onToggleFavorite={(asset) => { toggleAssetFavorite(asset).catch(reportActionError); }}
-          />
-
-          {!selectedAsset ? (
-            <>
-              <div ref={composerShellRef}>
-                <StudioComposer
-                  immersive={immersive}
-                  composerCollapsed={desktopComposerCollapsed}
-                  mobileComposerCollapsed={mobileComposerCollapsed}
-                  mobileComposerExpanded={mobileComposerExpanded}
-                  currentModelLabel={currentModel?.label ?? "Select a model"}
-                  formattedRemainingCredits={formattedRemainingCredits}
-                  estimatedCredits={estimatedCredits}
-                  structuredPresetActive={structuredPresetActive}
-                  presetLabel={currentPreset?.label ?? null}
-                  externalTopContent={
-                    multiImageReferenceStrip || seedanceReferenceStrip ? (
-                      <div className="hidden space-y-3 md:block">
-                        {multiImageReferenceStrip ?? seedanceReferenceStrip}
-                      </div>
-                    ) : null
-                  }
-                  mobileInputsContent={mobileInputsSection}
-                  sourceAttachmentStrip={sourceAttachmentStrip}
-                  floatingComposerStatus={floatingComposerStatus}
-                  onToggleCollapsed={() => setMobileComposerCollapsed((current) => !current)}
-                  onToggleComposerCollapsed={() => setDesktopComposerCollapsed((current) => !current)}
-                >
-                  {structuredPresetActive ? (
-                    <StudioStructuredPresetComposer
-                      preset={currentPreset}
-                      imageSlots={structuredPresetImageSlots}
-                      textFields={structuredPresetTextFields}
-                      slotStates={presetSlotStates}
-                      inputValues={presetInputValues}
-                      localAssets={localAssets ?? []}
-                      favoriteAssets={favoriteAssets ?? []}
-                      onPresetInputValuesChange={(nextValues) => {
-                        expandStudioComposer();
-                        setPresetInputValues(nextValues);
-                      }}
-                      onAssignSlotFile={(slotKey, file) => {
-                        expandStudioComposer();
-                        assignPresetSlotFile(slotKey, file);
-                      }}
-                      onClearSlot={(slotKey) => {
-                        expandStudioComposer();
-                        clearPresetSlot(slotKey);
-                      }}
-                      onDropSlot={handlePresetSlotDrop}
-                      onOpenPreview={openReferencePreview}
-                      onResetFileInput={resetFileInputValue}
-                    />
-	                  ) : (
-	                    <StudioPromptComposerBody
-	                      promptInputRef={promptInputRef}
-	                      prompt={prompt}
-	                      multiShotsEnabled={multiShotsEnabled}
-	                      promptReferencePickerOpen={promptReferencePickerOpen}
-	                      promptReferenceChoices={promptReferenceChoices}
-	                      promptReferenceActiveIndex={promptReferenceActiveIndex}
-	                      enhanceEnabledForModel={
-                          studioHarnessFixtureState?.composerEnhanceMode ? true : enhanceEnabledForModel
-                        }
-	                      enhanceConfiguredForModel={
-                          studioHarnessFixtureState?.composerEnhanceMode === "setup"
-                            ? false
-                            : studioHarnessFixtureState?.composerEnhanceMode === "disabled"
-                              ? true
-                              : enhanceConfiguredForModel
-                        }
-	                      enhanceHasSavedSystemPrompt={
-                          studioHarnessFixtureState?.composerEnhanceMode === "disabled"
-                            ? false
-                            : studioHarnessFixtureState?.composerEnhanceMode
-                              ? true
-                              : enhanceHasSavedSystemPrompt
-                        }
-	                      onPromptChange={(nextPrompt) => {
-                          expandStudioComposer();
-                          setPrompt(nextPrompt);
-                        }}
-	                      onPromptFocusChange={setPromptHasFocus}
-	                      onPromptReferenceDismissedChange={setPromptReferenceDismissed}
-	                      onPromptCursorSync={syncPromptCursorIndex}
-	                      onPromptReferenceActiveIndexChange={setPromptReferenceActiveIndex}
-	                      onApplyPromptReferenceChoice={applyPromptReferenceChoice}
-	                      onOpenEnhanceDialog={openEnhanceDialog}
-	                      onOpenEnhancementSetup={openEnhancementSetup}
-	                    />
-	                  )}
-              <StudioComposerControls
-                structuredPresetActive={structuredPresetActive}
-                showStructuredPresetModelPicker={showStructuredPresetModelPicker}
-                openPicker={openPicker}
-                modelIconByKey={modelIconByKey}
-                currentModel={currentModel}
-                currentModelIcon={studioComposerModelIcon(currentModel)}
-                currentModelLabel={studioComposerModelLabel(currentModel?.label)}
-                modelKey={modelKey}
-                modelChoices={
-                  structuredPresetActive && showStructuredPresetModelPicker
-                    ? structuredPresetModelChoices
-                    : enabledStudioModelChoices
-                }
-                selectedPresetId={selectedPresetId}
-                modelPresets={modelPresets}
-                modelMaxOutputs={modelMaxOutputs}
-                outputCount={outputCount}
-                compactOptionEntries={compactOptionEntries}
-                optionValues={optionValues}
-                inferredInputPattern={inferredInputPattern}
-                canSubmit={canSubmit}
-                generateButtonLabel={generateButtonLabel}
-                onOpenPickerChange={(pickerId) => {
-                  if (pickerId) {
-                    expandStudioComposer();
-                  }
-                  setOpenPicker(pickerId);
-                }}
-                onModelChange={(nextModelKey) => {
-                  expandStudioComposer();
-                  setModelKey(nextModelKey);
-                }}
-                onResetModelScopedSelection={() => {
-                  setSelectedPresetId("");
-                  setSelectedPromptIds([]);
-                  setPresetInputValues({});
-                  setPresetSlotStates({});
-                }}
-                onValidationChange={setValidation}
-                onPresetSelection={(value, options) => {
-                  expandStudioComposer();
-                  applyPresetSelection(value, options);
-                }}
-                onOutputCountChange={(nextOutputCount) => {
-                  expandStudioComposer();
-                  setOutputCount(nextOutputCount);
-                }}
-                onOptionChange={(optionKey, value) => {
-                  expandStudioComposer();
-                  updateOption(optionKey, value);
-                }}
-                onClear={() => {
-                  expandStudioComposer();
-                  clearComposer();
-                }}
-                onSubmit={() => {
-                  expandStudioComposer();
-                  void submitMedia("submit");
-                }}
-              />
-	              {(selectedPromptList.length || multiShotsEnabled) ? (
-                <div className="mt-4 grid gap-3 border-t border-[var(--border-soft)] pt-4">
-                  <div className="grid gap-2">
-                    {multiShotsEnabled ? (
-                      <div className="studio-composer-muted-tile rounded-[20px] px-4 py-3 text-sm text-[var(--text-muted)]">
-                        {multiShotScriptError ? (
-                          <span className="text-[var(--feedback-danger-text)]">{multiShotScriptError}</span>
-                        ) : (
-                          <span>
-                            Multi-shot script ready: {multiShotScript.shots.length} shot
-                            {multiShotScript.shots.length === 1 ? "" : "s"} · {multiShotScript.totalDuration}s total
-                          </span>
-                        )}
-                      </div>
-                    ) : null}
-                    {selectedPromptList.length ? (
-                      <div className="flex flex-wrap gap-2">
-                        {selectedPromptList.map((promptItem) => (
-                          <button
-                            key={promptItem.prompt_id}
-                            type="button"
-                            onClick={() => togglePrompt(promptItem.prompt_id)}
-                            className="studio-composer-muted-tile rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em]"
-                          >
-                            @{promptItem.key}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-                </StudioComposer>
+        <StudioHeaderChrome
+          immersive={immersive}
+          apiHealthy={apiHealthy}
+          galleryModelFilter={galleryModelFilter}
+          models={models}
+          favoritesOnly={favoritesOnly}
+          galleryKindFilter={galleryKindFilter}
+          projectWorkspaceActive={Boolean(selectedProject)}
+          metrics={
+            !selectedAsset ? (
+              <div className="hidden items-center gap-2 md:flex">
+                {selectedProjectMetric}
+                <StudioCreditMetrics
+                  remaining={formattedRemainingCredits}
+                  estimated={estimatedCredits}
+                />
               </div>
-            </>
-          ) : null}
+            ) : null
+          }
+          onGalleryModelFilterChange={handleGalleryModelFilterChange}
+          onActivateGalleryKindFilter={handleGalleryKindFilterChange}
+          onToggleFavoritesFilter={handleFavoritesFilterToggle}
+          onOpenProjects={() => setProjectBrowserOpen(true)}
+          onOpenPresets={() => setPresetBrowserOpen(true)}
+          onOpenLibrary={openContextualReferenceLibrary}
+          onOpenSettings={() =>
+            void router.push(
+              buildStudioScopedHref("/settings", selectedProjectId),
+            )
+          }
+        />
+
+        <StudioGallery
+          apiHealthy={apiHealthy}
+          immersive={immersive}
+          galleryTiles={renderedGalleryTiles}
+          activeGalleryHasMore={renderedGalleryHasMore}
+          firstGalleryPageFailed={gallery.state.firstGalleryPageFailed}
+          activeGalleryLoadingMore={renderedGalleryLoadingMore}
+          selectedAssetId={selectedAssetId}
+          favoriteAssetIdBusy={favoriteAssetIdBusy}
+          galleryLoadMoreRef={galleryLoadMoreRef}
+          onLoadMore={() => {
+            loadMoreActiveGalleryAssets().catch(reportActionError);
+          }}
+          onSelectAsset={(assetId) => {
+            setSelectedFailedJobId(null);
+            setSelectedAssetId(assetId);
+          }}
+          onSelectFailedJob={(jobId) => {
+            setSelectedMediaLightboxOpen(false);
+            setSelectedAssetId(null);
+            setSelectedFailedJobId(jobId);
+          }}
+          onDragAsset={handleGalleryAssetDragStart}
+          onToggleFavorite={(asset) => {
+            toggleAssetFavorite(asset).catch(reportActionError);
+          }}
+        />
+
+        {!selectedAsset ? (
+          <>
+            <div ref={composerShellRef}>
+              <StudioComposer
+                immersive={immersive}
+                composerCollapsed={desktopComposerCollapsed}
+                mobileComposerCollapsed={mobileComposerCollapsed}
+                mobileComposerExpanded={mobileComposerExpanded}
+                currentModelLabel={currentModel?.label ?? "Select a model"}
+                formattedRemainingCredits={formattedRemainingCredits}
+                estimatedCredits={estimatedCredits}
+                structuredPresetActive={structuredPresetActive}
+                presetLabel={currentPreset?.label ?? null}
+                externalTopContent={
+                  multiImageReferenceStrip || seedanceReferenceStrip ? (
+                    <div className="hidden space-y-3 md:block">
+                      {multiImageReferenceStrip ?? seedanceReferenceStrip}
+                    </div>
+                  ) : null
+                }
+                mobileInputsContent={mobileInputsSection}
+                sourceAttachmentStrip={sourceAttachmentStrip}
+                floatingComposerStatus={floatingComposerStatus}
+                onToggleCollapsed={() =>
+                  setMobileComposerCollapsed((current) => !current)
+                }
+                onToggleComposerCollapsed={() =>
+                  setDesktopComposerCollapsed((current) => !current)
+                }
+              >
+                {structuredPresetActive ? (
+                  <StudioStructuredPresetComposer
+                    preset={currentPreset}
+                    imageSlots={structuredPresetImageSlots}
+                    textFields={structuredPresetTextFields}
+                    slotStates={presetSlotStates}
+                    inputValues={presetInputValues}
+                    localAssets={localAssets ?? []}
+                    favoriteAssets={favoriteAssets ?? []}
+                    onPresetInputValuesChange={(nextValues) => {
+                      expandStudioComposer();
+                      setPresetInputValues(nextValues);
+                    }}
+                    onAssignSlotFile={(slotKey, file) => {
+                      expandStudioComposer();
+                      assignPresetSlotFile(slotKey, file);
+                    }}
+                    onClearSlot={(slotKey) => {
+                      expandStudioComposer();
+                      clearPresetSlot(slotKey);
+                    }}
+                    onDropSlot={handlePresetSlotDrop}
+                    onOpenPreview={openReferencePreview}
+                    onResetFileInput={resetFileInputValue}
+                  />
+                ) : (
+                  <StudioPromptComposerBody
+                    promptInputRef={promptInputRef}
+                    prompt={prompt}
+                    multiShotsEnabled={multiShotsEnabled}
+                    promptReferencePickerOpen={promptReferencePickerOpen}
+                    promptReferenceChoices={promptReferenceChoices}
+                    promptReferenceActiveIndex={promptReferenceActiveIndex}
+                    enhanceEnabledForModel={
+                      studioHarnessFixtureState?.composerEnhanceMode
+                        ? true
+                        : enhanceEnabledForModel
+                    }
+                    enhanceConfiguredForModel={
+                      studioHarnessFixtureState?.composerEnhanceMode === "setup"
+                        ? false
+                        : studioHarnessFixtureState?.composerEnhanceMode ===
+                            "disabled"
+                          ? true
+                          : enhanceConfiguredForModel
+                    }
+                    enhanceHasSavedSystemPrompt={
+                      studioHarnessFixtureState?.composerEnhanceMode ===
+                      "disabled"
+                        ? false
+                        : studioHarnessFixtureState?.composerEnhanceMode
+                          ? true
+                          : enhanceHasSavedSystemPrompt
+                    }
+                    onPromptChange={(nextPrompt) => {
+                      expandStudioComposer();
+                      setPrompt(nextPrompt);
+                    }}
+                    onPromptFocusChange={setPromptHasFocus}
+                    onPromptReferenceDismissedChange={
+                      setPromptReferenceDismissed
+                    }
+                    onPromptCursorSync={syncPromptCursorIndex}
+                    onPromptReferenceActiveIndexChange={
+                      setPromptReferenceActiveIndex
+                    }
+                    onApplyPromptReferenceChoice={applyPromptReferenceChoice}
+                    onOpenEnhanceDialog={openEnhanceDialog}
+                    onOpenEnhancementSetup={openEnhancementSetup}
+                  />
+                )}
+                <StudioComposerControls
+                  structuredPresetActive={structuredPresetActive}
+                  showStructuredPresetModelPicker={
+                    showStructuredPresetModelPicker
+                  }
+                  openPicker={openPicker}
+                  modelIconByKey={modelIconByKey}
+                  currentModel={currentModel}
+                  currentModelIcon={studioComposerModelIcon(currentModel)}
+                  currentModelLabel={studioComposerModelLabel(
+                    currentModel?.label,
+                  )}
+                  modelKey={modelKey}
+                  modelChoices={
+                    structuredPresetActive && showStructuredPresetModelPicker
+                      ? structuredPresetModelChoices
+                      : enabledStudioModelChoices
+                  }
+                  selectedPresetId={selectedPresetId}
+                  modelPresets={modelPresets}
+                  modelMaxOutputs={modelMaxOutputs}
+                  outputCount={outputCount}
+                  compactOptionEntries={compactOptionEntries}
+                  optionValues={optionValues}
+                  inferredInputPattern={inferredInputPattern}
+                  canSubmit={canSubmit}
+                  generateButtonLabel={generateButtonLabel}
+                  onOpenPickerChange={(pickerId) => {
+                    if (pickerId) {
+                      expandStudioComposer();
+                    }
+                    setOpenPicker(pickerId);
+                  }}
+                  onModelChange={(nextModelKey) => {
+                    expandStudioComposer();
+                    setModelKey(nextModelKey);
+                  }}
+                  onResetModelScopedSelection={() => {
+                    setSelectedPresetId("");
+                    setSelectedPromptIds([]);
+                    setPresetInputValues({});
+                    setPresetSlotStates({});
+                  }}
+                  onValidationChange={setValidation}
+                  onPresetSelection={(value, options) => {
+                    expandStudioComposer();
+                    applyPresetSelection(value, options);
+                  }}
+                  onOutputCountChange={(nextOutputCount) => {
+                    expandStudioComposer();
+                    setOutputCount(nextOutputCount);
+                  }}
+                  onOptionChange={(optionKey, value) => {
+                    expandStudioComposer();
+                    updateOption(optionKey, value);
+                  }}
+                  onClear={() => {
+                    expandStudioComposer();
+                    clearComposer();
+                  }}
+                  onSubmit={() => {
+                    expandStudioComposer();
+                    void submitMedia("submit");
+                  }}
+                />
+                {selectedPromptList.length || multiShotsEnabled ? (
+                  <div className="mt-4 grid gap-3 border-t border-[var(--border-soft)] pt-4">
+                    <div className="grid gap-2">
+                      {multiShotsEnabled ? (
+                        <div className="studio-composer-muted-tile rounded-[20px] px-4 py-3 text-sm text-[var(--text-muted)]">
+                          {multiShotScriptError ? (
+                            <span className="text-[var(--feedback-danger-text)]">
+                              {multiShotScriptError}
+                            </span>
+                          ) : (
+                            <span>
+                              Multi-shot script ready:{" "}
+                              {multiShotScript.shots.length} shot
+                              {multiShotScript.shots.length === 1
+                                ? ""
+                                : "s"} · {multiShotScript.totalDuration}s total
+                            </span>
+                          )}
+                        </div>
+                      ) : null}
+                      {selectedPromptList.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedPromptList.map((promptItem) => (
+                            <button
+                              key={promptItem.prompt_id}
+                              type="button"
+                              onClick={() => togglePrompt(promptItem.prompt_id)}
+                              className="studio-composer-muted-tile rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em]"
+                            >
+                              @{promptItem.key}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </StudioComposer>
+            </div>
+          </>
+        ) : null}
       </StudioCreateStage>
 
       <StudioEnhanceDialog
         open={enhanceDialogOpen}
         previewVisual={enhancementPreviewVisual}
-        userPrompt={(structuredPresetActive ? structuredPresetPromptPreview : prompt) || ""}
-        enhancedPrompt={enhancePreview?.final_prompt_used || enhancePreview?.enhanced_prompt || null}
+        userPrompt={
+          (structuredPresetActive ? structuredPresetPromptPreview : prompt) ||
+          ""
+        }
+        enhancedPrompt={
+          enhancePreview?.final_prompt_used ||
+          enhancePreview?.enhanced_prompt ||
+          null
+        }
         imageAnalysisText={enhanceImageAnalysisText}
         currentModelLabel={currentModel?.label ?? null}
         currentPresetLabel={currentPreset?.label ?? null}
@@ -2165,9 +2582,17 @@ export function MediaStudio({
         <StudioPresetBrowser
           presets={availableStudioPresets}
           models={models}
-          returnToHref={typeof window === "undefined" ? pathname : `${window.location.pathname}${window.location.search}`}
+          returnToHref={
+            typeof window === "undefined"
+              ? pathname
+              : `${window.location.pathname}${window.location.search}`
+          }
           onClose={() => setPresetBrowserOpen(false)}
-          onSelectPreset={(preset) => { loadPresetIntoStudio(preset.preset_id ?? preset.key, preset).catch(reportActionError); }}
+          onSelectPreset={(preset) => {
+            loadPresetIntoStudio(preset.preset_id ?? preset.key, preset).catch(
+              reportActionError,
+            );
+          }}
         />
       ) : null}
 
@@ -2190,7 +2615,9 @@ export function MediaStudio({
           title={referenceLibraryTarget.title}
           kind="image"
           onClose={() => setReferenceLibraryTarget(null)}
-          onSelect={(reference) => { handleReferenceLibrarySelect(reference).catch(reportActionError); }}
+          onSelect={(reference) => {
+            handleReferenceLibrarySelect(reference).catch(reportActionError);
+          }}
         />
       ) : null}
 
@@ -2206,15 +2633,28 @@ export function MediaStudio({
 
       {selectedAsset ? (
         <StudioAssetInspector
-          suspended={[selectedMediaLightboxOpen, selectedReferencePreview].some(Boolean)}
+          suspended={[selectedMediaLightboxOpen, selectedReferencePreview].some(
+            Boolean,
+          )}
           selectedAsset={selectedAsset}
           selectedAssetDisplayVisual={selectedAssetDisplayVisual}
           selectedAssetPlaybackVisual={selectedAssetPlaybackVisual}
           selectedAssetPrompt={selectedAssetPrompt}
-          selectedAssetStructuredPresetActive={selectedAssetStructuredPresetActive}
-          selectedAssetPresetLabel={selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
-          selectedAssetPresetLoadKey={selectedAssetPreset?.preset_id ?? selectedAssetPreset?.key ?? selectedAsset.preset_key ?? null}
-          selectedAssetPresetDescription={selectedAssetPreset?.description ?? null}
+          selectedAssetStructuredPresetActive={
+            selectedAssetStructuredPresetActive
+          }
+          selectedAssetPresetLabel={
+            selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"
+          }
+          selectedAssetPresetLoadKey={
+            selectedAssetPreset?.preset_id ??
+            selectedAssetPreset?.key ??
+            selectedAsset.preset_key ??
+            null
+          }
+          selectedAssetPresetDescription={
+            selectedAssetPreset?.description ?? null
+          }
           selectedAssetPresetSlots={selectedAssetPresetSlots}
           selectedAssetPresetSlotValues={selectedAssetPresetSlotValues}
           selectedAssetPresetFields={selectedAssetPresetFields}
@@ -2231,7 +2671,9 @@ export function MediaStudio({
           onCopyPrompt={() => {
             copyPromptFromAsset(selectedAssetPrompt).catch(reportActionError);
           }}
-          onToggleFavorite={(asset) => { toggleAssetFavorite(asset).catch(reportActionError); }}
+          onToggleFavorite={(asset) => {
+            toggleAssetFavorite(asset).catch(reportActionError);
+          }}
           onUsePreset={(presetIdOrKey) => {
             closeAssetInspector();
             loadPresetIntoStudio(presetIdOrKey).catch(reportActionError);
@@ -2239,11 +2681,17 @@ export function MediaStudio({
           onOpenProject={openProjectWorkspace}
           onOpenReference={setSelectedReferencePreview}
           onMobileInspectorPromptOpenChange={setMobileInspectorPromptOpen}
-          onDownload={() => { downloadAsset(selectedAsset).catch(reportActionError); }}
-          onDismiss={() => { dismissAsset(selectedAsset.asset_id).catch(reportActionError); }}
+          onDownload={() => {
+            downloadAsset(selectedAsset).catch(reportActionError);
+          }}
+          onDismiss={() => {
+            dismissAsset(selectedAsset.asset_id).catch(reportActionError);
+          }}
           onAnimate={() => stageAssetAsSource(selectedAsset, true)}
           onUseImage={() => stageAssetAsSource(selectedAsset, false)}
-          onRevise={() => { reviseSelectedAssetInStudio(selectedAsset).catch(reportActionError); }}
+          onRevise={() => {
+            reviseSelectedAssetInStudio(selectedAsset).catch(reportActionError);
+          }}
         />
       ) : null}
 
@@ -2253,8 +2701,12 @@ export function MediaStudio({
           prompt={selectedFailedJobPrompt}
           imageReferences={selectedFailedJobImageReferences}
           onClose={() => setSelectedFailedJobId(null)}
-          onDismiss={() => { dismissJob(selectedFailedJob.job_id).catch(reportActionError); }}
-          onRetry={() => { retryFailedJobInStudio(selectedFailedJob).catch(reportActionError); }}
+          onDismiss={() => {
+            dismissJob(selectedFailedJob.job_id).catch(reportActionError);
+          }}
+          onRetry={() => {
+            retryFailedJobInStudio(selectedFailedJob).catch(reportActionError);
+          }}
           onOpenReference={setSelectedReferencePreview}
           statusLabel={jobStatusLabel(selectedFailedJob.status)}
         />
