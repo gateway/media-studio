@@ -54,7 +54,10 @@ function FilterButton({
       data-testid={testId}
       onClick={onClick}
       aria-label={label}
+      title={label}
       tone={active ? "primary" : "subtle"}
+      size="compact"
+      shape="soft"
       className={active ? undefined : "studio-badge"}
     />
   );
@@ -163,9 +166,7 @@ export function StudioHeaderChrome({
           onClick={onOpenSettings}
         />
       </div>
-      <div className="studio-header-metrics-row">
-        {metrics}
-      </div>
+      <div className="studio-header-metrics-row">{metrics}</div>
     </div>
   );
 }

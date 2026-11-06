@@ -3,8 +3,16 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 export type ButtonAppearance = "admin" | "studio";
-export type ButtonVariant = "primary" | "subtle" | "danger" | "ghost" | "danger-ghost" | "utility" | "media-expand";
-export type ButtonSize = "compact" | "default" | "touch" | "touch-compact" | "inline";
+export type ButtonVariant =
+  | "primary"
+  | "subtle"
+  | "danger"
+  | "ghost"
+  | "danger-ghost"
+  | "utility"
+  | "media-expand";
+export type ButtonSize =
+  "compact" | "default" | "touch" | "touch-compact" | "inline";
 
 const adminVariantClassNames: Record<ButtonVariant, string> = {
   primary: "admin-button admin-button-primary",
@@ -42,17 +50,28 @@ export function buttonClassName({
   className?: string;
 }) {
   const baseClassName =
-    appearance === "admin" ? adminVariantClassNames[variant] : studioVariantClassNames[variant];
+    appearance === "admin"
+      ? adminVariantClassNames[variant]
+      : studioVariantClassNames[variant];
 
   const sizes: Record<ButtonSize, string> = {
     default: "",
-    compact: appearance === "admin" ? "admin-button-compact" : "h-9 px-3 text-[0.72rem] uppercase tracking-[0.12em]",
+    compact:
+      appearance === "admin"
+        ? "admin-button-compact"
+        : "h-9 px-3 text-[0.72rem] uppercase tracking-[0.12em]",
     touch: "admin-button-touch",
     "touch-compact": "admin-button-touch admin-button-touch-compact",
     inline: "admin-button-inline",
   };
 
-  return cn(baseClassName, sizes[size], className);
+  return cn(
+    baseClassName,
+    sizes[size],
+    appearance === "studio" &&
+      `studio-button studio-button-${variant} studio-button-${size}`,
+    className,
+  );
 }
 
 export function Button({
@@ -67,5 +86,11 @@ export function Button({
   variant?: ButtonVariant;
   size?: ButtonSize;
 }) {
-  return <button {...props} type={type} className={buttonClassName({ appearance, variant, size, className })} />;
+  return (
+    <button
+      {...props}
+      type={type}
+      className={buttonClassName({ appearance, variant, size, className })}
+    />
+  );
 }

@@ -48,7 +48,9 @@ export function StudioComposer({
   children,
 }: StudioComposerProps) {
   const hasSidebar = Boolean(sourceAttachmentStrip);
-  const hasReferenceInputs = Boolean(externalTopContent || sourceAttachmentStrip || mobileInputsContent);
+  const hasReferenceInputs = Boolean(
+    externalTopContent || sourceAttachmentStrip || mobileInputsContent,
+  );
   const dockedComposerClassName = immersive
     ? "fixed bottom-4 left-4 right-4 z-[70] md:bottom-6 md:left-6 md:right-6"
     : "absolute bottom-4 left-4 right-4 z-20 md:bottom-6 md:left-6 md:right-6";
@@ -61,7 +63,9 @@ export function StudioComposer({
 
   return (
     <div
+      data-structured-preset-active={structuredPresetActive}
       className={cn(
+        "studio-composer-rail",
         !composerCollapsed && mobileComposerExpanded
           ? mobileExpandedComposerClassName
           : dockedComposerClassName,
@@ -71,7 +75,9 @@ export function StudioComposer({
         <div
           className={cn(
             "pointer-events-auto mb-3 hidden w-full md:block",
-            mobileComposerExpanded ? "md:hidden lg:mx-auto lg:block" : "mx-auto",
+            mobileComposerExpanded
+              ? "md:hidden lg:mx-auto lg:block"
+              : "mx-auto",
             immersive ? "max-w-[1480px]" : "max-w-[1240px]",
           )}
         >
@@ -84,7 +90,9 @@ export function StudioComposer({
             "pointer-events-none mb-3 w-full transition duration-300 ease-out",
             mobileComposerExpanded ? "hidden md:block md:mx-auto" : "mx-auto",
             immersive ? "max-w-[1480px]" : "max-w-[1240px]",
-            floatingComposerStatus.visible ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
+            floatingComposerStatus.visible
+              ? "translate-y-0 opacity-100"
+              : "-translate-y-2 opacity-0",
           )}
         >
           <ToastBanner
@@ -117,7 +125,10 @@ export function StudioComposer({
                   "lg:block lg:w-full lg:self-auto lg:overflow-visible lg:max-h-none lg:px-4 lg:py-[17px]",
                   immersive ? "md:max-w-[1480px]" : "md:max-w-[1240px]",
                 )
-              : cn("studio-composer-panel-docked", immersive ? "max-w-[1480px]" : "max-w-[1240px]"),
+              : cn(
+                  "studio-composer-panel-docked",
+                  immersive ? "max-w-[1480px]" : "max-w-[1240px]",
+                ),
           )}
         >
           <button
@@ -131,16 +142,25 @@ export function StudioComposer({
           </button>
           <div className="studio-composer-mobile-header">
             <div className="min-w-0 flex-1">
-              <div className="studio-composer-mobile-eyebrow">Prompt composer</div>
-              <div className="studio-composer-mobile-model-label">{currentModelLabel}</div>
+              <div className="studio-composer-mobile-eyebrow">
+                Prompt composer
+              </div>
+              <div className="studio-composer-mobile-model-label">
+                {currentModelLabel}
+              </div>
               {mobileComposerExpanded ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <StudioCreditMetrics remaining={formattedRemainingCredits} estimated={estimatedCredits} />
+                  <StudioCreditMetrics
+                    remaining={formattedRemainingCredits}
+                    estimated={estimatedCredits}
+                  />
                 </div>
               ) : null}
               {hasSidebar ? (
                 <div className="mt-4 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/46">
-                  {!structuredPresetActive ? "Source images" : presetLabel ?? "Preset mode"}
+                  {!structuredPresetActive
+                    ? "Source images"
+                    : (presetLabel ?? "Preset mode")}
                 </div>
               ) : null}
             </div>
@@ -148,27 +168,43 @@ export function StudioComposer({
               icon={ChevronDown}
               onClick={onToggleCollapsed}
               className="studio-composer-mobile-toggle-button"
-              iconClassName={cn("transition-transform", mobileComposerCollapsed ? "" : "rotate-180")}
-              aria-label={mobileComposerCollapsed ? "Expand prompt composer" : "Collapse prompt composer"}
+              iconClassName={cn(
+                "transition-transform",
+                mobileComposerCollapsed ? "" : "rotate-180",
+              )}
+              aria-label={
+                mobileComposerCollapsed
+                  ? "Expand prompt composer"
+                  : "Collapse prompt composer"
+              }
             />
           </div>
           <div
             className={cn(
               mobileComposerCollapsed ? "hidden md:block" : "block",
-              mobileComposerExpanded ? "min-h-0 flex-1 overflow-y-auto pr-0 md:pr-1 lg:flex-none lg:overflow-visible lg:pr-0" : "",
+              mobileComposerExpanded
+                ? "min-h-0 flex-1 overflow-y-auto pr-0 md:pr-1 lg:flex-none lg:overflow-visible lg:pr-0"
+                : "",
             )}
           >
-            <div className={cn("grid gap-4 md:items-stretch", hasSidebar ? "md:grid-cols-[220px_minmax(0,1fr)]" : "md:grid-cols-[minmax(0,1fr)]")}>
+            <div
+              className={cn(
+                "studio-composer-layout grid gap-4 md:items-stretch",
+                hasSidebar
+                  ? "md:grid-cols-[220px_minmax(0,1fr)]"
+                  : "md:grid-cols-[minmax(0,1fr)]",
+              )}
+            >
               {hasSidebar ? (
                 <div className="hidden md:flex md:items-end md:justify-between md:gap-3 md:order-none md:grid md:min-h-full md:content-start md:justify-stretch">
                   {sourceAttachmentStrip}
                 </div>
               ) : null}
               <div className="grid gap-3">
-                {mobileInputsContent ? <div className="md:hidden">{mobileInputsContent}</div> : null}
-                <div>
-                  {children}
-                </div>
+                {mobileInputsContent ? (
+                  <div className="md:hidden">{mobileInputsContent}</div>
+                ) : null}
+                <div>{children}</div>
               </div>
             </div>
           </div>

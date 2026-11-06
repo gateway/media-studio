@@ -66,6 +66,7 @@ export function iconButtonClassName({
     return cn(adminIconClasses(tone, quiet, size), className);
   return cn(
     "inline-flex items-center justify-center border transition disabled:cursor-not-allowed disabled:opacity-60",
+    `studio-icon-control studio-icon-control-${tone}`,
     shape === "circle"
       ? "rounded-full"
       : "rounded-[calc(var(--radius-control)-2px)]",
