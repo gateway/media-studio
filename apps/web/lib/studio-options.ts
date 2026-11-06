@@ -4,6 +4,7 @@ import {
   Globe2,
   Monitor,
   Ratio,
+  RectangleHorizontal,
   RectangleVertical,
   SlidersHorizontal,
   Sparkles,
@@ -167,7 +168,7 @@ function aspectRatioIcon(value: unknown) {
   if (Math.abs(width - height) < 0.001) {
     return Square;
   }
-  return width > height ? Ratio : RectangleVertical;
+  return width > height ? RectangleHorizontal : RectangleVertical;
 }
 
 export function optionIcon(optionKey: string, value?: unknown) {

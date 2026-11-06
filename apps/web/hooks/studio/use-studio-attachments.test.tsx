@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import {
+  act,
   cleanup,
   render,
   renderHook,
@@ -11,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useStudioAttachments } from "@/hooks/studio/use-studio-attachments";
+import { useStudioSourceAsset } from "@/hooks/studio/use-studio-source-asset";
 import { buildAttachmentPreviewUrl } from "@/lib/studio-composer-file-utils";
 import type {
   AttachmentRecord,
@@ -40,6 +42,7 @@ function AttachmentHarness({
   const [, setFormMessage] = useState<ComposerStatusMessage | null>(null);
   const [, setPresetSlotStates] = useState<Record<string, PresetSlotState>>({});
   const actions = useStudioAttachments({
+    attachments,
     seedanceComposer: false,
     seedanceFirstFrameAttachment: null,
     seedanceLastFrameAttachment: null,
@@ -141,15 +144,12 @@ function imageAttachment(
 }
 
 function renderFileStaging(initial: AttachmentRecord[], sourceCount = 0) {
-  let attachments = initial;
-  const setAttachments = vi.fn(
-    (update: React.SetStateAction<AttachmentRecord[]>) => {
-      attachments = typeof update === "function" ? update(attachments) : update;
-    },
-  );
   URL.revokeObjectURL = vi.fn();
-  const { result } = renderHook(() =>
-    useStudioAttachments({
+  const { result } = renderHook(() => {
+    const [attachments, setAttachments] = useState(initial);
+    const source = useStudioSourceAsset();
+    const actions = useStudioAttachments({
+      attachments,
       seedanceComposer: false,
       seedanceFirstFrameAttachment: null,
       seedanceLastFrameAttachment: null,
@@ -165,13 +165,10 @@ function renderFileStaging(initial: AttachmentRecord[], sourceCount = 0) {
       setFormMessage: vi.fn(),
       setAttachments,
       setPresetSlotStates: vi.fn(),
-    }),
-  );
-  return {
-    actions: result.current,
-    attachments: () => attachments,
-    setAttachments,
-  };
+    });
+    return { actions, attachments, source };
+  });
+  return result;
 }
 
 const replacement = () =>
@@ -184,14 +181,14 @@ it("replaces a gallery source at the image limit ahead of a following library re
   const claimSourceImage = vi.fn(() => true);
   const config = { allowedKinds: imageKinds, claimSourceImage };
   const video = new File([], "video.mp4", { type: "video/mp4" });
-  await staging.actions.addFiles([video], config);
+  await act(() => staging.current.actions.addFiles([video], config));
   expect(claimSourceImage).not.toHaveBeenCalled();
-  expect(staging.setAttachments).not.toHaveBeenCalled();
+  expect(staging.current.attachments).toEqual([following]);
 
   const image = replacement();
-  await staging.actions.addFiles([image], config);
+  await act(() => staging.current.actions.addFiles([image], config));
   expect(claimSourceImage).toHaveBeenCalledTimes(1);
-  expect(staging.attachments()).toEqual([
+  expect(staging.current.attachments).toEqual([
     expect.objectContaining({ file: image }),
     following,
   ]);
@@ -200,12 +197,14 @@ it("replaces a gallery source at the image limit ahead of a following library re
 it("discards a decoded file if its gallery source is no longer staged", async () => {
   const following = imageAttachment("library", "reference");
   const staging = renderFileStaging([following], 1);
-  await staging.actions.addFiles([replacement()], {
-    allowedKinds: imageKinds,
-    claimSourceImage: () => false,
-  });
-  expect(staging.attachments()).toEqual([following]);
-  expect(staging.setAttachments).not.toHaveBeenCalled();
+  await act(() =>
+    staging.current.actions.addFiles([replacement()], {
+      allowedKinds: imageKinds,
+      claimSourceImage: () => false,
+    }),
+  );
+  expect(staging.current.attachments).toEqual([following]);
+  expect(staging.current.attachments).toEqual([following]);
   expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
 });
 
@@ -214,14 +213,17 @@ it("replaces the library item at its exact position among uploaded images", asyn
   const uploaded = imageAttachment("uploaded");
   const staging = renderFileStaging([library, uploaded]);
   const image = replacement();
-  await staging.actions.addFiles([image], {
-    allowedKinds: imageKinds,
-    replaceAttachmentId: library.id,
-  });
-  expect(staging.attachments()).toEqual([
+  await act(() =>
+    staging.current.actions.addFiles([image], {
+      allowedKinds: imageKinds,
+      replaceAttachmentId: library.id,
+    }),
+  );
+  expect(staging.current.attachments).toEqual([
     expect.objectContaining({ file: image }),
     uploaded,
   ]);
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
 });
 
 it.each(["A", "B"])(
@@ -238,21 +240,54 @@ it.each(["A", "B"])(
         resolvePreview = resolve;
       }),
     );
-    const pending = staging.actions.addFiles([image], {
+    const pending = staging.current.actions.addFiles([image], {
       allowedKinds: imageKinds,
       replaceAttachmentId: target.id,
     });
-    staging.actions.removeAttachment(removedId);
-    resolvePreview("blob:delayed");
-    await pending;
+    act(() => staging.current.actions.removeAttachment(removedId));
+    await act(async () => {
+      resolvePreview("blob:delayed");
+      await pending;
+    });
     if (removedId === target.id) {
-      expect(staging.attachments()).toEqual([first, last]);
+      expect(staging.current.attachments).toEqual([first, last]);
       expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:delayed");
     } else {
-      expect(staging.attachments()).toEqual([
+      expect(staging.current.attachments).toEqual([
         expect.objectContaining({ file: image }),
         last,
       ]);
     }
   },
 );
+
+it("discards a decode when the real source owner clears and re-stages the same gallery ID", async () => {
+  const library = imageAttachment("library", "reference");
+  const staging = renderFileStaging([library], 1);
+  const { setSourceAssetId } = staging.current.source;
+  act(() => setSourceAssetId("gallery-asset"));
+  let resolvePreview!: (url: string) => void;
+  vi.mocked(buildAttachmentPreviewUrl).mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolvePreview = resolve;
+    }),
+  );
+  const pending = staging.current.actions.addFiles([replacement()], {
+    allowedKinds: imageKinds,
+    claimSourceImage: staging.current.source.prepareSourceReplacement(
+      "gallery-asset",
+      () => setSourceAssetId(null),
+    ),
+  });
+  act(() => {
+    setSourceAssetId(null);
+    setSourceAssetId("gallery-asset");
+  });
+  await act(async () => {
+    resolvePreview("blob:stale-source");
+    await pending;
+  });
+  expect(staging.current.source.sourceAssetId).toBe("gallery-asset");
+  expect(staging.current.attachments).toEqual([library]);
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:stale-source");
+});

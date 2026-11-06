@@ -5,10 +5,24 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StudioComposer } from "@/components/studio/studio-composer";
 
-function renderComposer(options: { collapsed?: boolean; mobileExpanded?: boolean; onToggle?: () => void } = {}) {
+function renderComposer(
+  options: {
+    collapsed?: boolean;
+    mobileExpanded?: boolean;
+    immersive?: boolean;
+    onToggle?: () => void;
+    onToggleMobile?: () => void;
+  } = {},
+) {
   return render(
     <StudioComposer
-      immersive={false}
+      immersive={options.immersive ?? false}
+      modelPicker={
+        options.immersive ? (
+          <button type="button">Nano Banana Pro</button>
+        ) : null
+      }
+      remainingCredits={1066.6}
       composerCollapsed={options.collapsed ?? false}
       mobileComposerCollapsed={!options.mobileExpanded}
       mobileComposerExpanded={options.mobileExpanded ?? false}
@@ -21,7 +35,7 @@ function renderComposer(options: { collapsed?: boolean; mobileExpanded?: boolean
       mobileInputsContent={<div>Mobile reference inputs</div>}
       sourceAttachmentStrip={<div>Source attachment strip</div>}
       floatingComposerStatus={null}
-      onToggleCollapsed={vi.fn()}
+      onToggleCollapsed={options.onToggleMobile ?? vi.fn()}
       onToggleComposerCollapsed={options.onToggle ?? vi.fn()}
     >
       <div>Prompt and model controls</div>
@@ -48,7 +62,9 @@ describe("StudioComposer", () => {
     const onToggle = vi.fn();
     renderComposer({ collapsed: true, onToggle });
 
-    fireEvent.click(screen.getByRole("button", { name: "Expand Studio composer" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Expand Studio composer" }),
+    );
 
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
@@ -56,20 +72,42 @@ describe("StudioComposer", () => {
   it("keeps the full composer visible when expanded", () => {
     renderComposer({ collapsed: false });
 
-    expect(screen.getByRole("button", { name: "Collapse Studio composer" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Collapse Studio composer" }),
+    ).toBeTruthy();
     expect(screen.getByText("Seedance reference strip")).toBeTruthy();
     expect(screen.getByText("Source attachment strip")).toBeTruthy();
     expect(screen.getByText("Prompt and model controls")).toBeTruthy();
   });
 
   it("keeps mobile-expanded composer state dockable on desktop", () => {
-    const { container } = renderComposer({ collapsed: false, mobileExpanded: true });
+    const { container } = renderComposer({
+      collapsed: false,
+      mobileExpanded: true,
+    });
     const composerShell = container.firstElementChild;
 
     expect(composerShell?.className).not.toContain("overlay-backdrop");
     expect(composerShell?.className).toContain("lg:absolute");
     expect(composerShell?.className).toContain("lg:top-auto");
     expect(composerShell?.className).toContain("lg:bottom-6");
-    expect(screen.getByText("Seedance reference strip").parentElement?.className).toContain("lg:block");
+    expect(
+      screen.getByText("Seedance reference strip").parentElement?.className,
+    ).toContain("lg:block");
+  });
+  it("shows one model picker and only the live balance in expanded mobile chrome", () => {
+    const onToggleMobile = vi.fn();
+    renderComposer({ immersive: true, mobileExpanded: true, onToggleMobile });
+    expect(screen.getAllByText("Nano Banana Pro")).toHaveLength(1);
+    expect(screen.queryByText("Prompt composer")).toBeNull();
+    expect(screen.getByText("1,066.6 credits")).toBeTruthy();
+    expect(screen.queryByText("~6 cr")).toBeNull();
+
+    const collapse = screen.getByRole("button", {
+      name: "Collapse prompt composer",
+      expanded: true,
+    });
+    fireEvent.click(collapse);
+    expect(onToggleMobile).toHaveBeenCalledOnce();
   });
 });

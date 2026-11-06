@@ -634,6 +634,7 @@ export function useStudioComposer({
     removeAttachment,
     clearPresetSlotStateValues,
   } = useStudioAttachments({
+    attachments,
     seedanceComposer,
     seedanceFirstFrameAttachment,
     seedanceLastFrameAttachment,

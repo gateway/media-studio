@@ -1,8 +1,12 @@
 "use client";
 
 import { Coins } from "lucide-react";
+import { cn, formatCreditsAmount } from "@/lib/utils";
 
-import { studioBadgeClassName, studioBadgeIconClassName } from "@/components/studio/studio-theme";
+import {
+  studioBadgeClassName,
+  studioBadgeIconClassName,
+} from "@/components/studio/studio-theme";
 
 export function StudioMetricPill({
   icon: Icon,
@@ -20,7 +24,16 @@ export function StudioMetricPill({
         className: "h-10 px-3 text-[0.72rem] font-semibold",
       })}
     >
-      <span className={studioBadgeIconClassName({ tone: accent === "project" ? "project" : accent === "highlight" ? "accent" : "default" })}>
+      <span
+        className={studioBadgeIconClassName({
+          tone:
+            accent === "project"
+              ? "project"
+              : accent === "highlight"
+                ? "accent"
+                : "default",
+        })}
+      >
         <Icon className="size-3.5" />
       </span>
       <span>{value}</span>
@@ -28,10 +41,40 @@ export function StudioMetricPill({
   );
 }
 
-/** The same balance and estimate pair in the gallery header and mobile composer. */
-export function StudioCreditMetrics({ remaining, estimated }: { remaining: string | null; estimated: string | null }) {
-  return <>
-    {remaining ? <StudioMetricPill icon={Coins} value={remaining} /> : null}
-    {estimated ? <StudioMetricPill icon={Coins} value={estimated} accent="highlight" /> : null}
-  </>;
+export function StudioCreditBalance({
+  remaining,
+  className,
+}: {
+  remaining?: number | null;
+  className?: string;
+}) {
+  const balance = formatCreditsAmount(remaining, {
+    fallback: null,
+    suffix: " credits",
+  });
+  if (!balance) return null;
+  return (
+    <div className={cn("studio-credit-balance", className)}>
+      <Coins aria-hidden="true" />
+      <span>{balance}</span>
+    </div>
+  );
+}
+
+/** The balance and estimate pair in the framed mobile composer. */
+export function StudioCreditMetrics({
+  remaining,
+  estimated,
+}: {
+  remaining: string | null;
+  estimated: string | null;
+}) {
+  return (
+    <>
+      {remaining ? <StudioMetricPill icon={Coins} value={remaining} /> : null}
+      {estimated ? (
+        <StudioMetricPill icon={Coins} value={estimated} accent="highlight" />
+      ) : null}
+    </>
+  );
 }

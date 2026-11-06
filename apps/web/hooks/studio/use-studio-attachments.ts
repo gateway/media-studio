@@ -1,6 +1,12 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 
 import type {
   AttachmentRecord,
@@ -34,6 +40,7 @@ type FileAddConfig = {
 };
 
 type UseStudioAttachmentsOptions = {
+  attachments: AttachmentRecord[];
   seedanceComposer: boolean;
   seedanceFirstFrameAttachment: AttachmentRecord | null;
   seedanceLastFrameAttachment: AttachmentRecord | null;
@@ -103,37 +110,52 @@ function releaseFilePreview(attachment: AttachmentRecord) {
   }
 }
 
-function stagePickedAttachments(
-  setAttachments: UseStudioAttachmentsOptions["setAttachments"],
-  next: AttachmentRecord[],
-  { claimSourceImage, replaceAttachmentId }: FileAddConfig,
-  insertImageIndex: number | null,
-  replaceImageIndex: number | null,
-) {
-  if (claimSourceImage) {
-    if (claimSourceImage()) {
-      setAttachments((current) => [...next, ...current]);
-    } else {
-      next.forEach(releaseFilePreview);
+function useDecodedReplacementCleanup(attachments: AttachmentRecord[]) {
+  const pending = useRef(new Set<AttachmentRecord>());
+  const mounted = useRef(true);
+  const [checks, setChecks] = useState<AttachmentRecord[]>([]);
+
+  useEffect(() => {
+    if (pending.current.size === 0) return;
+    const committedUrls = new Set(
+      attachments.map(({ previewUrl }) => previewUrl),
+    );
+    for (const attachment of checks) {
+      if (
+        pending.current.delete(attachment) &&
+        !committedUrls.has(attachment.previewUrl)
+      ) {
+        releaseFilePreview(attachment);
+      }
     }
-    return;
+  }, [attachments, checks]);
+
+  useEffect(() => {
+    mounted.current = true;
+    const unresolved = pending.current;
+    return () => {
+      mounted.current = false;
+      unresolved.forEach(releaseFilePreview);
+      unresolved.clear();
+    };
+  }, []);
+
+  function checkAfterCommit(decoded: AttachmentRecord[]) {
+    const unresolved = new Set(pending.current);
+    decoded.forEach((attachment) => pending.current.add(attachment));
+    // Schedule a check even if the attachment update returns the same array.
+    // Both updates run at the priority of the completed decode.
+    setChecks((current) => [
+      ...current.filter((attachment) => unresolved.has(attachment)),
+      ...decoded,
+    ]);
   }
-  setAttachments((current) => {
-    const staged = applyAttachmentInsertOrReplace(current, next, {
-      insertImageIndex,
-      replaceImageIndex,
-      replaceAttachmentId,
-    });
-    if (staged === current) next.forEach(releaseFilePreview);
-    const replaced =
-      replaceAttachmentId &&
-      current.find(({ id }) => id === replaceAttachmentId);
-    if (replaced) releaseFilePreview(replaced);
-    return staged;
-  });
+
+  return { mounted, checkAfterCommit };
 }
 
 export function useStudioAttachments({
+  attachments,
   seedanceComposer,
   seedanceFirstFrameAttachment,
   seedanceLastFrameAttachment,
@@ -150,6 +172,38 @@ export function useStudioAttachments({
   setAttachments,
   setPresetSlotStates,
 }: UseStudioAttachmentsOptions) {
+  const { mounted, checkAfterCommit } =
+    useDecodedReplacementCleanup(attachments);
+
+  function stagePickedAttachments(
+    next: AttachmentRecord[],
+    { claimSourceImage, replaceAttachmentId }: FileAddConfig,
+    insertImageIndex: number | null,
+    replaceImageIndex: number | null,
+  ) {
+    if (!mounted.current) {
+      next.forEach(releaseFilePreview);
+      return;
+    }
+    if (claimSourceImage) {
+      if (claimSourceImage()) {
+        setAttachments((current) => [...next, ...current]);
+        checkAfterCommit(next);
+      } else {
+        next.forEach(releaseFilePreview);
+      }
+      return;
+    }
+    setAttachments((current) =>
+      applyAttachmentInsertOrReplace(current, next, {
+        insertImageIndex,
+        replaceImageIndex,
+        replaceAttachmentId,
+      }),
+    );
+    if (replaceAttachmentId !== undefined) checkAfterCommit(next);
+  }
+
   function remainingSeedanceCapacity(
     kind: AttachmentRecord["kind"],
     role: NonNullable<AttachmentRecord["role"]>,
@@ -275,7 +329,6 @@ export function useStudioAttachments({
       })),
     );
     stagePickedAttachments(
-      setAttachments,
       nextAttachments,
       config,
       insertImageIndex,
@@ -611,13 +664,9 @@ export function useStudioAttachments({
   }
 
   function removeAttachment(attachmentId: string) {
-    setAttachments((current) => {
-      const match = current.find(
-        (attachment) => attachment.id === attachmentId,
-      );
-      if (match) releaseFilePreview(match);
-      return current.filter((attachment) => attachment.id !== attachmentId);
-    });
+    setAttachments((current) =>
+      current.filter((attachment) => attachment.id !== attachmentId),
+    );
   }
 
   function clearPresetSlotStateValues() {

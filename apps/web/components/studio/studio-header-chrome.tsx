@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Coins,
   FolderOpen,
   Folders,
   Heart,
@@ -21,7 +20,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { PillSelect } from "@/components/ui/pill-select";
 import { connectingStatus, readyStatus } from "@/lib/status-language";
 import type { GalleryKindFilter } from "@/lib/media-studio-contract";
-import { formatCreditsAmount } from "@/lib/utils";
+import { StudioCreditBalance } from "@/components/studio/studio-metric-pill";
 
 const galleryFilters = [
   { value: "all", label: "All media", icon: Monitor },
@@ -135,11 +134,6 @@ export function StudioHeaderChrome({
   function toggleMenu(menu: "media" | "library") {
     setOpenMenu(openMenu === menu ? null : menu);
   }
-  const balance = formatCreditsAmount(remainingCredits, {
-    fallback: null,
-    suffix: " credits",
-  });
-
   return (
     <header className="studio-header-chrome-root">
       <nav className="studio-header-filter-row" aria-label="Studio navigation">
@@ -188,12 +182,10 @@ export function StudioHeaderChrome({
           testId="studio-filter-settings"
           onClick={onOpenSettings}
         />
-        {balance ? (
-          <div className="studio-header-balance">
-            <Coins aria-hidden="true" />
-            <span>{balance}</span>
-          </div>
-        ) : null}
+        <StudioCreditBalance
+          remaining={remainingCredits}
+          className="studio-header-balance"
+        />
       </div>
     </header>
   );

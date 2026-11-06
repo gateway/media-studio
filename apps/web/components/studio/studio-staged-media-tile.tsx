@@ -146,7 +146,7 @@ export function StudioStagedMediaReplaceControl({
   label,
   accept,
   testId,
-  className = "studio-slot-utility-button",
+  className,
   onPickFiles,
 }: {
   label: string;
@@ -157,7 +157,10 @@ export function StudioStagedMediaReplaceControl({
 }) {
   return (
     <label
-      className={cn("inline-flex h-8 w-8 cursor-pointer", className)}
+      className={cn(
+        "studio-slot-utility-button inline-flex h-8 w-8 cursor-pointer",
+        className,
+      )}
       title={label}
     >
       <ImagePlus aria-hidden="true" className="size-3.5" />

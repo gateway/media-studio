@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
   useTransition,
-  type SetStateAction,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -49,6 +48,7 @@ import {
 } from "@/components/studio/studio-test-harness";
 import { StudioProjectBrowser } from "@/components/studio/studio-project-browser";
 import { useStudioAssetActions } from "@/hooks/studio/use-studio-asset-actions";
+import { useStudioSourceAsset } from "@/hooks/studio/use-studio-source-asset";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
 import { useStudioInspectorState } from "@/hooks/studio/use-studio-inspector-state";
@@ -167,26 +167,8 @@ export function MediaStudio({
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(
     null,
   );
-  const [sourceAssetId, setSourceAsset] = useState<string | number | null>(
-    null,
-  );
-  // A decoded replacement must claim the latest source, including a selection
-  // queued before React has rendered it.
-  const sourceAssetIdentity = useRef<{ assetId: typeof sourceAssetId }>({
-    assetId: null,
-  });
-  const setSourceAssetId = useCallback(
-    (update: SetStateAction<typeof sourceAssetId>) => {
-      const current = sourceAssetIdentity.current;
-      const assetId =
-        typeof update === "function" ? update(current.assetId) : update;
-      if (assetId !== current.assetId) {
-        sourceAssetIdentity.current = { assetId };
-      }
-      setSourceAsset(assetId);
-    },
-    [],
-  );
+  const { sourceAssetId, setSourceAssetId, prepareSourceReplacement } =
+    useStudioSourceAsset();
   const graphReturnTargetRef = useRef<{
     pathname: string;
     href: string;
@@ -2149,34 +2131,18 @@ export function MediaStudio({
     resetFileInputValue(input ?? null);
   }
 
-  function claimSourceImageForReplacement(
-    assetId: string | number,
-    identity: typeof sourceAssetIdentity.current,
-  ) {
-    if (
-      sourceAssetIdentity.current !== identity ||
-      identity.assetId === null ||
-      String(identity.assetId) !== String(assetId)
-    )
-      return false;
-    clearSourceAsset();
-    return true;
-  }
-
   function replaceOrderedImageFile(
     files: FileList,
     slot: (typeof orderedImageInputs)[number],
     input: HTMLInputElement,
   ) {
-    const sourceIdentity = sourceAssetIdentity.current;
     const replacement =
       slot.source === "asset"
         ? {
-            claimSourceImage: () =>
-              claimSourceImageForReplacement(
-                slot.asset.asset_id,
-                sourceIdentity,
-              ),
+            claimSourceImage: prepareSourceReplacement(
+              slot.asset.asset_id,
+              clearSourceAsset,
+            ),
           }
         : {
             replaceAttachmentId:
@@ -2397,6 +2363,7 @@ export function MediaStudio({
                 mobileComposerCollapsed={mobileComposerCollapsed}
                 mobileComposerExpanded={mobileComposerExpanded}
                 currentModelLabel={currentModel?.label ?? "Select a model"}
+                remainingCredits={localRemainingCredits}
                 formattedRemainingCredits={formattedRemainingCredits}
                 estimatedCredits={estimatedCredits}
                 structuredPresetActive={structuredPresetActive}
