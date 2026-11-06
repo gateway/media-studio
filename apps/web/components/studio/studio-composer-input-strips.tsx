@@ -4,7 +4,10 @@ import type { DragEvent } from "react";
 
 import { ImagePlus } from "lucide-react";
 
-import { StudioMediaSlotAddTile, studioMediaSlotAddTileIcon } from "@/components/studio/studio-media-slot-add-tile";
+import {
+  StudioMediaSlotAddTile,
+  studioMediaSlotAddTileIcon,
+} from "@/components/studio/studio-media-slot-add-tile";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
 import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
 import type {
@@ -12,12 +15,10 @@ import type {
   StudioAddFilesHandler,
 } from "@/components/studio/studio-composer-input-types";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
-import {
-  orderedImageInputKey,
-  orderedImageInputVisual,
-  type OrderedImageInput,
-  type StudioComposerSlot,
-  type StudioReferencePreview,
+import type {
+  OrderedImageInput,
+  StudioComposerSlot,
+  StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
 import { cn } from "@/lib/utils";
 
@@ -26,85 +27,6 @@ export { StudioMobileInputsContent } from "@/components/studio/studio-mobile-inp
 const STUDIO_COMPOSER_TILE_CLASS_NAME = "h-[82px] w-[82px]";
 const STUDIO_COMPOSER_ADD_TILE_CLASS_NAME = `${STUDIO_COMPOSER_TILE_CLASS_NAME} rounded-[22px]`;
 const STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME = "size-4.5";
-
-type StudioMultiImageReferenceStripProps = {
-  imageLimitLabel: string | null;
-  orderedImageInputs: OrderedImageInput[];
-  canAddMoreImages: boolean;
-  isDragActive: boolean;
-  buildOrderedImageInputPreview: (slot: OrderedImageInput | null, label: string, previewKey: string) => StudioReferencePreview | null;
-  onOpenPreview: (preview: StudioReferencePreview) => void;
-  onClearOrderedImageInput: (slot: OrderedImageInput | null) => void;
-  onSetDragActive: (value: boolean) => void;
-  onDropIntoSlot: (event: DragEvent<HTMLLabelElement>, slotIndex: number) => void;
-  onAddImageFilesToOrderedSlot: (fileList: FileList | null, slotIndex: number, input: HTMLInputElement) => void;
-};
-
-export function StudioMultiImageReferenceStrip({
-  imageLimitLabel,
-  orderedImageInputs,
-  canAddMoreImages,
-  isDragActive,
-  buildOrderedImageInputPreview,
-  onOpenPreview,
-  onClearOrderedImageInput,
-  onSetDragActive,
-  onDropIntoSlot,
-  onAddImageFilesToOrderedSlot,
-}: StudioMultiImageReferenceStripProps) {
-  return (
-    <div className="studio-composer-input-panel overflow-hidden rounded-[26px] px-4 py-3 backdrop-blur-2xl">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="studio-meta-label">Image references</div>
-        {imageLimitLabel ? (
-          <div className="studio-composer-muted-tile rounded-full px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em]">
-            {imageLimitLabel}
-          </div>
-        ) : null}
-      </div>
-      <div className="flex min-w-0 items-start gap-3 overflow-x-auto overflow-y-hidden pb-1">
-        {orderedImageInputs.map((slot, slotIndex) => {
-          const slotVisual = orderedImageInputVisual(slot);
-          const slotLabel = `Image reference ${slotIndex + 1}`;
-          const slotPreview = buildOrderedImageInputPreview(slot, slotLabel, `multi-image-${slotIndex + 1}`);
-          return (
-            <div key={orderedImageInputKey(slot, slotIndex)} className="flex shrink-0 flex-col gap-2">
-              {slotPreview ? (
-                <StudioStagedMediaTile
-                  preview={slotPreview}
-                  visualUrl={slotVisual}
-                  onOpenPreview={onOpenPreview}
-                  onRemove={() => onClearOrderedImageInput(slot)}
-                  className={STUDIO_COMPOSER_TILE_CLASS_NAME}
-                  tileClassName="studio-composer-accent-border-soft"
-                  testId={`studio-multi-image-slot-${slotIndex + 1}`}
-                />
-              ) : null}
-            </div>
-          );
-        })}
-
-        {canAddMoreImages ? (
-          <StudioMediaSlotAddTile
-            accept="image/*"
-            multiple
-            isDragActive={isDragActive}
-            testId="studio-multi-image-input"
-            onDragOver={(event) => {
-              event.preventDefault();
-              onSetDragActive(true);
-            }}
-            onDragLeave={() => onSetDragActive(false)}
-            onDrop={(event) => onDropIntoSlot(event, orderedImageInputs.length)}
-            onPickFiles={(fileList, input) => {
-              onAddImageFilesToOrderedSlot(fileList, orderedImageInputs.length, input);
-            }}
-          />
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 type StudioSeedanceReferenceStripProps = {
   isDragActive: boolean;
@@ -116,12 +38,51 @@ type StudioSeedanceReferenceStripProps = {
   maxAudioReferences: number;
   buildAttachmentPreview: AttachmentPreviewBuilder;
   onSetDragActive: (value: boolean) => void;
-  onReferenceDrop: (event: DragEvent<HTMLDivElement>, kind: "images" | "videos" | "audios") => void;
+  onReferenceDrop: (
+    event: DragEvent<HTMLDivElement>,
+    kind: "images" | "videos" | "audios",
+  ) => void;
   onOpenPreview: (preview: StudioReferencePreview) => void;
   onRemoveAttachment: (attachmentId: string) => void;
   onAddFiles: StudioAddFilesHandler;
   onResetFileInput: (input: HTMLInputElement | null) => void;
 };
+
+function seedanceReferenceLabel(attachment: AttachmentRecord) {
+  return (
+    attachment.file?.name ??
+    attachment.referenceRecord?.original_filename ??
+    "Reference"
+  );
+}
+
+function seedanceReferencePreview(
+  attachment: AttachmentRecord,
+  groupKey: string,
+  buildPreview: AttachmentPreviewBuilder,
+): StudioReferencePreview {
+  const label = seedanceReferenceLabel(attachment);
+  return (
+    buildPreview(attachment, label, `${groupKey}-${attachment.id}`) ?? {
+      key: `attachment:${attachment.id}`,
+      label,
+      url:
+        attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
+      kind: attachment.kind,
+      posterUrl: attachment.referenceRecord?.poster_url ?? null,
+    }
+  );
+}
+
+function seedanceReferenceVisual(attachment: AttachmentRecord) {
+  if (attachment.kind === "audios") return null;
+  return (
+    attachment.previewUrl ??
+    attachment.referenceRecord?.thumb_url ??
+    attachment.referenceRecord?.stored_url ??
+    null
+  );
+}
 
 export function StudioSeedanceReferenceStrip({
   isDragActive,
@@ -200,7 +161,10 @@ export function StudioSeedanceReferenceStrip({
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                  {group.label} <span className="text-[var(--text-subtle)]">- {group.tokenHint}</span>
+                  {group.label}{" "}
+                  <span className="text-[var(--text-subtle)]">
+                    - {group.tokenHint}
+                  </span>
                 </div>
               </div>
               <div className="studio-composer-count-badge shrink-0 rounded-full px-1.5 py-0.5 text-[0.52rem] font-semibold uppercase tracking-[0.12em]">
@@ -209,38 +173,37 @@ export function StudioSeedanceReferenceStrip({
               </div>
             </div>
             <div className="scrollbar-none flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden pb-0.5">
-              {group.attachments.slice(0, group.maxVisibleTiles).map((attachment) => (
-                <StudioStagedMediaTile
-                  key={attachment.id}
-                  preview={
-                    buildAttachmentPreview(
+              {group.attachments
+                .slice(0, group.maxVisibleTiles)
+                .map((attachment) => (
+                  <StudioStagedMediaTile
+                    key={attachment.id}
+                    preview={seedanceReferencePreview(
                       attachment,
-                      attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                      `${group.key}-${attachment.id}`,
-                    ) ?? {
-                      key: `attachment:${attachment.id}`,
-                      label: attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                      url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
-                      kind: attachment.kind,
-                      posterUrl: attachment.referenceRecord?.poster_url ?? null,
-                    }
-                  }
-                  visualUrl={
-                    attachment.kind === "audios"
-                      ? null
-                      : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null
-                  }
-                  onOpenPreview={onOpenPreview}
-                  onRemove={() => onRemoveAttachment(attachment.id)}
-                  className={cn("shrink-0", group.tileClassName)}
-                  testId={`seedance-group-tile-${group.key}-${attachment.id}`}
-                />
-              ))}
+                      group.key,
+                      buildAttachmentPreview,
+                    )}
+                    visualUrl={seedanceReferenceVisual(attachment)}
+                    onOpenPreview={onOpenPreview}
+                    onRemove={() => onRemoveAttachment(attachment.id)}
+                    className={cn("shrink-0", group.tileClassName)}
+                    testId={`seedance-group-tile-${group.key}-${attachment.id}`}
+                  />
+                ))}
               {group.attachments.length < group.maxLabel ? (
-                <label className={cn("studio-composer-add-control flex shrink-0 cursor-pointer items-center justify-center transition", group.addTileClassName)}>
+                <label
+                  className={cn(
+                    "studio-composer-add-control flex shrink-0 cursor-pointer items-center justify-center transition",
+                    group.addTileClassName,
+                  )}
+                >
                   {(() => {
                     const AddIcon = studioMediaSlotAddTileIcon(
-                      group.key === "videos" ? "video" : group.key === "audios" ? "audio" : "image",
+                      group.key === "videos"
+                        ? "video"
+                        : group.key === "audios"
+                          ? "audio"
+                          : "image",
                     );
                     return <AddIcon className={group.plusIconClassName} />;
                   })()}
@@ -261,7 +224,12 @@ export function StudioSeedanceReferenceStrip({
                 </label>
               ) : null}
               {group.attachments.length > group.maxVisibleTiles ? (
-                <div className={cn("studio-composer-muted-tile flex shrink-0 items-center justify-center text-[0.58rem] font-semibold uppercase tracking-[0.12em]", group.addTileClassName)}>
+                <div
+                  className={cn(
+                    "studio-composer-muted-tile flex shrink-0 items-center justify-center text-[0.58rem] font-semibold uppercase tracking-[0.12em]",
+                    group.addTileClassName,
+                  )}
+                >
                   +{group.attachments.length - group.maxVisibleTiles}
                 </div>
               ) : null}
@@ -283,7 +251,10 @@ type StudioSourceAttachmentStripProps = {
   mobileAddTileClassName: string;
   mobileAddTilePlusIconClassName: string;
   buildAttachmentPreview: AttachmentPreviewBuilder;
-  standardComposerSlotPreview: (slot: StudioComposerSlot, previewKey: string) => StudioReferencePreview | null;
+  standardComposerSlotPreview: (
+    slot: StudioComposerSlot,
+    previewKey: string,
+  ) => StudioReferencePreview | null;
   standardComposerSlotVisual: (slot: StudioComposerSlot) => string | null;
   onSetDragActive: (value: boolean) => void;
   onSetFormWarning: (text: string) => void;
@@ -332,17 +303,37 @@ export function StudioSourceAttachmentStrip({
       {inputRail === "seedance" ? (
         <>
           {[
-            { label: "Start frame", role: "first_frame" as const, attachment: seedanceFirstFrameAttachment },
-            { label: "End frame", role: "last_frame" as const, attachment: seedanceLastFrameAttachment },
+            {
+              label: "Start frame",
+              role: "first_frame" as const,
+              attachment: seedanceFirstFrameAttachment,
+            },
+            {
+              label: "End frame",
+              role: "last_frame" as const,
+              attachment: seedanceLastFrameAttachment,
+            },
           ].map((slot, slotIndex) => {
             const attachment = slot.attachment;
-            const attachmentPreview = attachment ? buildAttachmentPreview(attachment, slot.label, `seedance-${slot.role}`) : null;
+            const attachmentPreview = attachment
+              ? buildAttachmentPreview(
+                  attachment,
+                  slot.label,
+                  `seedance-${slot.role}`,
+                )
+              : null;
             return (
-              <div key={`seedance-slot-${slot.role}`} className="flex flex-col gap-2">
+              <div
+                key={`seedance-slot-${slot.role}`}
+                className="flex flex-col gap-2"
+              >
                 {!attachment ? (
                   <div className="studio-meta-label">{slot.label}</div>
                 ) : null}
-                <div data-testid={`seedance-slot-${slot.role}`} className={cn("relative", STUDIO_COMPOSER_TILE_CLASS_NAME)}>
+                <div
+                  data-testid={`seedance-slot-${slot.role}`}
+                  className={cn("relative", STUDIO_COMPOSER_TILE_CLASS_NAME)}
+                >
                   {attachment && attachmentPreview ? (
                     <div
                       onDragOver={(event) => {
@@ -367,8 +358,13 @@ export function StudioSourceAttachmentStrip({
                               data-testid={`seedance-slot-input-${slot.role}`}
                               className="hidden"
                               onChange={(event) => {
-                                if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
-                                  onSetFormWarning("Add a start frame before the end frame.");
+                                if (
+                                  slot.role === "last_frame" &&
+                                  !seedanceFirstFrameAttachment
+                                ) {
+                                  onSetFormWarning(
+                                    "Add a start frame before the end frame.",
+                                  );
                                   onResetFileInput(event.currentTarget);
                                   return;
                                 }
@@ -401,8 +397,13 @@ export function StudioSourceAttachmentStrip({
                       onDragLeave={() => onSetDragActive(false)}
                       onDrop={(event) => onDropIntoSourceSlot(event, slotIndex)}
                       onPickFiles={(fileList, input) => {
-                        if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
-                          onSetFormWarning("Add a start frame before the end frame.");
+                        if (
+                          slot.role === "last_frame" &&
+                          !seedanceFirstFrameAttachment
+                        ) {
+                          onSetFormWarning(
+                            "Add a start frame before the end frame.",
+                          );
                           onResetFileInput(input);
                           return;
                         }
@@ -427,9 +428,14 @@ export function StudioSourceAttachmentStrip({
           mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
           buildPreview={standardComposerSlotPreview}
           resolveVisualUrl={standardComposerSlotVisual}
-          isAssetBackedImageSlot={(slot) => slot.kind === "image" && orderedImageInputs[slot.slotIndex]?.source === "asset"}
+          isAssetBackedImageSlot={(slot) =>
+            slot.kind === "image" &&
+            orderedImageInputs[slot.slotIndex]?.source === "asset"
+          }
           onSetDragActive={onSetDragActive}
-          onSlotDrop={(event, slot) => onDropIntoSourceSlot(event, slot.slotIndex, slot)}
+          onSlotDrop={(event, slot) =>
+            onDropIntoSourceSlot(event, slot.slotIndex, slot)
+          }
           onOpenPreview={onOpenPreview}
           onClearSlot={onClearStandardComposerSlot}
           onPickFiles={onPickStandardComposerSlotFiles}

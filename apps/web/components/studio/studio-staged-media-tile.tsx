@@ -1,8 +1,11 @@
 "use client";
 
-import { Image as ImageIcon, Play, Volume2, X } from "lucide-react";
+import { Image as ImageIcon, ImagePlus, Play, Volume2, X } from "lucide-react";
 
-import { studioPreviewFallbackClassName, studioPreviewOverlayClassName } from "@/components/studio/studio-theme";
+import {
+  studioPreviewFallbackClassName,
+  studioPreviewOverlayClassName,
+} from "@/components/studio/studio-theme";
 import type { StudioReferencePreview } from "@/lib/media-studio-helpers";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +13,7 @@ type StudioStagedMediaTileProps = {
   preview: StudioReferencePreview;
   visualUrl?: string | null;
   footerLabel?: string | null;
+  positionBadge?: React.ReactNode;
   onOpenPreview: (preview: StudioReferencePreview) => void;
   onRemove?: () => void;
   replaceControl?: React.ReactNode;
@@ -22,6 +26,7 @@ export function StudioStagedMediaTile({
   preview,
   visualUrl,
   footerLabel,
+  positionBadge,
   onOpenPreview,
   onRemove,
   replaceControl,
@@ -29,15 +34,22 @@ export function StudioStagedMediaTile({
   tileClassName,
   testId,
 }: StudioStagedMediaTileProps) {
-  const mediaVisual = visualUrl ?? (preview.kind === "images" ? preview.url : preview.posterUrl ?? null);
-  const videoPoster = preview.posterUrl ?? (visualUrl && visualUrl !== preview.url ? visualUrl : null);
+  const mediaVisual =
+    visualUrl ??
+    (preview.kind === "images" ? preview.url : (preview.posterUrl ?? null));
+  const videoPoster =
+    preview.posterUrl ??
+    (visualUrl && visualUrl !== preview.url ? visualUrl : null);
 
   return (
     <div data-testid={testId} className={cn("group relative", className)}>
       <button
         type="button"
         onClick={() => onOpenPreview(preview)}
-        className={cn("surface-preview-frame relative h-full w-full overflow-hidden text-left", tileClassName)}
+        className={cn(
+          "surface-preview-frame relative h-full w-full overflow-hidden text-left",
+          tileClassName,
+        )}
         title={preview.label}
       >
         {preview.kind === "videos" ? (
@@ -74,9 +86,15 @@ export function StudioStagedMediaTile({
             </span>
           )
         ) : preview.kind === "audios" ? (
-          <span className={studioPreviewFallbackClassName({ className: "flex-col gap-1" })}>
+          <span
+            className={studioPreviewFallbackClassName({
+              className: "flex-col gap-1",
+            })}
+          >
             <Volume2 className="size-5" />
-            <span className="text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-dim)]">Audio</span>
+            <span className="text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-dim)]">
+              Audio
+            </span>
           </span>
         ) : mediaVisual ? (
           <img
@@ -98,7 +116,12 @@ export function StudioStagedMediaTile({
           </div>
         ) : null}
       </button>
-      {replaceControl ? <div className="absolute bottom-1.5 left-1.5 z-10">{replaceControl}</div> : null}
+      {positionBadge}
+      {replaceControl ? (
+        <div className="studio-staged-media-replace absolute bottom-1.5 left-1.5 z-10">
+          {replaceControl}
+        </div>
+      ) : null}
       {onRemove ? (
         <button
           type="button"
@@ -108,7 +131,7 @@ export function StudioStagedMediaTile({
             onRemove();
           }}
           data-testid={testId ? `${testId}-remove` : undefined}
-          className="studio-slot-utility-button absolute right-1.5 top-1.5 z-10 inline-flex h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+          className="studio-staged-media-remove studio-slot-utility-button absolute right-1.5 top-1.5 z-10 inline-flex h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
           aria-label={`Remove ${preview.label}`}
           title={`Remove ${preview.label}`}
         >
@@ -116,5 +139,37 @@ export function StudioStagedMediaTile({
         </button>
       ) : null}
     </div>
+  );
+}
+
+export function StudioStagedMediaReplaceControl({
+  label,
+  accept,
+  testId,
+  onPickFiles,
+}: {
+  label: string;
+  accept: string;
+  testId?: string;
+  onPickFiles: (files: FileList, input: HTMLInputElement) => void;
+}) {
+  return (
+    <label
+      className="studio-slot-utility-button inline-flex h-8 w-8 cursor-pointer"
+      title={label}
+    >
+      <ImagePlus aria-hidden="true" className="size-3.5" />
+      <input
+        type="file"
+        accept={accept}
+        data-testid={testId}
+        aria-label={label}
+        className="sr-only"
+        onChange={({ currentTarget }) => {
+          if (currentTarget.files?.length)
+            onPickFiles(currentTarget.files, currentTarget);
+        }}
+      />
+    </label>
   );
 }

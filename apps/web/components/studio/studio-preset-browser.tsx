@@ -2,7 +2,13 @@
 
 import { ListFilter, LogIn, LoaderCircle, Pencil, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { useMediaPresetPages } from "@/hooks/use-media-preset-pages";
 import { MediaBrowserItem } from "@/components/media/media-browser-item";
@@ -37,6 +43,7 @@ type StudioPresetBrowserProps = {
   presets: MediaPreset[];
   models: MediaModelSummary[];
   returnToHref?: string | null;
+  composerPresetPicker?: ReactNode;
   onClose: () => void;
   onSelectPreset: (preset: MediaPreset) => void;
 };
@@ -105,6 +112,7 @@ export function StudioPresetBrowser({
   presets,
   models,
   returnToHref = null,
+  composerPresetPicker,
   onClose,
   onSelectPreset,
 }: StudioPresetBrowserProps) {
@@ -247,6 +255,7 @@ export function StudioPresetBrowser({
             }}
           />
         </div>
+        {composerPresetPicker}
       </StudioBrowserToolbar>
       {loadError ? (
         <CalloutPanel tone="warning" className="mb-4">

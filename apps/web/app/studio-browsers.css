@@ -560,3 +560,69 @@ html:has(.studio-browser-backdrop) {
     padding-block: 16px 6px;
   }
 }
+
+.studio-expanded-references .studio-browser-position {
+  align-items: center;
+}
+
+.studio-expanded-references .studio-browser-panel {
+  width: min(100%, 774px);
+  height: auto;
+  max-height: calc(100dvh - 48px);
+}
+
+.studio-expanded-references .studio-browser-shell {
+  height: auto;
+  max-height: inherit;
+}
+
+.studio-expanded-references .studio-browser-header h2 {
+  font-size: 1rem;
+  line-height: 2rem;
+}
+
+.studio-expanded-reference-kind {
+  display: flex;
+  margin-block-end: 12px;
+}
+
+.studio-expanded-reference-kind .studio-ordered-reference-count {
+  padding: 6px 12px;
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+}
+
+.studio-expanded-reference-grid.studio-browser-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.studio-ordered-reference-tile-expanded {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2;
+}
+
+.studio-expanded-reference-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-block-start: 12px;
+}
+
+.studio-expanded-reference-actions .studio-slot-tile {
+  width: 100%;
+  height: 40px;
+  gap: 8px;
+}
+
+.studio-expanded-reference-actions svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (width < 600px) {
+  .studio-expanded-reference-grid.studio-browser-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

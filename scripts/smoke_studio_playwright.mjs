@@ -259,9 +259,10 @@ async function run() {
 
     await page.goto(`${webBaseUrl}/studio`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("studio-gallery").waitFor({ timeout: 45_000 });
-    const libraryButton = page.getByTestId("studio-filter-library");
+    const libraryButton = page.getByTestId("studio-picker-studio-library");
     await libraryButton.waitFor({ timeout: 10_000 });
     await libraryButton.click();
+    await page.getByTestId("studio-picker-option-studio-library-references").click();
     await page.getByTestId("studio-reference-library").waitFor({ timeout: 15_000 });
     await page.getByRole("button", { name: "Close reference library" }).click();
     await page.getByTestId("studio-picker-model").click();

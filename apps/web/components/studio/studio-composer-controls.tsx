@@ -1,8 +1,16 @@
 "use client";
 
-import { Copy, Sparkles } from "lucide-react";
+import {
+  Clapperboard,
+  Coins,
+  Copy,
+  Image as ImageIcon,
+  Info,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 
-import { PillSelect } from "@/components/ui/pill-select";
+import { PillSelect, type PillSelectChoice } from "@/components/ui/pill-select";
 import {
   buildChoiceList,
   displayChoiceLabel,
@@ -12,7 +20,11 @@ import {
   pickerWidth,
   serializeOptionChoice,
 } from "@/lib/media-studio-helpers";
-import type { MediaPreset } from "@/lib/types";
+import {
+  studioComposerModelIcon,
+  studioComposerModelLabel,
+} from "@/hooks/studio/use-studio-shell-catalog";
+import type { MediaModelSummary, MediaPreset } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type StudioComposerControlsProps = {
@@ -20,8 +32,10 @@ type StudioComposerControlsProps = {
   modelPicker?: React.ReactNode;
   openPicker: string | null;
   modelKey: string;
-  selectedPresetId: string;
-  modelPresets: MediaPreset[];
+  presetPicker?: React.ReactNode;
+  imageGenerateAction?: boolean;
+  showEstimate?: boolean;
+  estimatedCredits?: string | null;
   modelMaxOutputs: number;
   outputCount: number;
   compactOptionEntries: Array<[string, Record<string, unknown>]>;
@@ -30,23 +44,136 @@ type StudioComposerControlsProps = {
   canSubmit: boolean;
   generateButtonLabel: string;
   onOpenPickerChange: (pickerId: string | null) => void;
-  onPresetSelection: (
-    value: string,
-    options?: { preferredModelKey?: string | null },
-  ) => void;
   onOutputCountChange: (count: number) => void;
   onOptionChange: (optionKey: string, value: unknown) => void;
   onClear: () => void;
   onSubmit: () => void;
 };
 
+export function StudioComposerModelPicker({
+  model,
+  modelKey,
+  modelIcons,
+  choices,
+  presetModelChoices,
+  structuredPresetActive,
+  leading,
+  open,
+  onOpenChange,
+  onSelect,
+}: {
+  model: MediaModelSummary | null;
+  modelKey: string;
+  modelIcons: ReadonlyMap<string, LucideIcon>;
+  choices: PillSelectChoice[];
+  presetModelChoices: PillSelectChoice[];
+  structuredPresetActive: boolean;
+  leading: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (value: string) => void;
+}) {
+  if (structuredPresetActive && presetModelChoices.length <= 1) return null;
+  const modelLabel = studioComposerModelLabel(model?.label);
+  const label = leading
+    ? modelLabel.replace(/ (image to image|text to image)$/i, "\n$1")
+    : modelLabel;
+  return (
+    <PillSelect
+      pickerId="model"
+      open={open}
+      onToggle={() => onOpenChange(!open)}
+      onClose={() => onOpenChange(false)}
+      widthClassName={pickerWidth("model")}
+      icon={studioComposerModelIcon(model)}
+      choiceIcon={(choice) => modelIcons.get(choice.value) ?? Clapperboard}
+      label={label}
+      className={
+        label === modelLabel ? undefined : "studio-model-picker-with-mode"
+      }
+      selectedValue={modelKey}
+      menuTitle="Model"
+      choices={structuredPresetActive ? presetModelChoices : choices}
+      selectedChoiceFirst={false}
+      onSelect={onSelect}
+    />
+  );
+}
+
+function composerPresetLabel(
+  modelPresets: MediaPreset[],
+  selectedPresetId: string,
+  fallback: string,
+) {
+  return (
+    modelPresets.find(({ preset_id }) => preset_id === selectedPresetId)
+      ?.label ??
+    modelPresets.find(({ key }) => key === selectedPresetId)?.label ??
+    fallback
+  );
+}
+
+export function StudioComposerPresetPicker({
+  modelKey,
+  modelPresets,
+  selectedPresetId,
+  structuredPresetActive,
+  inBrowser,
+  open,
+  onOpenChange,
+  onSelect,
+}: {
+  modelKey: string;
+  modelPresets: MediaPreset[];
+  selectedPresetId: string;
+  structuredPresetActive: boolean;
+  inBrowser: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (value: string, options: { preferredModelKey: string }) => void;
+}) {
+  if (
+    structuredPresetActive ||
+    (!selectedPresetId && modelPresets.length === 0)
+  )
+    return null;
+  return (
+    <PillSelect
+      pickerId="preset"
+      appearance={inBrowser ? "admin" : "studio"}
+      open={open}
+      onToggle={() => onOpenChange(!open)}
+      onClose={() => onOpenChange(false)}
+      widthClassName={pickerWidth("preset")}
+      icon={Sparkles}
+      label={composerPresetLabel(
+        modelPresets,
+        selectedPresetId,
+        inBrowser ? "Presets for this model" : "Preset",
+      )}
+      selectedValue={selectedPresetId}
+      menuTitle="Preset"
+      choices={[
+        { value: "", label: "No preset" },
+        ...modelPresets.map((preset) => ({
+          value: preset.preset_id,
+          label: preset.label,
+        })),
+      ]}
+      onSelect={(value) => onSelect(value, { preferredModelKey: modelKey })}
+    />
+  );
+}
+
 export function StudioComposerControls({
   structuredPresetActive,
   modelPicker,
   openPicker,
   modelKey,
-  selectedPresetId,
-  modelPresets,
+  presetPicker,
+  imageGenerateAction = false,
+  showEstimate = false,
+  estimatedCredits,
   modelMaxOutputs,
   outputCount,
   compactOptionEntries,
@@ -55,7 +182,6 @@ export function StudioComposerControls({
   canSubmit,
   generateButtonLabel,
   onOpenPickerChange,
-  onPresetSelection,
   onOutputCountChange,
   onOptionChange,
   onClear,
@@ -103,39 +229,7 @@ export function StudioComposerControls({
     >
       <div className="studio-composer-options">
         {modelPicker}
-        {!structuredPresetActive &&
-        (selectedPresetId || modelPresets.length) ? (
-          <PillSelect
-            pickerId="preset"
-            open={openPicker === "preset"}
-            onToggle={() =>
-              onOpenPickerChange(openPicker === "preset" ? null : "preset")
-            }
-            onClose={() => onOpenPickerChange(null)}
-            widthClassName={pickerWidth("preset")}
-            icon={Sparkles}
-            label={
-              modelPresets.find(
-                (preset) => preset.preset_id === selectedPresetId,
-              )?.label ??
-              modelPresets.find((preset) => preset.key === selectedPresetId)
-                ?.label ??
-              "Preset"
-            }
-            selectedValue={selectedPresetId}
-            menuTitle="Preset"
-            choices={[
-              { value: "", label: "Preset" },
-              ...modelPresets.map((preset) => ({
-                value: preset.preset_id,
-                label: preset.label,
-              })),
-            ]}
-            onSelect={(value) =>
-              onPresetSelection(value, { preferredModelKey: modelKey })
-            }
-          />
-        ) : null}
+        {presetPicker}
 
         {modelMaxOutputs > 1 ? (
           <PillSelect
@@ -235,6 +329,11 @@ export function StudioComposerControls({
         )}
       </div>
       <div className="studio-composer-actions flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
+        <StudioComposerEstimate
+          show={showEstimate}
+          credits={estimatedCredits}
+          hasPrice={generateButtonLabel !== "Generate"}
+        />
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -250,10 +349,40 @@ export function StudioComposerControls({
             disabled={!canSubmit}
             className="studio-composer-action-button studio-composer-generate-button"
           >
-            {generateButtonLabel}
+            {imageGenerateAction ? <ImageIcon aria-hidden="true" /> : null}
+            {imageGenerateAction
+              ? generateButtonLabel.replace(/^Generate\b/, "Generate image")
+              : generateButtonLabel}
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StudioComposerEstimate({
+  show,
+  credits,
+  hasPrice,
+}: {
+  show: boolean;
+  credits?: string | null;
+  hasPrice: boolean;
+}) {
+  if (!show) return null;
+  if (credits) {
+    return (
+      <div className="studio-composer-estimate studio-composer-estimate-credits">
+        <Coins aria-hidden="true" />
+        <span>~{credits} credits</span>
+      </div>
+    );
+  }
+  if (hasPrice) return null;
+  return (
+    <div className="studio-composer-estimate">
+      <Info aria-hidden="true" />
+      <span>Estimate pending</span>
     </div>
   );
 }

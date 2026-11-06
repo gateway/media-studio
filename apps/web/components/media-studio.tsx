@@ -10,16 +10,15 @@ import {
   useTransition,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Clapperboard, FolderPlus, X } from "lucide-react";
 
 import { useGlobalActivity } from "@/components/global-activity";
 import { StudioContextPanels } from "@/components/studio/studio-context-panels";
 import {
   StudioMobileInputsContent,
-  StudioMultiImageReferenceStrip,
   StudioSeedanceReferenceStrip,
   StudioSourceAttachmentStrip,
 } from "@/components/studio/studio-composer-input-strips";
+import { StudioMultiImageReferenceStrip } from "@/components/studio/studio-multi-image-reference-strip";
 import { StudioCreateStage } from "@/components/studio/studio-create-stage";
 import { StudioGallery } from "@/components/studio/studio-gallery";
 import { StudioFailedJobInspector } from "@/components/studio/studio-failed-job-inspector";
@@ -29,9 +28,11 @@ import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { StudioAssetInspector } from "@/components/studio/studio-asset-inspector";
 import { StudioComposer } from "@/components/studio/studio-composer";
-import { StudioComposerControls } from "@/components/studio/studio-composer-controls";
-import { PillSelect } from "@/components/ui/pill-select";
-import { StudioCreditMetrics } from "@/components/studio/studio-metric-pill";
+import {
+  StudioComposerControls,
+  StudioComposerModelPicker,
+  StudioComposerPresetPicker,
+} from "@/components/studio/studio-composer-controls";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
 import { StudioPromptComposerBody } from "@/components/studio/studio-prompt-composer-body";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
@@ -59,8 +60,6 @@ import {
   fetchStudioPresetDetail,
   mergeStudioPresetDetail,
   studioComposerModelChoice,
-  studioComposerModelIcon,
-  studioComposerModelLabel,
   useStudioShellCatalog,
 } from "@/hooks/studio/use-studio-shell-catalog";
 import {
@@ -79,7 +78,6 @@ import {
   modelInputLimit,
   resolveImageToVideoAnimationModel,
   orderedImageInputVisual,
-  pickerWidth,
   type StudioComposerSlot,
   studioPresetSupportedModels,
   jobStatusLabel,
@@ -148,6 +146,7 @@ export function MediaStudio({
     MediaPreset[]
   >([]);
   const [projectBrowserOpen, setProjectBrowserOpen] = useState(false);
+  const [imageReferencesExpanded, setImageReferencesExpanded] = useState(false);
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(
     null,
   );
@@ -617,36 +616,6 @@ export function MediaStudio({
       .filter((model) => supportedModelKeys.has(model.key))
       .map(studioComposerModelChoice);
   }, [currentPreset, models, structuredPresetActive]);
-  const showModelPicker =
-    !structuredPresetActive || structuredPresetModelChoices.length > 1;
-  const selectedProjectMetric = selectedProject ? (
-    <div className="studio-project-metric hidden md:flex items-center overflow-hidden rounded-[14px]">
-      <button
-        type="button"
-        onClick={() => openProjectWorkspace(selectedProject.project_id)}
-        className="inline-flex h-10 items-center gap-2 px-3 text-[0.72rem] font-semibold transition"
-        aria-label={`Open project ${selectedProject.name}`}
-      >
-        <span className="studio-project-metric-icon inline-flex h-5 w-5 items-center justify-center rounded-full">
-          <FolderPlus className="size-3.5" />
-        </span>
-        <span>{selectedProject.name}</span>
-      </button>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          openProjectWorkspace(null);
-        }}
-        className="studio-project-metric-close inline-flex h-10 items-center justify-center px-3 transition"
-        aria-label="Exit project workspace"
-        title="Exit project workspace"
-      >
-        <X className="size-3.5" />
-      </button>
-    </div>
-  ) : null;
-
   const expandStudioComposer = useCallback(() => {
     setDesktopComposerCollapsed(false);
     setMobileComposerCollapsed((collapsed) =>
@@ -1249,6 +1218,10 @@ export function MediaStudio({
   const multiImageReferenceStrip = dedicatedImageReferenceRailActive ? (
     <StudioMultiImageReferenceStrip
       imageLimitLabel={imageLimitLabel}
+      expanded={imageReferencesExpanded}
+      suspended={Boolean(selectedReferencePreview || referenceLibraryTarget)}
+      onExpandedChange={setImageReferencesExpanded}
+      onOpenLibrary={openContextualReferenceLibrary}
       orderedImageInputs={orderedImageInputs}
       canAddMoreImages={canAddMoreImages}
       isDragActive={isDragActive}
@@ -1260,6 +1233,7 @@ export function MediaStudio({
         void handleSourceTileDrop(event, slotIndex)
       }
       onAddImageFilesToOrderedSlot={addImageFilesToOrderedSlot}
+      onReplaceImageFile={replaceOrderedImageFile}
     />
   ) : null;
   const motionControlVideoAsset =
@@ -1485,6 +1459,7 @@ export function MediaStudio({
     Boolean(selectedAssetId) ||
     studioSettingsOpen ||
     presetBrowserOpen ||
+    (dedicatedImageReferenceRailActive && imageReferencesExpanded) ||
     selectedMediaLightboxOpen ||
     Boolean(selectedReferencePreview) ||
     Boolean(referenceLibraryTarget);
@@ -1641,6 +1616,12 @@ export function MediaStudio({
     visibleGalleryAssetIds,
   ]);
 
+  const openGraphStudio = useCallback(() => {
+    void router.push(
+      graphReturnTargetRef.current?.href ?? buildGraphStudioHref(),
+    );
+  }, [router]);
+
   useEffect(() => {
     if (graphReturnTargetRef.current?.pathname !== pathname) {
       const params = new URLSearchParams(window.location.search);
@@ -1649,7 +1630,6 @@ export function MediaStudio({
         href: buildGraphStudioHref(params.get("graphTab")),
       };
     }
-    const graphReturnHref = graphReturnTargetRef.current.href;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
@@ -1671,7 +1651,7 @@ export function MediaStudio({
       });
       if (action === "open-graph") {
         event.preventDefault();
-        void router.push(graphReturnHref);
+        openGraphStudio();
         return;
       }
       if (action === "open-projects") {
@@ -1701,6 +1681,7 @@ export function MediaStudio({
     isTypingTarget,
     lockingOverlayOpen,
     pathname,
+    openGraphStudio,
     openContextualReferenceLibrary,
     router,
     selectedProjectId,
@@ -2154,6 +2135,29 @@ export function MediaStudio({
     resetFileInputValue(input ?? null);
   }
 
+  function replaceOrderedImageFile(
+    files: FileList,
+    slotIndex: number,
+    input: HTMLInputElement,
+  ) {
+    const slot = orderedImageInputs[slotIndex];
+    if (!slot) return;
+
+    // The gallery source is outside the attachment list; subsequent slots are
+    // indexed one position earlier by the existing attachment replacement.
+    const hasGallerySource = orderedImageInputs[0]?.source === "asset";
+    const attachmentIndex = Math.max(0, slotIndex - Number(hasGallerySource));
+    expandStudioComposer();
+    addFiles(files, {
+      allowedKinds: ["images"],
+      insertImageIndex: attachmentIndex,
+      replaceImageIndex: slot.source === "asset" ? null : attachmentIndex,
+      onReplaceSourceImage:
+        slot.source === "asset" ? clearSourceAsset : undefined,
+    }).catch(reportActionError);
+    resetFileInputValue(input);
+  }
+
   function clearOrderedImageInput(
     slot: (typeof orderedImageInputs)[number] | null,
   ) {
@@ -2243,40 +2247,20 @@ export function MediaStudio({
   }
 
   const modelPickerLeadsComposer = immersive && !structuredPresetActive;
-  const modelLabel = studioComposerModelLabel(currentModel?.label);
-  const modelTriggerLabel = modelPickerLeadsComposer
-    ? modelLabel.replace(/ (image to image|text to image)$/i, "\n$1")
-    : modelLabel;
-  const modelPicker = showModelPicker ? (
-    <PillSelect
-      pickerId="model"
+  const modelPicker = (
+    <StudioComposerModelPicker
+      model={currentModel}
+      modelKey={modelKey}
+      modelIcons={modelIconByKey}
+      choices={enabledStudioModelChoices}
+      presetModelChoices={structuredPresetModelChoices}
+      structuredPresetActive={structuredPresetActive}
+      leading={modelPickerLeadsComposer}
       open={openPicker === "model"}
-      onToggle={() => {
-        if (openPicker === "model") {
-          setOpenPicker(null);
-          return;
-        }
-        expandStudioComposer();
-        setOpenPicker("model");
+      onOpenChange={(open) => {
+        if (open) expandStudioComposer();
+        setOpenPicker(open ? "model" : null);
       }}
-      onClose={() => setOpenPicker(null)}
-      widthClassName={pickerWidth("model")}
-      icon={studioComposerModelIcon(currentModel)}
-      choiceIcon={(choice) => modelIconByKey.get(choice.value) ?? Clapperboard}
-      label={modelTriggerLabel}
-      className={
-        modelTriggerLabel !== modelLabel
-          ? "studio-model-picker-with-mode"
-          : undefined
-      }
-      selectedValue={modelKey}
-      menuTitle="Model"
-      choices={
-        structuredPresetActive
-          ? structuredPresetModelChoices
-          : enabledStudioModelChoices
-      }
-      selectedChoiceFirst={false}
       onSelect={(value) => {
         expandStudioComposer();
         setModelKey(value);
@@ -2289,10 +2273,30 @@ export function MediaStudio({
         setValidation(null);
       }}
     />
-  ) : null;
+  );
   const [leadingModelPicker, inlineModelPicker] = modelPickerLeadsComposer
     ? [modelPicker, null]
     : [null, modelPicker];
+
+  const composerPresetPicker = (
+    <StudioComposerPresetPicker
+      modelKey={modelKey}
+      modelPresets={modelPresets}
+      selectedPresetId={selectedPresetId}
+      structuredPresetActive={structuredPresetActive}
+      inBrowser={immersive}
+      open={openPicker === "preset"}
+      onOpenChange={(open) => {
+        if (open) expandStudioComposer();
+        setOpenPicker(open ? "preset" : null);
+      }}
+      onSelect={(value, options) => {
+        expandStudioComposer();
+        applyPresetSelection(value, options);
+        if (immersive) setPresetBrowserOpen(false);
+      }}
+    />
+  );
 
   return (
     <div className={immersive ? "min-h-dvh" : "space-y-7"}>
@@ -2304,18 +2308,11 @@ export function MediaStudio({
           models={models}
           favoritesOnly={favoritesOnly}
           galleryKindFilter={galleryKindFilter}
-          projectWorkspaceActive={Boolean(selectedProject)}
-          metrics={
-            !selectedAsset ? (
-              <div className="hidden items-center gap-2 md:flex">
-                {selectedProjectMetric}
-                <StudioCreditMetrics
-                  remaining={formattedRemainingCredits}
-                  estimated={estimatedCredits}
-                />
-              </div>
-            ) : null
-          }
+          project={selectedProject}
+          remainingCredits={localRemainingCredits}
+          onOpenProjectWorkspace={openProjectWorkspace}
+          onOpenStudio={clearGallerySelection}
+          onOpenGraph={openGraphStudio}
           onGalleryModelFilterChange={handleGalleryModelFilterChange}
           onActivateGalleryKindFilter={handleGalleryKindFilterChange}
           onToggleFavoritesFilter={handleFavoritesFilterToggle}
@@ -2464,8 +2461,13 @@ export function MediaStudio({
                   modelPicker={inlineModelPicker}
                   openPicker={openPicker}
                   modelKey={modelKey}
-                  selectedPresetId={selectedPresetId}
-                  modelPresets={modelPresets}
+                  presetPicker={immersive ? null : composerPresetPicker}
+                  imageGenerateAction={
+                    modelPickerLeadsComposer &&
+                    currentModel?.generation_kind === "image"
+                  }
+                  showEstimate={modelPickerLeadsComposer}
+                  estimatedCredits={estimatedCredits}
                   modelMaxOutputs={modelMaxOutputs}
                   outputCount={outputCount}
                   compactOptionEntries={compactOptionEntries}
@@ -2478,10 +2480,6 @@ export function MediaStudio({
                       expandStudioComposer();
                     }
                     setOpenPicker(pickerId);
-                  }}
-                  onPresetSelection={(value, options) => {
-                    expandStudioComposer();
-                    applyPresetSelection(value, options);
                   }}
                   onOutputCountChange={(nextOutputCount) => {
                     expandStudioComposer();
@@ -2582,12 +2580,16 @@ export function MediaStudio({
         <StudioPresetBrowser
           presets={availableStudioPresets}
           models={models}
+          composerPresetPicker={immersive ? composerPresetPicker : null}
           returnToHref={
             typeof window === "undefined"
               ? pathname
               : `${window.location.pathname}${window.location.search}`
           }
-          onClose={() => setPresetBrowserOpen(false)}
+          onClose={() => {
+            setOpenPicker(null);
+            setPresetBrowserOpen(false);
+          }}
           onSelectPreset={(preset) => {
             loadPresetIntoStudio(preset.preset_id ?? preset.key, preset).catch(
               reportActionError,

@@ -18,6 +18,8 @@ type StudioMediaSlotAddTileProps = {
   disabled?: boolean;
   isDragActive?: boolean;
   label?: string;
+  inputLabel?: string;
+  actionLabel?: React.ReactNode;
   mediaKind?: StudioMediaSlotAddTileKind;
   required?: boolean;
   testId?: string;
@@ -64,12 +66,18 @@ export function studioMediaSlotAddTileIcon(
   return ImagePlus;
 }
 
+function fileInputClassName(label?: string) {
+  return label ? "sr-only" : "hidden";
+}
+
 export function StudioMediaSlotAddTile({
   accept,
   multiple = false,
   disabled = false,
   isDragActive = false,
   label,
+  inputLabel,
+  actionLabel,
   mediaKind,
   required = false,
   testId,
@@ -123,12 +131,14 @@ export function StudioMediaSlotAddTile({
           </span>
         ) : null}
         <Icon className={cn("size-5.5", plusIconClassName)} />
+        {actionLabel}
         <input
           type="file"
           multiple={multiple}
           accept={accept}
           data-testid={testId}
-          className="hidden"
+          aria-label={inputLabel}
+          className={fileInputClassName(inputLabel)}
           disabled={disabled}
           onChange={(event) =>
             onPickFiles(event.target.files, event.currentTarget)

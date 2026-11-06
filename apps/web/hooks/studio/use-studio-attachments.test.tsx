@@ -1,12 +1,25 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useStudioAttachments } from "@/hooks/studio/use-studio-attachments";
-import type { AttachmentRecord, ComposerStatusMessage } from "@/lib/media-studio-contract";
+import type {
+  AttachmentRecord,
+  ComposerStatusMessage,
+} from "@/lib/media-studio-contract";
 import type { PresetSlotState } from "@/lib/media-studio-helpers";
+
+vi.mock("@/lib/studio-composer-file-utils", () => ({
+  buildAttachmentPreviewUrl: vi.fn(async () => "blob:preview"),
+}));
 
 const probeVideoMetadataMock = vi.hoisted(() => vi.fn());
 
@@ -52,8 +65,12 @@ function AttachmentHarness({
   return (
     <div>
       <div data-testid="attachment-count">{attachments.length}</div>
-      <div data-testid="attachment-duration">{attachments[0]?.durationSeconds ?? ""}</div>
-      <div data-testid="attachment-resolution">{attachments[0]?.width ?? ""}x{attachments[0]?.height ?? ""}</div>
+      <div data-testid="attachment-duration">
+        {attachments[0]?.durationSeconds ?? ""}
+      </div>
+      <div data-testid="attachment-resolution">
+        {attachments[0]?.width ?? ""}x{attachments[0]?.height ?? ""}
+      </div>
       <div data-testid="attachment-kind">{attachments[0]?.kind ?? ""}</div>
     </div>
   );
@@ -86,10 +103,16 @@ describe("useStudioAttachments", () => {
 
     render(<AttachmentHarness files={[file]} />);
 
-    await waitFor(() => expect(screen.getByTestId("attachment-count").textContent).toBe("1"));
+    await waitFor(() =>
+      expect(screen.getByTestId("attachment-count").textContent).toBe("1"),
+    );
     expect(screen.getByTestId("attachment-kind").textContent).toBe("videos");
-    expect(screen.getByTestId("attachment-duration").textContent).toBe("20.083333");
-    expect(screen.getByTestId("attachment-resolution").textContent).toBe("720x1280");
+    expect(screen.getByTestId("attachment-duration").textContent).toBe(
+      "20.083333",
+    );
+    expect(screen.getByTestId("attachment-resolution").textContent).toBe(
+      "720x1280",
+    );
     expect(probeVideoMetadataMock).toHaveBeenCalledWith(file);
   });
 
@@ -100,9 +123,59 @@ describe("useStudioAttachments", () => {
 
     render(<AttachmentHarness files={[file]} restored />);
 
-    await waitFor(() => expect(screen.getByTestId("attachment-count").textContent).toBe("1"));
+    await waitFor(() =>
+      expect(screen.getByTestId("attachment-count").textContent).toBe("1"),
+    );
     expect(screen.getByTestId("attachment-kind").textContent).toBe("audios");
     expect(screen.getByTestId("attachment-duration").textContent).toBe("");
     expect(probeVideoMetadataMock).not.toHaveBeenCalled();
   });
+});
+
+it("replaces a gallery source at the image limit and keeps the following attachment", async () => {
+  const following: AttachmentRecord = {
+    id: "second",
+    file: null,
+    kind: "images",
+    previewUrl: "/second.png",
+  };
+  const setAttachments = vi.fn();
+  const onReplaceSourceImage = vi.fn();
+  const { result } = renderHook(() =>
+    useStudioAttachments({
+      seedanceComposer: false,
+      seedanceFirstFrameAttachment: null,
+      seedanceLastFrameAttachment: null,
+      seedanceReferenceImages: [],
+      seedanceReferenceVideos: [],
+      seedanceReferenceAudios: [],
+      maxImageInputs: 2,
+      maxVideoInputs: 0,
+      maxAudioInputs: 0,
+      stagedImageCount: 2,
+      stagedVideoCount: 0,
+      stagedAudioCount: 0,
+      setFormMessage: vi.fn(),
+      setAttachments,
+      setPresetSlotStates: vi.fn(),
+    }),
+  );
+  const config = {
+    allowedKinds: ["images"] as "images"[],
+    insertImageIndex: 0,
+    onReplaceSourceImage,
+  };
+  const video = new File([], "video.mp4", { type: "video/mp4" });
+  await result.current.addFiles([video], config);
+  expect(onReplaceSourceImage).not.toHaveBeenCalled();
+  expect(setAttachments).not.toHaveBeenCalled();
+
+  const image = new File([], "replacement.png", { type: "image/png" });
+  await result.current.addFiles([image], config);
+  expect(onReplaceSourceImage).toHaveBeenCalledTimes(1);
+  expect(setAttachments).toHaveBeenCalledTimes(1);
+  expect(setAttachments.mock.calls[0][0]([following])).toEqual([
+    expect.objectContaining({ file: image }),
+    following,
+  ]);
 });
