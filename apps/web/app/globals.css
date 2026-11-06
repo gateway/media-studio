@@ -2848,7 +2848,7 @@ textarea {
   }
 }
 
-@media (width < 1024px) {
+@variant max-lg {
   .studio-composer-mobile-balance {
     display: flex;
     grid-column: 1 / -1;
@@ -2871,7 +2871,9 @@ textarea {
     .studio-header-balance {
     visibility: hidden;
   }
+}
 
+@media (width < 1024px) {
   :where(.studio-create-stage-immersive) .studio-ordered-references {
     margin-block: 12px;
   }
