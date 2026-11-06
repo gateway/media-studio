@@ -53,9 +53,25 @@ describe("StudioComposer", () => {
 
     expect(screen.getByText("Composer collapsed")).toBeTruthy();
     expect(screen.getByText("Nano Banana Pro")).toBeTruthy();
+    expect(screen.getByText("5.8k")).toBeTruthy();
     expect(screen.queryByText("Seedance reference strip")).toBeNull();
     expect(screen.queryByText("Source attachment strip")).toBeNull();
     expect(screen.queryByText("Prompt and model controls")).toBeNull();
+  });
+
+  it("omits the duplicate balance from the collapsed immersive composer", () => {
+    const { container } = renderComposer({
+      immersive: true,
+      collapsed: true,
+      mobileExpanded: true,
+    });
+
+    expect(
+      container.firstElementChild?.getAttribute("data-mobile-overlay-expanded"),
+    ).toBe("false");
+    expect(screen.queryByText("5.8k")).toBeNull();
+    expect(screen.queryByText("1,066.6 credits")).toBeNull();
+    expect(screen.getByText("~6 cr")).toBeTruthy();
   });
 
   it("calls the composer-level expand handler from the collapsed bar", () => {

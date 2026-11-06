@@ -121,7 +121,9 @@ export function StudioComposer({
       {composerCollapsed ? (
         <StudioComposerCollapsedBar
           currentModelLabel={currentModelLabel}
-          formattedRemainingCredits={formattedRemainingCredits}
+          formattedRemainingCredits={
+            immersive ? null : formattedRemainingCredits
+          }
           estimatedCredits={estimatedCredits}
           presetLabel={presetLabel}
           structuredPresetActive={structuredPresetActive}
