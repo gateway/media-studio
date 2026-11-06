@@ -4,7 +4,7 @@
   "license": "SEE LICENSE IN ../../LICENSE",
   "version": "1.0.9",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --require ../../scripts/dev-stdio.cjs ../../node_modules/next/dist/bin/next dev",
     "build": "npm run lint && next build",
     "start": "next start",
     "lint": "node ../../scripts/static-analysis/gate.mjs",

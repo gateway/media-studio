@@ -58,6 +58,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run test:static-analysis:knip
       - run: npm run lint:unused
+      - name: Verify development broken-pipe handling without services
+        run: node --test scripts/dev-stdio.test.mjs
       - name: Verify Playwright exports and native image processing without services
         run: npm run test:web:focused -- apps/web/lib/dependency-ownership.test.ts apps/web/lib/thumbnail-native-processing.test.ts
       - uses: actions/upload-artifact@v4

@@ -181,6 +181,8 @@ npm run dev
 
 That path runs the API and web app together with hot reload, so you may see dev-only UI such as the Next badge or overlay.
 
+Use the repository dev commands (`npm run dev:web` or `npm --workspace apps/web run dev`) rather than invoking `next dev` directly. They preload a stdout/stderr guard so a disconnected terminal or log reader cannot trigger a recursive Next.js `write EPIPE` error-reporting loop. Other output errors still surface. A disconnected terminal cannot receive further logs; inspect `apps/web/.next/dev/logs/next-development.log` or relaunch with a persistent log destination when terminal output is needed.
+
 Then open the URL printed by the launcher. On a default free-port launch, that route is:
 
 - `http://127.0.0.1:3000/studio`
