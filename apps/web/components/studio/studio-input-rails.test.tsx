@@ -72,15 +72,13 @@ describe.each([
     name: "desktop",
     Component: StudioSourceAttachmentStrip,
     prefix: "studio-standard-slot",
-    size: "h-full w-full",
   },
   {
     name: "mobile",
     Component: StudioMobileInputsContent,
     prefix: "studio-mobile-standard-slot",
-    size: "h-[72px]",
   },
-])("$name active input rails", ({ Component, prefix, size }) => {
+])("$name active input rails", ({ Component, prefix }) => {
   it("keeps motion source previews, sizing and separate removal callbacks", () => {
     const props = inputProps();
     const slots = resolveStandardComposerSlots({
@@ -106,7 +104,7 @@ describe.each([
     );
     const imageTile = screen.getByTestId(`${prefix}-slot-source-image-filled`);
     const videoTile = screen.getByTestId(`${prefix}-slot-driving-video-filled`);
-    expect(imageTile.className).toContain(size);
+    expect(imageTile.className).toContain("studio-fixed-slot-tile");
     expect(within(imageTile).getByRole("img").getAttribute("src")).toBe(
       "/thumb.png",
     );
@@ -126,6 +124,16 @@ describe.each([
     );
     expect(props.onOpenPreview).toHaveBeenCalledTimes(2);
     expect(props.onRemoveAttachment).not.toHaveBeenCalled();
+    const replaceVideo = within(videoTile).getByLabelText(
+      "Replace Driving video",
+    );
+    expect(replaceVideo.getAttribute("accept")).toBe("video/*");
+    const files = [new File([], "drive.mp4", { type: "video/mp4" })];
+    fireEvent.change(replaceVideo, { target: { files } });
+    expect(
+      props.onPickStandardComposerSlotFiles,
+    ).toHaveBeenCalledExactlyOnceWith(slots[1], files, replaceVideo, true);
+    expect(props.onOpenPreview).toHaveBeenCalledTimes(2);
   });
 
   it("keeps first/last frame upload inputs mapped to the correct slot", () => {

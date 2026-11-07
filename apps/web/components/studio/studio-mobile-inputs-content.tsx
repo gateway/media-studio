@@ -204,7 +204,7 @@ export function StudioMobileInputsContent({
         title={standardComposerSectionTitle}
         summary={standardComposerSummaryLabel}
       >
-        <div className="studio-mobile-input-rail">
+        <div>
           <StudioStandardSlotRail
             slots={standardComposerSlots}
             mobile

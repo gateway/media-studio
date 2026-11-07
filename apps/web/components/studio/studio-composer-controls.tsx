@@ -4,6 +4,7 @@ import {
   Clapperboard,
   Coins,
   Copy,
+  Video,
   Image as ImageIcon,
   Info,
   Sparkles,
@@ -18,6 +19,7 @@ import { isSeedanceModel } from "@/lib/seedance-model";
 import { PillSelect, type PillSelectChoice } from "@/components/ui/pill-select";
 import {
   buildChoiceList,
+  MULTI_SHOT_MODEL_KEYS,
   displayChoiceLabel,
   displayOptionControlLabel,
   optionIcon,
@@ -196,14 +198,11 @@ export function StudioComposerControls({
   onClear,
   onSubmit,
 }: StudioComposerControlsProps) {
-  const hideAspectRatio =
-    modelKey === "kling-3.0-i2v" &&
-    inferredInputPattern === "first_last_frames";
   const optionControls = composerOptionEntries(
     modelKey,
     compactOptionEntries,
   ).flatMap(([optionKey, schema]) => {
-    if (hideAspectRatio && optionKey === "aspect_ratio") {
+    if (composerHidesOption(modelKey, inferredInputPattern, optionKey)) {
       return [];
     }
 
@@ -223,7 +222,12 @@ export function StudioComposerControls({
         currentValue,
         resolvedValue,
         resolvedLabel,
-        controlLabel: composerControlLabel(modelKey, optionKey, resolvedLabel),
+        controlLabel: composerControlLabel(
+          modelKey,
+          optionKey,
+          resolvedLabel,
+          resolvedValue,
+        ),
         selectedValue,
         choices: choices.length
           ? choices
@@ -283,7 +287,7 @@ export function StudioComposerControls({
             const toggle = seedanceToggleControl(modelKey, optionKey, schema);
             if (toggle) {
               return (
-                <StudioSeedanceOptionToggle
+                <StudioComposerOptionToggle
                   key={optionKey}
                   {...toggle}
                   checked={resolvedValue === true}
@@ -317,14 +321,18 @@ export function StudioComposerControls({
                 }
                 onClose={() => onOpenPickerChange(null)}
                 widthClassName={pickerWidth(optionKey)}
-                icon={optionIcon(optionKey, currentValue)}
+                icon={composerOptionIcon(modelKey, optionKey, currentValue)}
                 choiceIcon={(choice) =>
-                  optionIcon(optionKey, parseOptionChoice(schema, choice.value))
+                  composerOptionIcon(
+                    modelKey,
+                    optionKey,
+                    parseOptionChoice(schema, choice.value),
+                  )
                 }
                 label={controlLabel}
                 selectedValue={selectedValue}
                 menuTitle={optionKey.replaceAll("_", " ")}
-                choices={choices}
+                choices={composerOptionChoices(modelKey, optionKey, choices)}
                 onSelect={(value) =>
                   onOptionChange(optionKey, parseOptionChoice(schema, value))
                 }
@@ -411,23 +419,25 @@ function seedanceToggleControl(
   );
 }
 
-function StudioSeedanceOptionToggle({
+export function StudioComposerOptionToggle({
   label,
   icon: Icon,
   checked,
   onToggle,
+  showState = true,
 }: {
   label: string;
   icon: LucideIcon;
+  showState?: boolean;
   checked: boolean;
   onToggle: () => void;
 }) {
   return (
-    <div className="studio-seedance-option-toggle">
+    <div className="studio-composer-option-toggle">
       <Icon aria-hidden="true" />
       <span>{label}</span>
-      <span className="studio-seedance-option-state" aria-hidden="true">
-        {checked ? "On" : "Off"}
+      <span className="studio-composer-option-state" aria-hidden="true">
+        {showState ? (checked ? "On" : "Off") : null}
       </span>
       <AdminToggle checked={checked} ariaLabel={label} onToggle={onToggle} />
     </div>
@@ -488,11 +498,15 @@ function composerOptionEntries(
   modelKey: string,
   entries: StudioComposerControlsProps["compactOptionEntries"],
 ) {
-  if (!isSeedanceModel(modelKey)) return entries;
+  const order = isSeedanceModel(modelKey)
+    ? seedanceOptionOrder
+    : modelKey.startsWith("kling-")
+      ? klingOptionOrder
+      : null;
+  if (!order) return entries;
   return [...entries].sort(
     ([left], [right]) =>
-      (seedanceOptionOrder.get(left) ?? seedanceOptionOrder.size) -
-      (seedanceOptionOrder.get(right) ?? seedanceOptionOrder.size),
+      (order.get(left) ?? order.size) - (order.get(right) ?? order.size),
   );
 }
 
@@ -500,7 +514,74 @@ function composerControlLabel(
   modelKey: string,
   optionKey: string,
   valueLabel: string,
+  value: unknown,
 ) {
+  if (modelKey.startsWith("kling-")) {
+    return klingOptionLabels[optionKey]?.[String(value)] ?? valueLabel;
+  }
   if (isSeedanceModel(modelKey)) return valueLabel;
   return displayOptionControlLabel(optionKey, valueLabel);
+}
+
+const klingOptionOrder = new Map(
+  [
+    "character_orientation",
+    "duration",
+    "aspect_ratio",
+    "mode",
+    "resolution",
+    "sound",
+  ].map((key, index) => [key, index]),
+);
+
+function composerOptionIcon(
+  modelKey: string,
+  optionKey: string,
+  value: unknown,
+) {
+  if (modelKey.startsWith("kling-") && optionKey === "character_orientation") {
+    return value === "image" ? ImageIcon : Video;
+  }
+  if (
+    modelKey.startsWith("kling-") &&
+    optionKey === "mode" &&
+    ["720p", "1080p"].includes(String(value))
+  )
+    return optionIcon("resolution", value);
+  return optionIcon(optionKey, value);
+}
+
+const klingOptionLabels: Record<string, Record<string, string>> = {
+  character_orientation: { image: "Image", video: "Video" },
+  mode: { "720p": "720p", "1080p": "1080p", std: "Standard", pro: "Pro" },
+};
+
+function composerHidesOption(
+  modelKey: string,
+  inputPattern: string | null,
+  optionKey: string,
+) {
+  if (optionKey === "multi_shots") return MULTI_SHOT_MODEL_KEYS.has(modelKey);
+  return (
+    modelKey === "kling-3.0-i2v" &&
+    inputPattern === "first_last_frames" &&
+    optionKey === "aspect_ratio"
+  );
+}
+
+function composerOptionChoices(
+  modelKey: string,
+  optionKey: string,
+  choices: Array<{ value: string; label: string }>,
+) {
+  if (!modelKey.startsWith("kling-")) return choices;
+  return choices.map((choice) => ({
+    ...choice,
+    label: composerControlLabel(
+      modelKey,
+      optionKey,
+      choice.label,
+      choice.value,
+    ),
+  }));
 }

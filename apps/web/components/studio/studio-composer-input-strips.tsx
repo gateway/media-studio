@@ -166,11 +166,7 @@ export function StudioSourceAttachmentStrip({
 }: StudioSourceAttachmentStripProps) {
   return (
     <div
-      className={
-        inputRail === "seedance"
-          ? "studio-seedance-frame-rail"
-          : "flex flex-wrap gap-3"
-      }
+      className={inputRail === "seedance" ? "studio-fixed-slot-rail" : "w-full"}
     >
       {inputRail === "seedance" ? (
         <>
@@ -197,11 +193,11 @@ export function StudioSourceAttachmentStrip({
             return (
               <div
                 key={`seedance-slot-${slot.role}`}
-                className="studio-seedance-frame-slot"
+                className="studio-fixed-slot"
               >
                 <div
                   data-testid={`seedance-slot-${slot.role}`}
-                  className="studio-seedance-frame-media"
+                  className="studio-fixed-slot-media"
                 >
                   {attachment && attachmentPreview ? (
                     <div
@@ -217,7 +213,7 @@ export function StudioSourceAttachmentStrip({
                         preview={attachmentPreview}
                         visualUrl={attachment.previewUrl}
                         previewBadge={
-                          <span className="studio-seedance-frame-caption">
+                          <span className="studio-fixed-slot-caption">
                             <ImageIcon aria-hidden="true" />
                             {slot.label}
                           </span>
@@ -249,7 +245,7 @@ export function StudioSourceAttachmentStrip({
                             }}
                           />
                         }
-                        className="studio-seedance-frame-tile"
+                        className="studio-fixed-slot-tile"
                         testId={`seedance-slot-filled-${slot.role}`}
                       />
                     </div>
@@ -261,7 +257,7 @@ export function StudioSourceAttachmentStrip({
                       testId={`seedance-slot-input-${slot.role}`}
                       required={slot.role === "first_frame"}
                       wrapperClassName="h-full w-full"
-                      tileClassName="studio-seedance-frame-add h-full w-full"
+                      tileClassName="studio-fixed-slot-add h-full w-full"
                       onDragOver={(event) => {
                         event.preventDefault();
                         onSetDragActive(true);
@@ -286,7 +282,7 @@ export function StudioSourceAttachmentStrip({
                         onResetFileInput(input);
                       }}
                     >
-                      <span className="studio-seedance-frame-empty-label">
+                      <span className="studio-fixed-slot-empty-label">
                         {slot.label}
                       </span>
                     </StudioMediaSlotAddTile>

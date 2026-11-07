@@ -73,6 +73,7 @@ import {
 import { findMediaAssetById } from "@/lib/studio-gallery";
 import {
   applyPromptReferenceMention,
+  MULTI_SHOT_MODEL_KEYS,
   detectPromptReferenceMention,
   isCoarsePointerDevice,
   mediaDisplayUrl,
@@ -2420,6 +2421,22 @@ export function MediaStudio({
                     promptInputRef={promptInputRef}
                     prompt={prompt}
                     multiShotsEnabled={multiShotsEnabled}
+                    multiShot={
+                      MULTI_SHOT_MODEL_KEYS.has(modelKey) &&
+                      compactOptionEntries.some(
+                        ([key]) => key === "multi_shots",
+                      )
+                        ? {
+                            script: multiShotScript,
+                            error: multiShotScriptError,
+                            duration: optionValues["duration"],
+                            onToggle: () => {
+                              expandStudioComposer();
+                              updateOption("multi_shots", !multiShotsEnabled);
+                            },
+                          }
+                        : undefined
+                    }
                     promptReferencePickerOpen={promptReferencePickerOpen}
                     promptReferenceChoices={promptReferenceChoices}
                     promptReferenceActiveIndex={promptReferenceActiveIndex}
@@ -2503,26 +2520,9 @@ export function MediaStudio({
                     void submitMedia("submit");
                   }}
                 />
-                {selectedPromptList.length || multiShotsEnabled ? (
+                {selectedPromptList.length ? (
                   <div className="mt-4 grid gap-3 border-t border-[var(--border-soft)] pt-4">
                     <div className="grid gap-2">
-                      {multiShotsEnabled ? (
-                        <div className="studio-composer-muted-tile rounded-[20px] px-4 py-3 text-sm text-[var(--text-muted)]">
-                          {multiShotScriptError ? (
-                            <span className="text-[var(--feedback-danger-text)]">
-                              {multiShotScriptError}
-                            </span>
-                          ) : (
-                            <span>
-                              Multi-shot script ready:{" "}
-                              {multiShotScript.shots.length} shot
-                              {multiShotScript.shots.length === 1
-                                ? ""
-                                : "s"} · {multiShotScript.totalDuration}s total
-                            </span>
-                          )}
-                        </div>
-                      ) : null}
                       {selectedPromptList.length ? (
                         <div className="flex flex-wrap gap-2">
                           {selectedPromptList.map((promptItem) => (

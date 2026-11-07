@@ -1,6 +1,7 @@
 "use client";
 
 import type { DragEvent } from "react";
+import { Film, Image as ImageIcon } from "lucide-react";
 
 import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
 import {
@@ -39,17 +40,10 @@ type StudioStandardSlotRailProps = {
   ) => void;
 };
 
-function renderSlotLabel(slot: StudioComposerSlot) {
-  const label = slot.role === "end_frame" ? "End frame" : slot.label;
-  return <div className="studio-slot-label">{label}</div>;
-}
-
 export function StudioStandardSlotRail({
   slots,
   mobile = false,
   isDragActive,
-  mobileAddTileClassName = "h-[58px] w-[58px] rounded-[18px]",
-  mobileAddTilePlusIconClassName = "size-5",
   buildPreview,
   resolveVisualUrl,
   isAssetBackedImageSlot,
@@ -59,37 +53,26 @@ export function StudioStandardSlotRail({
   onClearSlot,
   onPickFiles,
 }: StudioStandardSlotRailProps) {
-  const layout = mobile
-    ? {
-        testIdPrefix: "studio-mobile-standard-slot",
-        outerClass: "shrink-0",
-        frameClass: "h-[72px] w-[72px]",
-        previewClass: "h-[72px] w-[72px]",
-        addWrapperClass: "shrink-0",
-        addTileClass: mobileAddTileClassName,
-        addIconClass: mobileAddTilePlusIconClassName,
-      }
-    : {
-        testIdPrefix: "studio-standard-slot",
-        outerClass: "flex w-[96px] flex-col gap-2",
-        frameClass: "relative h-[82px] w-[82px]",
-        previewClass: "h-full w-full",
-        addWrapperClass: "h-full w-full",
-        addTileClass: "h-full w-full",
-        addIconClass: undefined,
-      };
+  const testIdPrefix = mobile
+    ? "studio-mobile-standard-slot"
+    : "studio-standard-slot";
 
   return (
-    <>
+    <div
+      className="studio-fixed-slot-rail"
+      data-motion={slots.some((slot) => slot.role === "driving_video")}
+    >
       {slots.map((slot) => {
-        const testId = `${layout.testIdPrefix}-${slot.id}`;
+        const testId = `${testIdPrefix}-${slot.id}`;
         const preview = buildPreview(slot, testId);
         const visualUrl = resolveVisualUrl(slot);
 
+        const label = slot.role === "end_frame" ? "End frame" : slot.label;
+        const Icon = slot.kind === "video" ? Film : ImageIcon;
+
         return (
-          <div key={slot.id} className={layout.outerClass}>
-            {renderSlotLabel(slot)}
-            <div className={layout.frameClass}>
+          <div key={slot.id} className="studio-fixed-slot">
+            <div className="studio-fixed-slot-media">
               {preview ? (
                 <div
                   onDragOver={(event) => {
@@ -98,27 +81,31 @@ export function StudioStandardSlotRail({
                   }}
                   onDragLeave={() => onSetDragActive(false)}
                   onDrop={(event) => void onSlotDrop(event, slot)}
-                  className={layout.previewClass}
+                  className="h-full w-full"
                 >
                   <StudioStagedMediaTile
                     preview={preview}
                     visualUrl={visualUrl}
                     footerLabel={preview.metadataLabel ?? null}
+                    previewBadge={
+                      <span className="studio-fixed-slot-caption">
+                        <Icon aria-hidden="true" />
+                        <span className="studio-fixed-slot-label">{label}</span>
+                      </span>
+                    }
                     onOpenPreview={(nextPreview) => onOpenPreview(nextPreview)}
                     onRemove={() => onClearSlot(slot)}
                     replaceControl={
-                      !mobile && (
-                        <StudioStagedMediaReplaceControl
-                          label={`Replace ${slot.label}`}
-                          accept={slot.accept}
-                          testId={`${testId}-replace`}
-                          onPickFiles={(files, input) =>
-                            onPickFiles(slot, files, input, true)
-                          }
-                        />
-                      )
+                      <StudioStagedMediaReplaceControl
+                        label={`Replace ${slot.label}`}
+                        accept={slot.accept}
+                        testId={`${testId}-replace`}
+                        onPickFiles={(files, input) =>
+                          onPickFiles(slot, files, input, true)
+                        }
+                      />
                     }
-                    className={layout.previewClass}
+                    className="studio-fixed-slot-tile studio-standard-slot-tile h-full w-full"
                     tileClassName={
                       slot.kind === "image" && isAssetBackedImageSlot(slot)
                         ? "border-[rgba(216,141,67,0.24)]"
@@ -130,12 +117,12 @@ export function StudioStandardSlotRail({
               ) : (
                 <StudioMediaSlotAddTile
                   accept={slot.accept}
+                  inputLabel={`Add ${slot.label.toLowerCase()}`}
                   isDragActive={isDragActive}
                   testId={testId}
                   required={slot.required}
-                  wrapperClassName={layout.addWrapperClass}
-                  tileClassName={layout.addTileClass}
-                  plusIconClassName={layout.addIconClass}
+                  wrapperClassName="h-full w-full"
+                  tileClassName="studio-fixed-slot-add"
                   onDragOver={(event) => {
                     event.preventDefault();
                     onSetDragActive(true);
@@ -145,12 +132,14 @@ export function StudioStandardSlotRail({
                   onPickFiles={(fileList, input) => {
                     onPickFiles(slot, fileList, input);
                   }}
-                />
+                >
+                  <span className="studio-fixed-slot-empty-label">{label}</span>
+                </StudioMediaSlotAddTile>
               )}
             </div>
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
