@@ -1225,6 +1225,7 @@ export function MediaStudio({
   }
 
   const referenceManagerProps = {
+    modelLabel: currentModel?.label ?? "Selected model",
     expanded: referencesExpanded,
     suspended: Boolean(selectedReferencePreview || referenceLibraryTarget),
     onExpandedChange: setReferencesExpanded,

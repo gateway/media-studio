@@ -16,7 +16,6 @@ import {
   useState,
   type DragEvent,
   type MouseEvent,
-  type ReactNode,
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
@@ -54,6 +53,7 @@ export type StudioReferenceGroup = {
     testId: string;
     preview: StudioReferencePreview;
     visualUrl: string | null;
+    token?: string;
     onRemove: () => void;
     onReplace?: (files: FileList, input: HTMLInputElement) => void;
   }[];
@@ -64,6 +64,7 @@ export type StudioReferenceGroup = {
 };
 
 export type StudioReferenceManagerProps = {
+  modelLabel: string;
   expanded: boolean;
   suspended: boolean;
   onExpandedChange: (expanded: boolean) => void;
@@ -182,7 +183,10 @@ function ReferenceTiles({
       }
       previewBadge={
         expanded ? (
-          <Icon aria-hidden="true" className="studio-reference-tile-kind" />
+          <span aria-hidden="true" className="studio-reference-tile-caption">
+            <Icon />
+            <span>{slot.token ?? slot.preview.label}</span>
+          </span>
         ) : undefined
       }
       visualUrl={slot.visualUrl}
@@ -209,7 +213,7 @@ type ReferenceViewProps = {
   groups: StudioReferenceGroup[];
   onSelect: (kind: StudioReferenceKind) => void;
   onOpenPreview: StudioReferenceManagerProps["onOpenPreview"];
-  upload: ReactNode;
+  uploadProps: ReferenceUploadProps;
   expandRef: RefObject<HTMLButtonElement | null>;
 };
 
@@ -218,16 +222,16 @@ function ReferenceOverview({
   groups,
   onSelect,
   onOpenPreview,
-  upload,
+  uploadProps,
   expandRef,
-  compact,
+  density,
   expanded,
   isDragActive,
   onOpen,
   onDragOver,
   onDragLeave,
 }: ReferenceViewProps & {
-  compact: boolean;
+  density: "compact" | "large";
   expanded: boolean;
   isDragActive: boolean;
   onOpen: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -238,7 +242,8 @@ function ReferenceOverview({
   const { singular, icon: KindIcon } = referenceKinds[group.kind];
   const used = group.slots.length;
   const showTabs = groups.length > 1;
-  const maxThumbnails = compact ? 4 : 2;
+  const compact = density === "compact";
+  const maxThumbnails = { compact: 4, large: 2 }[density];
   const visibleCount = overviewThumbnailCount(
     used,
     maxThumbnails,
@@ -265,7 +270,7 @@ function ReferenceOverview({
   return (
     <section
       className="studio-ordered-references"
-      data-reference-density={compact ? "compact" : "large"}
+      data-reference-density={density}
       aria-label="Staged references"
     >
       <div className="studio-ordered-reference-heading">
@@ -323,7 +328,7 @@ function ReferenceOverview({
             +{overflow}
           </Button>
         )}
-        {upload}
+        {!expanded && <ReferenceUpload {...uploadProps} mode="overview" />}
       </div>
     </section>
   );
@@ -339,37 +344,111 @@ function overviewThumbnailCount(
     : Math.min(used, maxThumbnails);
 }
 
+type ReferenceUploadProps = {
+  group: StudioReferenceGroup;
+  isDragActive: boolean;
+  onDragOver: (event: DragEvent<HTMLElement>) => void;
+  onDragLeave: () => void;
+};
+
+function ReferenceUpload({
+  group,
+  isDragActive,
+  onDragOver,
+  onDragLeave,
+  mode,
+}: ReferenceUploadProps & { mode: "overview" | "tile" | "footer" }) {
+  if (group.slots.length >= group.limit) return null;
+  const { label, singular } = referenceKinds[group.kind];
+  const inputProps =
+    mode === "footer"
+      ? {
+          actionLabel: `Upload ${label.toLowerCase()}`,
+          inputLabel: `Upload ${singular} references`,
+          testId: `${group.uploadTestId}-upload`,
+          icon: Upload,
+        }
+      : {
+          inputLabel: `Add ${singular} references`,
+          testId: group.uploadTestId,
+          icon: Plus,
+        };
+  return (
+    <StudioMediaSlotAddTile
+      key={group.kind}
+      accept={`${singular}/*`}
+      multiple
+      {...inputProps}
+      wrapperClassName={`studio-reference-add-${mode}`}
+      isDragActive={isDragActive}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={group.onDrop}
+      onPickFiles={group.onAdd}
+    >
+      {mode === "tile" && (
+        <>
+          <span className="studio-reference-add-title">
+            Add {label.toLowerCase()}
+          </span>
+          <span className="studio-reference-add-hint">Drop here or upload</span>
+        </>
+      )}
+    </StudioMediaSlotAddTile>
+  );
+}
+
 function ExpandedReferenceManager({
   group,
   groups,
   onSelect,
   onOpenPreview,
-  upload,
+  uploadProps,
   expandRef,
   suspended,
   onClose,
   feedback,
+  modelLabel,
 }: ReferenceViewProps & {
   suspended: boolean;
   onClose: () => void;
   feedback?: ComposerStatusMessage | null;
+  modelLabel: string;
 }) {
   const managerId = useId();
-  const { singular } = referenceKinds[group.kind];
+  const { label, singular } = referenceKinds[group.kind];
+  const available = Math.max(0, group.limit - group.slots.length);
+  const columns = Math.min(
+    4,
+    Math.max(1, group.slots.length + Number(available > 0)),
+  );
 
   return createPortal(
     <StudioBrowserOverlay
       testId="studio-expanded-references"
-      zIndexClassName="z-[118] studio-expanded-references"
+      zIndexClassName={`z-[118] studio-expanded-references studio-expanded-references-columns-${columns}`}
       title="References"
       heading={
-        <ReferenceTabs
-          groups={groups}
-          selectedKind={group.kind}
-          onSelect={onSelect}
-          id={managerId}
-          showLabels
-        />
+        <div className="studio-expanded-reference-title">
+          <span>References</span>
+          <span aria-hidden="true">·</span>
+          <span>{modelLabel}</span>
+        </div>
+      }
+      toolbar={
+        <div className="studio-expanded-reference-toolbar">
+          <ReferenceTabs
+            groups={groups}
+            selectedKind={group.kind}
+            onSelect={onSelect}
+            id={managerId}
+            showLabels
+          />
+          <span className="studio-expanded-reference-summary">
+            {group.slots.length} {label.toLowerCase()} added · {available}{" "}
+            available
+          </span>
+        </div>
       }
       onClose={onClose}
       suspended={suspended}
@@ -384,10 +463,15 @@ function ExpandedReferenceManager({
         />
       }
       footer={
-        upload && (
+        <footer className="studio-expanded-reference-footer">
+          <span role="status" className="studio-expanded-reference-summary">
+            {available > 0
+              ? `${available} ${singular} slots available`
+              : "Reference limit reached"}
+          </span>
           <div className="studio-expanded-reference-actions">
-            {upload}
-            {group.onOpenLibrary && (
+            <ReferenceUpload {...uploadProps} mode="footer" />
+            {available > 0 && group.onOpenLibrary && (
               <Button
                 appearance="admin"
                 variant="subtle"
@@ -397,7 +481,7 @@ function ExpandedReferenceManager({
               </Button>
             )}
           </div>
-        )
+        </footer>
       }
     >
       <div
@@ -414,20 +498,15 @@ function ExpandedReferenceManager({
             className="studio-expanded-reference-feedback"
           />
         )}
-        {group.slots.length ? (
-          <StudioBrowserGrid className="studio-expanded-reference-grid">
-            <ReferenceTiles
-              group={group}
-              visibleCount={group.slots.length}
-              expanded
-              onOpenPreview={onOpenPreview}
-            />
-          </StudioBrowserGrid>
-        ) : (
-          <p className="studio-browser-state">
-            No {singular} references added.
-          </p>
-        )}
+        <StudioBrowserGrid className="studio-expanded-reference-grid">
+          <ReferenceTiles
+            group={group}
+            visibleCount={group.slots.length}
+            expanded
+            onOpenPreview={onOpenPreview}
+          />
+          <ReferenceUpload {...uploadProps} mode="tile" />
+        </StudioBrowserGrid>
       </div>
     </StudioBrowserOverlay>,
     document.body,
@@ -435,6 +514,7 @@ function ExpandedReferenceManager({
 }
 
 export function StudioReferenceManager({
+  modelLabel,
   groups,
   compact,
   expanded,
@@ -465,40 +545,20 @@ export function StudioReferenceManager({
     onSetDragActive(true);
   };
   const onDragLeave = () => onSetDragActive(false);
-  const { singular } = referenceKinds[group.kind];
-  const uploadAppearance = expanded
-    ? { actionLabel: "Upload", icon: Upload }
-    : { icon: Plus };
   const viewProps = {
     group,
     groups: supportedGroups,
     onSelect: setSelectedKind,
     onOpenPreview,
     expandRef,
-    upload:
-      group.slots.length < group.limit ? (
-        <StudioMediaSlotAddTile
-          key={group.kind}
-          accept={`${singular}/*`}
-          multiple
-          inputLabel={`Add ${singular} references`}
-          {...uploadAppearance}
-          isDragActive={isDragActive}
-          testId={group.uploadTestId}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={group.onDrop}
-          onPickFiles={group.onAdd}
-        />
-      ) : null,
+    uploadProps: { group, isDragActive, onDragOver, onDragLeave },
   };
 
   return (
     <>
       <ReferenceOverview
         {...viewProps}
-        upload={expanded ? null : viewProps.upload}
-        compact={compact}
+        density={compact ? "compact" : "large"}
         expanded={expanded}
         isDragActive={isDragActive}
         onDragOver={onDragOver}
@@ -512,6 +572,7 @@ export function StudioReferenceManager({
       {expanded && (
         <ExpandedReferenceManager
           {...viewProps}
+          modelLabel={modelLabel}
           suspended={suspended}
           feedback={feedback === feedbackAtOpen ? null : feedback}
           onClose={() => onExpandedChange(false)}

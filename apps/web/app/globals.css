@@ -459,8 +459,9 @@ textarea {
   color: white;
 }
 
-/* The immersive creation stage owns the Studio palette. Other routes keep their own tokens. */
-.studio-create-stage-immersive {
+/* The creation stage and its reference dialog share the approved Studio palette. */
+.studio-create-stage-immersive,
+.studio-expanded-references.studio-browser-theme {
   --ms-surface-primary: #0e1310;
   --ms-surface-secondary: #151b17;
   --ms-surface-tertiary: #202722;
@@ -538,6 +539,9 @@ textarea {
   --feedback-warning-text: var(--ms-feedback-warning-text);
   --feedback-danger-text: var(--ms-feedback-danger-text);
   --feedback-working-text: var(--ms-feedback-working-text);
+}
+
+.studio-create-stage-immersive {
   --studio-header-size: 50px;
   --studio-rail-size: clamp(304px, 25vw, 368px);
   --studio-control-size: 34px;
@@ -2768,7 +2772,6 @@ textarea {
 }
 
 .studio-staged-media-position,
-.studio-reference-tile-kind,
 .studio-ordered-reference-tile .studio-slot-utility-button {
   background: var(--surface-overlay-backdrop);
   color: var(--text-primary);
@@ -2786,14 +2789,6 @@ textarea {
   pointer-events: none;
   font-size: 0.75rem;
   font-weight: 600;
-}
-
-.studio-reference-tile-kind {
-  position: absolute;
-  inset: auto auto 4px 4px;
-  width: 24px;
-  height: 24px;
-  padding: 4px;
 }
 
 .studio-ordered-reference-tile .studio-staged-media-replace {

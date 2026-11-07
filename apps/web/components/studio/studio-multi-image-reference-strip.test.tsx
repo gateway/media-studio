@@ -18,6 +18,7 @@ type StripProps = ComponentProps<typeof StudioMultiImageReferenceStrip>;
 
 function referenceStripProps() {
   return {
+    modelLabel: "GPT Image Sunburst",
     imageLimit: 16,
     orderedImageInputs: [],
     suspended: false,
@@ -44,6 +45,7 @@ function ReferenceStripHarness(
       mobileComposerCollapsed={false}
       mobileComposerExpanded
       currentModelLabel="Image model"
+      modelPicker={<button type="button">Image model options</button>}
       formattedRemainingCredits={null}
       estimatedCredits={null}
       structuredPresetActive={false}
@@ -140,6 +142,9 @@ it("keeps the ordered reference actions available when the mobile composer and r
     />,
   );
 
+  const modelControls = screen.getByRole("button", {
+    name: "Image model options",
+  });
   const expand = screen.getByRole("button", {
     name: "Expand image references",
   });
@@ -149,6 +154,12 @@ it("keeps the ordered reference actions available when the mobile composer and r
 
   const dialog = screen.getByRole("dialog", { name: "References" });
   const expanded = within(dialog);
+  expect(expanded.getByText("GPT Image Sunburst")).toBeTruthy();
+  expect(expanded.getByRole("status").textContent).toBe(
+    "14 image slots available",
+  );
+  expect(expanded.getByText("Add images")).toBeTruthy();
+  expect(expanded.getByText("Drop here or upload")).toBeTruthy();
   expect(screen.getAllByTestId("studio-multi-image-slot-1")).toHaveLength(1);
   expect(
     expanded
@@ -182,6 +193,17 @@ it("keeps the ordered reference actions available when the mobile composer and r
   fireEvent.drop(add.closest("label")!);
   expect(callbacks.onDropIntoSlot).toHaveBeenCalledWith(expect.anything(), 2);
 
+  const footerUpload = expanded.getByLabelText("Upload image references");
+  fireEvent.change(footerUpload, { target: { files } });
+  expect(callbacks.onAddImageFilesToOrderedSlot).toHaveBeenNthCalledWith(
+    2,
+    files,
+    2,
+    footerUpload,
+  );
+  fireEvent.drop(footerUpload.closest("label")!);
+  expect(callbacks.onDropIntoSlot).toHaveBeenCalledTimes(2);
+
   fireEvent.click(expanded.getByRole("button", { name: "Image reference 1" }));
   expect(callbacks.onOpenPreview).toHaveBeenCalledWith(
     expect.objectContaining({ url: "/first.png" }),
@@ -199,4 +221,14 @@ it("keeps the ordered reference actions available when the mobile composer and r
   fireEvent.keyDown(dialog, { key: "Escape" });
   expect(screen.queryByRole("dialog", { name: "References" })).toBeNull();
   expect(document.activeElement).toBe(expand);
+  expect(screen.getByRole("button", { name: "Image model options" })).toBe(
+    modelControls,
+  );
+  expect(screen.getByText("2/16")).toBeTruthy();
+  expect(
+    screen
+      .getByTestId("studio-multi-image-slot-1")
+      .querySelector("img")
+      ?.getAttribute("src"),
+  ).toBe("/first.png");
 });

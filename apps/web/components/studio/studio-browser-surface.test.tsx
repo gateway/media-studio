@@ -147,3 +147,35 @@ it("loads intersecting pages only while ready and disconnects while busy or unmo
   view.unmount();
   expect(disconnect).toHaveBeenCalledTimes(2);
 });
+
+it("skips inactive roving tabs when containing keyboard focus", () => {
+  render(
+    <StudioBrowserOverlay
+      testId="browser"
+      zIndexClassName="z-[121]"
+      title="References"
+      onClose={vi.fn()}
+    >
+      <div role="tablist" aria-label="Reference media">
+        <button role="tab" aria-selected={false} tabIndex={-1}>
+          Images
+        </button>
+        <button role="tab" aria-selected tabIndex={0}>
+          Videos
+        </button>
+        <button role="tab" aria-selected={false} tabIndex={-1}>
+          Audio
+        </button>
+      </div>
+      <button>Close references</button>
+    </StudioBrowserOverlay>,
+  );
+  const selected = screen.getByRole("tab", { name: "Videos", selected: true });
+  const close = screen.getByRole("button", { name: "Close references" });
+  fireEvent.keyDown(window, { key: "Tab" });
+  expect(document.activeElement).toBe(selected);
+  fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+  expect(document.activeElement).toBe(close);
+  fireEvent.keyDown(window, { key: "Tab" });
+  expect(document.activeElement).toBe(selected);
+});

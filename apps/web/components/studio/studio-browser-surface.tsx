@@ -20,6 +20,7 @@ export function StudioBrowserOverlay({
   description,
   heading,
   actions,
+  toolbar,
   footer,
   returnFocusFallback,
   onClose,
@@ -33,6 +34,7 @@ export function StudioBrowserOverlay({
   description?: ReactNode;
   heading?: ReactNode;
   actions?: ReactNode;
+  toolbar?: ReactNode;
   footer?: ReactNode;
   returnFocusFallback?: RefObject<HTMLElement | null>;
   onClose: () => void;
@@ -74,6 +76,7 @@ export function StudioBrowserOverlay({
           </div>
           <div className="studio-browser-header-actions">{actions}</div>
         </header>
+        {toolbar}
         <div className="studio-browser-body scrollbar-none">{children}</div>
         {footer}
       </div>

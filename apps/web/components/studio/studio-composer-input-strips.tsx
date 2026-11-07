@@ -18,6 +18,7 @@ import type {
   StudioAddFilesHandler,
 } from "@/components/studio/studio-composer-input-types";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
+import { seedanceReferenceTokenGuide } from "@/lib/media-studio-helpers";
 import type {
   OrderedImageInput,
   StudioComposerSlot,
@@ -76,28 +77,32 @@ export function StudioSeedanceReferenceStrip({
       {...managerProps}
       compact
       groups={groups.map(
-        ({ kind, limit, attachments }): StudioReferenceGroup => ({
-          kind,
-          limit,
-          slots: attachments.map((attachment) => ({
-            key: attachment.id,
-            testId: `seedance-group-tile-${kind}-${attachment.id}`,
-            preview: seedanceReferencePreview(
-              attachment,
-              kind,
-              buildAttachmentPreview,
-            ),
-            visualUrl: seedanceReferenceVisual(attachment),
-            onRemove: () => onRemoveAttachment(attachment.id),
-          })),
-          uploadTestId: `seedance-group-input-${kind}`,
-          onAdd: (files, input) => {
-            onAddFiles(files, { role: "reference", allowedKinds: [kind] });
-            onResetFileInput(input);
-          },
-          onDrop: (event) => onReferenceDrop(event, kind),
-          onOpenLibrary: kind === "images" ? onOpenLibrary : undefined,
-        }),
+        ({ kind, limit, attachments }): StudioReferenceGroup => {
+          const tokens = seedanceReferenceTokenGuide(attachments);
+          return {
+            kind,
+            limit,
+            slots: attachments.map((attachment, index) => ({
+              key: attachment.id,
+              token: tokens[index],
+              testId: `seedance-group-tile-${kind}-${attachment.id}`,
+              preview: seedanceReferencePreview(
+                attachment,
+                kind,
+                buildAttachmentPreview,
+              ),
+              visualUrl: seedanceReferenceVisual(attachment),
+              onRemove: () => onRemoveAttachment(attachment.id),
+            })),
+            uploadTestId: `seedance-group-input-${kind}`,
+            onAdd: (files, input) => {
+              onAddFiles(files, { role: "reference", allowedKinds: [kind] });
+              onResetFileInput(input);
+            },
+            onDrop: (event) => onReferenceDrop(event, kind),
+            onOpenLibrary: kind === "images" ? onOpenLibrary : undefined,
+          };
+        },
       )}
     />
   );

@@ -19,6 +19,7 @@ afterEach(cleanup);
 
 function props() {
   return {
+    modelLabel: "Seedance 2.5",
     suspended: false,
     maxImageReferences: 30,
     maxVideoReferences: 10,
@@ -269,7 +270,11 @@ it("uses one manager for hidden slots and preserves the selected kind and drop r
   });
   expect(document.activeElement).toBe(dialog);
   fireEvent.keyDown(dialog, { key: "Tab" });
-  expect(document.activeElement).toBe(managerVideos);
+  expect(document.activeElement).toBe(
+    manager.getByRole("button", { name: "Close expanded references" }),
+  );
+  expect(managerVideos.tabIndex).toBe(0);
+  expect(manager.getByRole("tab", { name: "Images 0/30" }).tabIndex).toBe(-1);
   expect(
     manager.queryByRole("button", { name: "Choose from library" }),
   ).toBeNull();
@@ -293,3 +298,88 @@ it("uses one manager for hidden slots and preserves the selected kind and drop r
     screen.getByRole("button", { name: "Expand image references" }),
   );
 });
+
+it.each(groups)(
+  "keeps grid and footer adding aligned for $kind and shows capacity",
+  ({ kind, field, tab, mime }) => {
+    const base = props();
+    const attachments = references(kind, 1);
+    const limits = {
+      maxImageReferences: 2,
+      maxVideoReferences: 2,
+      maxAudioReferences: 2,
+    };
+    const { rerender } = render(
+      <MobileReferenceHarness
+        {...base}
+        {...limits}
+        {...{ [field]: attachments }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: `${tab} 1/2` }));
+    fireEvent.click(
+      screen.getByRole("button", { name: new RegExp("^Expand") }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "References" });
+    const manager = within(dialog);
+    expect(manager.getByText("Seedance 2.5")).toBeTruthy();
+    expect(
+      manager.getByText(
+        `@${{ images: "image", videos: "video", audios: "audio" }[kind]}1`,
+      ),
+    ).toBeTruthy();
+
+    const gridInput = manager.getByTestId(`seedance-group-input-${kind}`);
+    const footerInput = manager.getByTestId(
+      `seedance-group-input-${kind}-upload`,
+    );
+    expect(gridInput.getAttribute("accept")).toBe(
+      footerInput.getAttribute("accept"),
+    );
+    const files = [new File([], "new-reference", { type: mime })];
+    for (const input of [gridInput, footerInput]) {
+      fireEvent.change(input, { target: { files } });
+      expect(base.onAddFiles).toHaveBeenLastCalledWith(files, {
+        role: "reference",
+        allowedKinds: [kind],
+      });
+      expect(base.onResetFileInput).toHaveBeenLastCalledWith(input);
+      fireEvent.drop(input.closest("label")!);
+      expect(base.onReferenceDrop).toHaveBeenLastCalledWith(
+        expect.anything(),
+        kind,
+      );
+    }
+    const full = references(kind, 2);
+    rerender(
+      <MobileReferenceHarness {...base} {...limits} {...{ [field]: full }} />,
+    );
+    expect(manager.getByRole("status").textContent).toBe(
+      "Reference limit reached",
+    );
+    expect(manager.queryByTestId(`seedance-group-input-${kind}`)).toBeNull();
+    expect(
+      manager.queryByTestId(`seedance-group-input-${kind}-upload`),
+    ).toBeNull();
+    fireEvent.click(
+      manager.getByTestId(`seedance-group-tile-${kind}-${kind}-1-remove`),
+    );
+    expect(base.onRemoveAttachment).toHaveBeenCalledExactlyOnceWith(full[1].id);
+    rerender(
+      <MobileReferenceHarness
+        {...base}
+        {...limits}
+        {...{ [field]: full.slice(0, 1) }}
+      />,
+    );
+    expect(manager.getByTestId(`seedance-group-input-${kind}`)).toBeTruthy();
+
+    fireEvent.click(
+      manager.getByRole("button", { name: "Close expanded references" }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      screen.getByRole("tab", { name: `${tab} 1/2`, selected: true }),
+    ).toBeTruthy();
+  },
+);

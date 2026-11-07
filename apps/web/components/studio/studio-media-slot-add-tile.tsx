@@ -21,6 +21,7 @@ type StudioMediaSlotAddTileProps = {
   label?: string;
   inputLabel?: string;
   actionLabel?: React.ReactNode;
+  children?: React.ReactNode;
   mediaKind?: StudioMediaSlotAddTileKind;
   icon?: LucideIcon;
   required?: boolean;
@@ -80,6 +81,7 @@ export function StudioMediaSlotAddTile({
   label,
   inputLabel,
   actionLabel,
+  children,
   mediaKind,
   icon,
   required,
@@ -140,6 +142,7 @@ export function StudioMediaSlotAddTile({
           className={cn("size-5.5", plusIconClassName)}
         />
         {actionLabel}
+        {children}
         <input
           type="file"
           multiple={multiple}

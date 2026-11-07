@@ -11,6 +11,7 @@ describe("StudioSeedanceReferenceStrip", () => {
   it("renders the selected model's reference limits", () => {
     render(
       <StudioSeedanceReferenceStrip
+        modelLabel="Seedance 2.5"
         expanded={false}
         suspended={false}
         onExpandedChange={vi.fn()}
