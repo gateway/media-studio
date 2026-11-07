@@ -3643,6 +3643,7 @@ textarea {
   .studio-composer-content:has(> .studio-structured-preset) {
     display: grid;
     grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+    grid-template-rows: min-content 1fr min-content;
     align-items: start;
     gap: 12px 24px;
   }
@@ -3685,6 +3686,8 @@ textarea {
     .studio-composer-actions {
     grid-column: 1 / -1;
     grid-row: 3;
+    width: 100%;
+    margin-inline: 0;
     padding-block-start: 8px;
     border-block-start: 1px solid var(--border-soft);
   }
