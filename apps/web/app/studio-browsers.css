@@ -1,6 +1,7 @@
 /* Browser composition shared by Projects, Presets and Reference Library. */
 .studio-browser-theme
-  :is(button, input, select, textarea, a, [tabindex]):focus-visible {
+  :is(button, input, select, textarea, a, [tabindex]):focus-visible,
+.studio-expanded-reference-actions label:has(> input:focus-visible) {
   outline: 2px solid var(--accent-strong);
   outline-offset: 3px;
 }
@@ -610,15 +611,24 @@ html:has(.studio-browser-backdrop) {
   margin-block-start: 12px;
 }
 
-.studio-expanded-reference-actions .studio-slot-tile {
-  width: 100%;
-  height: 40px;
-  gap: 8px;
+.studio-expanded-reference-actions .studio-media-slot-add-wrapper {
+  display: grid;
+}
+
+.studio-expanded-reference-actions .studio-slot-tile-drag-active {
+  --action-subtle-border: var(--accent-border);
+  --action-subtle-surface: var(--accent-soft);
+  --action-subtle-surface-hover: var(--accent-soft);
+}
+
+.studio-expanded-reference-actions > button {
+  text-align: center;
 }
 
 .studio-expanded-reference-actions svg {
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
 }
 
 @media (width < 600px) {

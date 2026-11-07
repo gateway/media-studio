@@ -119,7 +119,7 @@ export function StudioMultiImageReferenceStrip({
       accept="image/*"
       multiple
       inputLabel="Add image references"
-      actionLabel={expanded && "Upload"}
+      actionLabel={expanded ? "Upload" : undefined}
       mediaKind={expanded ? "mixed" : "image"}
       isDragActive={isDragActive}
       testId="studio-multi-image-input"
@@ -186,7 +186,11 @@ export function StudioMultiImageReferenceStrip({
               {canAddMoreImages ? (
                 <div className="studio-expanded-reference-actions">
                   {upload}
-                  <Button variant="subtle" onClick={onOpenLibrary}>
+                  <Button
+                    appearance="admin"
+                    variant="subtle"
+                    onClick={onOpenLibrary}
+                  >
                     <FolderOpen aria-hidden="true" /> Choose from library
                   </Button>
                 </div>

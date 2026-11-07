@@ -544,6 +544,7 @@ textarea {
 
   min-height: 100dvh;
   overflow-x: clip;
+  scrollbar-color: var(--text-dim) transparent;
   background: var(--ms-surface-primary);
   color: var(--text-primary);
 }
@@ -2708,8 +2709,9 @@ textarea {
 .studio-ordered-reference-strip {
   display: flex;
   gap: 10px;
-  overflow-x: auto;
+  overflow: auto hidden;
   padding-block-end: 4px;
+  scrollbar-width: thin;
 }
 
 .studio-ordered-reference-strip > * {
@@ -2719,6 +2721,10 @@ textarea {
 .studio-ordered-reference-tile {
   width: 82px;
   height: 82px;
+}
+
+.studio-ordered-reference-strip .studio-ordered-reference-tile > button {
+  display: block;
 }
 
 .studio-staged-media-position,

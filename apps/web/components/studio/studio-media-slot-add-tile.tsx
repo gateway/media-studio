@@ -8,6 +8,7 @@ import {
   Upload,
 } from "lucide-react";
 
+import { buttonClassName } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type StudioMediaSlotAddTileKind = "image" | "video" | "audio" | "mixed";
@@ -72,14 +73,14 @@ function fileInputClassName(label?: string) {
 
 export function StudioMediaSlotAddTile({
   accept,
-  multiple = false,
-  disabled = false,
-  isDragActive = false,
+  multiple,
+  disabled,
+  isDragActive,
   label,
   inputLabel,
   actionLabel,
   mediaKind,
-  required = false,
+  required,
   testId,
   wrapperClassName,
   tileClassName,
@@ -117,7 +118,9 @@ export function StudioMediaSlotAddTile({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "studio-slot-tile",
+          actionLabel
+            ? buttonClassName({ appearance: "admin", variant: "subtle" })
+            : "studio-slot-tile",
           isDragActive ? "studio-slot-tile-drag-active" : "",
           disabled
             ? "cursor-not-allowed opacity-45 hover:border-white/10 hover:bg-white/[0.06]"
@@ -130,7 +133,10 @@ export function StudioMediaSlotAddTile({
             *
           </span>
         ) : null}
-        <Icon className={cn("size-5.5", plusIconClassName)} />
+        <Icon
+          aria-hidden="true"
+          className={cn("size-5.5", plusIconClassName)}
+        />
         {actionLabel}
         <input
           type="file"
