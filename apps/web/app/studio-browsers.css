@@ -110,6 +110,12 @@ html:has(.studio-browser-backdrop) {
   flex: 1 1 100%;
 }
 
+.studio-browser-toolbar-main > [data-picker-id="preset"] {
+  width: max-content;
+  max-width: 100%;
+  margin-top: 8px;
+}
+
 .studio-browser-filters {
   display: flex;
   flex-wrap: wrap;
@@ -542,7 +548,8 @@ html:has(.studio-browser-backdrop) {
     padding: 16px;
   }
 
-  .studio-browser-grid {
+  .studio-browser-grid,
+  .studio-project-filters {
     grid-template-columns: minmax(0, 1fr);
   }
 
