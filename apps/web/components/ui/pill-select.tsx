@@ -151,11 +151,13 @@ export function PillSelect({
     }
 
     function updateMenuPlacement() {
-      const container = containerRef.current;
-      if (!container) {
+      const trigger = containerRef.current?.querySelector("button");
+      if (!trigger) {
         return;
       }
-      const rect = container.getBoundingClientRect();
+      // In-flow rail menus contribute to the container height. Measuring the
+      // trigger keeps scrolling from resizing the menu against its own bounds.
+      const rect = trigger.getBoundingClientRect();
       const viewportHeight =
         window.visualViewport?.height ?? window.innerHeight;
       const gutter = 20;

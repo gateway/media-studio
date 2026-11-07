@@ -1,6 +1,7 @@
 "use client";
 
 import type { DragEvent } from "react";
+import { Image as ImageIcon } from "lucide-react";
 
 import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
 import {
@@ -28,11 +29,9 @@ import {
   seedanceReferencePreview,
   seedanceReferenceVisual,
 } from "@/lib/studio-reference-previews";
-import { cn } from "@/lib/utils";
 
 export { StudioMobileInputsContent } from "@/components/studio/studio-mobile-inputs-content";
 
-const STUDIO_COMPOSER_TILE_CLASS_NAME = "h-[82px] w-[82px]";
 type StudioSeedanceReferenceStripProps = StudioReferenceManagerProps & {
   referenceImages: AttachmentRecord[];
   referenceVideos: AttachmentRecord[];
@@ -166,7 +165,13 @@ export function StudioSourceAttachmentStrip({
   onResetFileInput,
 }: StudioSourceAttachmentStripProps) {
   return (
-    <div className="flex flex-wrap gap-3">
+    <div
+      className={
+        inputRail === "seedance"
+          ? "studio-seedance-frame-rail"
+          : "flex flex-wrap gap-3"
+      }
+    >
       {inputRail === "seedance" ? (
         <>
           {[
@@ -192,14 +197,11 @@ export function StudioSourceAttachmentStrip({
             return (
               <div
                 key={`seedance-slot-${slot.role}`}
-                className="flex flex-col gap-2"
+                className="studio-seedance-frame-slot"
               >
-                {!attachment ? (
-                  <div className="studio-meta-label">{slot.label}</div>
-                ) : null}
                 <div
                   data-testid={`seedance-slot-${slot.role}`}
-                  className={cn("relative", STUDIO_COMPOSER_TILE_CLASS_NAME)}
+                  className="studio-seedance-frame-media"
                 >
                   {attachment && attachmentPreview ? (
                     <div
@@ -214,6 +216,12 @@ export function StudioSourceAttachmentStrip({
                       <StudioStagedMediaTile
                         preview={attachmentPreview}
                         visualUrl={attachment.previewUrl}
+                        previewBadge={
+                          <span className="studio-seedance-frame-caption">
+                            <ImageIcon aria-hidden="true" />
+                            {slot.label}
+                          </span>
+                        }
                         onOpenPreview={onOpenPreview}
                         onRemove={() => onRemoveAttachment(attachment.id)}
                         replaceControl={
@@ -221,7 +229,6 @@ export function StudioSourceAttachmentStrip({
                             label={`Replace ${slot.label.toLowerCase()}`}
                             accept="image/*"
                             testId={`seedance-slot-input-${slot.role}`}
-                            appearance="seedance-frame"
                             onPickFiles={(files, input) => {
                               if (
                                 slot.role === "last_frame" &&
@@ -242,18 +249,19 @@ export function StudioSourceAttachmentStrip({
                             }}
                           />
                         }
-                        className="h-full w-full"
+                        className="studio-seedance-frame-tile"
                         testId={`seedance-slot-filled-${slot.role}`}
                       />
                     </div>
                   ) : (
                     <StudioMediaSlotAddTile
                       accept="image/*"
+                      inputLabel={`Add ${slot.label.toLowerCase()}`}
                       isDragActive={isDragActive}
                       testId={`seedance-slot-input-${slot.role}`}
                       required={slot.role === "first_frame"}
                       wrapperClassName="h-full w-full"
-                      tileClassName="h-full w-full"
+                      tileClassName="studio-seedance-frame-add h-full w-full"
                       onDragOver={(event) => {
                         event.preventDefault();
                         onSetDragActive(true);
@@ -277,7 +285,11 @@ export function StudioSourceAttachmentStrip({
                         });
                         onResetFileInput(input);
                       }}
-                    />
+                    >
+                      <span className="studio-seedance-frame-empty-label">
+                        {slot.label}
+                      </span>
+                    </StudioMediaSlotAddTile>
                   )}
                 </div>
               </div>

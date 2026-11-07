@@ -7,9 +7,14 @@ import {
   Image as ImageIcon,
   Info,
   Sparkles,
+  ScanLine,
+  Search,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 
+import { AdminToggle } from "@/components/admin-controls";
+import { isSeedanceModel } from "@/lib/seedance-model";
 import { PillSelect, type PillSelectChoice } from "@/components/ui/pill-select";
 import {
   buildChoiceList,
@@ -194,7 +199,10 @@ export function StudioComposerControls({
   const hideAspectRatio =
     modelKey === "kling-3.0-i2v" &&
     inferredInputPattern === "first_last_frames";
-  const optionControls = compactOptionEntries.flatMap(([optionKey, schema]) => {
+  const optionControls = composerOptionEntries(
+    modelKey,
+    compactOptionEntries,
+  ).flatMap(([optionKey, schema]) => {
     if (hideAspectRatio && optionKey === "aspect_ratio") {
       return [];
     }
@@ -215,6 +223,7 @@ export function StudioComposerControls({
         currentValue,
         resolvedValue,
         resolvedLabel,
+        controlLabel: composerControlLabel(modelKey, optionKey, resolvedLabel),
         selectedValue,
         choices: choices.length
           ? choices
@@ -266,44 +275,36 @@ export function StudioComposerControls({
             schema,
             currentValue,
             resolvedValue,
-            resolvedLabel,
+            controlLabel,
             selectedValue,
             choices,
             hasChoices,
           }) => {
-            if (!hasChoices && schema.type === "int_range") {
-              const min =
-                typeof schema.min === "number" ? schema.min : undefined;
-              const max =
-                typeof schema.max === "number" ? schema.max : undefined;
-              const numericValue = Number(resolvedValue ?? min ?? 0);
+            const toggle = seedanceToggleControl(modelKey, optionKey, schema);
+            if (toggle) {
               return (
-                <label
+                <StudioSeedanceOptionToggle
                   key={optionKey}
-                  className="flex h-10 w-[calc(50%-0.25rem)] items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-[0.72rem] text-white/78 sm:w-[112px]"
-                >
-                  <span className="truncate capitalize">
-                    {optionKey.replaceAll("_", " ")}
-                  </span>
-                  <input
-                    type="number"
-                    min={min}
-                    max={max}
-                    value={Number.isFinite(numericValue) ? numericValue : ""}
-                    onChange={(event) => {
-                      const parsed = Number(event.currentTarget.value);
-                      onOptionChange(
-                        optionKey,
-                        Number.isFinite(parsed)
-                          ? parsed
-                          : event.currentTarget.value,
-                      );
-                    }}
-                    className="min-w-0 flex-1 bg-transparent text-right text-white outline-none"
-                  />
-                </label>
+                  {...toggle}
+                  checked={resolvedValue === true}
+                  onToggle={() =>
+                    onOptionChange(optionKey, resolvedValue !== true)
+                  }
+                />
               );
             }
+            if (!hasChoices && schema.type === "int_range") {
+              return (
+                <StudioNumericOptionControl
+                  key={optionKey}
+                  optionKey={optionKey}
+                  schema={schema}
+                  resolvedValue={resolvedValue}
+                  onOptionChange={onOptionChange}
+                />
+              );
+            }
+
             return (
               <PillSelect
                 key={optionKey}
@@ -320,7 +321,7 @@ export function StudioComposerControls({
                 choiceIcon={(choice) =>
                   optionIcon(optionKey, parseOptionChoice(schema, choice.value))
                 }
-                label={displayOptionControlLabel(optionKey, resolvedLabel)}
+                label={controlLabel}
                 selectedValue={selectedValue}
                 menuTitle={optionKey.replaceAll("_", " ")}
                 choices={choices}
@@ -389,4 +390,117 @@ function StudioComposerEstimate({
       <span>Estimate pending</span>
     </div>
   );
+}
+
+const seedanceToggleControls = {
+  return_last_frame: { label: "Return last frame", icon: ScanLine },
+  web_search: { label: "Web search", icon: Search },
+  nsfw_checker: { label: "NSFW checker", icon: Shield },
+};
+
+function seedanceToggleControl(
+  modelKey: string,
+  optionKey: string,
+  schema: Record<string, unknown>,
+) {
+  if (!isSeedanceModel(modelKey)) return null;
+  if (!["bool", "boolean"].includes(String(schema.type))) return null;
+  return (
+    seedanceToggleControls[optionKey as keyof typeof seedanceToggleControls] ??
+    null
+  );
+}
+
+function StudioSeedanceOptionToggle({
+  label,
+  icon: Icon,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  icon: LucideIcon;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="studio-seedance-option-toggle">
+      <Icon aria-hidden="true" />
+      <span>{label}</span>
+      <span className="studio-seedance-option-state" aria-hidden="true">
+        {checked ? "On" : "Off"}
+      </span>
+      <AdminToggle checked={checked} ariaLabel={label} onToggle={onToggle} />
+    </div>
+  );
+}
+
+function StudioNumericOptionControl({
+  optionKey,
+  schema,
+  resolvedValue,
+  onOptionChange,
+}: {
+  optionKey: string;
+  schema: Record<string, unknown>;
+  resolvedValue: unknown;
+  onOptionChange: StudioComposerControlsProps["onOptionChange"];
+}) {
+  const min = typeof schema.min === "number" ? schema.min : undefined;
+  const max = typeof schema.max === "number" ? schema.max : undefined;
+  const numericValue = Number(resolvedValue ?? min ?? 0);
+  return (
+    <label className="flex h-10 w-[calc(50%-0.25rem)] items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-[0.72rem] text-white/78 sm:w-[112px]">
+      <span className="truncate capitalize">
+        {optionKey.replaceAll("_", " ")}
+      </span>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={Number.isFinite(numericValue) ? numericValue : ""}
+        onChange={(event) => {
+          const parsed = Number(event.currentTarget.value);
+          onOptionChange(
+            optionKey,
+            Number.isFinite(parsed) ? parsed : event.currentTarget.value,
+          );
+        }}
+        className="min-w-0 flex-1 bg-transparent text-right text-white outline-none"
+      />
+    </label>
+  );
+}
+
+const seedanceOptionOrder = new Map(
+  [
+    "duration",
+    "aspect_ratio",
+    "resolution",
+    "output_format",
+    "generate_audio",
+    "return_last_frame",
+    "web_search",
+    "nsfw_checker",
+  ].map((key, index) => [key, index]),
+);
+
+function composerOptionEntries(
+  modelKey: string,
+  entries: StudioComposerControlsProps["compactOptionEntries"],
+) {
+  if (!isSeedanceModel(modelKey)) return entries;
+  return [...entries].sort(
+    ([left], [right]) =>
+      (seedanceOptionOrder.get(left) ?? seedanceOptionOrder.size) -
+      (seedanceOptionOrder.get(right) ?? seedanceOptionOrder.size),
+  );
+}
+
+function composerControlLabel(
+  modelKey: string,
+  optionKey: string,
+  valueLabel: string,
+) {
+  if (isSeedanceModel(modelKey)) return valueLabel;
+  return displayOptionControlLabel(optionKey, valueLabel);
 }

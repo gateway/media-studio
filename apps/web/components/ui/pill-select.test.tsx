@@ -23,7 +23,10 @@ describe("PillSelect", () => {
       height: 48,
       toJSON: () => ({}),
     } as DOMRect);
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 1139 });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 1139,
+    });
 
     render(
       <PillSelect
@@ -42,7 +45,11 @@ describe("PillSelect", () => {
       />,
     );
 
-    expect(screen.getByText("GPT Image 2 Text to Image").closest(".admin-select-menu")?.className).toContain("top-[calc(100%+0.65rem)]");
+    expect(
+      screen
+        .getByText("GPT Image 2 Text to Image")
+        .closest(".admin-select-menu")?.className,
+    ).toContain("top-[calc(100%+0.65rem)]");
   });
 
   it("closes on outside pointer down and Escape", () => {
@@ -84,4 +91,54 @@ describe("PillSelect", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+});
+
+it("keeps in-flow model menu height stable while the menu scrolls", () => {
+  let pickerBottom = 120;
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: HTMLElement) {
+      const bottom = this.hasAttribute("data-studio-picker")
+        ? pickerBottom
+        : 120;
+      return {
+        x: 0,
+        y: 76,
+        top: 76,
+        left: 0,
+        bottom,
+        right: 340,
+        width: 340,
+        height: bottom - 76,
+        toJSON: () => ({}),
+      } as DOMRect;
+    },
+  );
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: 992,
+  });
+  const onSelect = vi.fn();
+  render(
+    <PillSelect
+      pickerId="model"
+      open
+      onToggle={vi.fn()}
+      onClose={vi.fn()}
+      label="Model"
+      choices={[
+        { value: "first", label: "First model" },
+        { value: "seedance-2.5", label: "Seedance 2.5" },
+      ]}
+      onSelect={onSelect}
+    />,
+  );
+  const menu = screen
+    .getByText("Seedance 2.5")
+    .closest(".scrollbar-none") as HTMLElement;
+  expect(menu.style.maxHeight).toBe("520px");
+  pickerBottom = 660;
+  fireEvent.scroll(menu);
+  expect(menu.style.maxHeight).toBe("520px");
+  fireEvent.click(screen.getByText("Seedance 2.5"));
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith("seedance-2.5");
 });

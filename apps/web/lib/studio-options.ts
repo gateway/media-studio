@@ -371,8 +371,7 @@ export function displayChoiceLabel(
     if (value === "pro" || value === "1080p") return "High";
   }
   if (optionKey === "duration") {
-    const duration = toWholeNumber(value);
-    return duration != null ? `${duration}s` : String(value);
+    return durationChoiceLabel(value);
   }
   if (optionKey === "output_format" && typeof value === "string") {
     return value.toUpperCase();
@@ -415,4 +414,10 @@ export function buildChoiceList(
     value: serializeOptionChoice(choice),
     label: displayChoiceLabel(optionKey, schema, choice),
   }));
+}
+
+function durationChoiceLabel(value: unknown) {
+  const duration = toWholeNumber(value);
+  if (duration === -1) return "Auto";
+  return duration != null ? `${duration}s` : String(value);
 }
