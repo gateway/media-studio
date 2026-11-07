@@ -212,7 +212,6 @@ html:has(.studio-browser-backdrop) {
   flex-direction: column;
   gap: 0;
   padding: 0;
-  overflow: hidden;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-card);
   background: var(--surface-card-bg);
@@ -225,6 +224,8 @@ html:has(.studio-browser-backdrop) {
   display: flex;
   width: 100%;
   aspect-ratio: 5 / 3;
+  border-radius: calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px) 0
+    0;
   align-items: center;
   justify-content: center;
   overflow: hidden;
@@ -351,6 +352,7 @@ html:has(.studio-browser-backdrop) {
 
 .media-browser-item-tile .media-browser-item-preview {
   aspect-ratio: 1.2;
+  border-radius: calc(var(--radius-card) - 1px);
 }
 
 .media-browser-item-tile > .media-browser-item-actions {
