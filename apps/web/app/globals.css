@@ -459,9 +459,9 @@ textarea {
   color: white;
 }
 
-/* The creation stage and its reference dialog share the approved Studio palette. */
+/* The creation stage and shared Studio browsers use the approved palette. */
 .studio-create-stage-immersive,
-.studio-expanded-references.studio-browser-theme {
+:root .studio-browser-theme {
   --ms-surface-primary: #0e1310;
   --ms-surface-secondary: #151b17;
   --ms-surface-tertiary: #202722;

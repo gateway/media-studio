@@ -52,7 +52,7 @@ export function StudioProjectBrowserContents({
           <StudioBrowserSearchInput
             id="project-search"
             label="Search projects by name"
-            placeholder="Search projects by name…"
+            placeholder="Search projects"
             value={query}
             onChange={setQuery}
           />
@@ -128,7 +128,6 @@ export function StudioProjectBrowserContents({
               <h3>
                 {section.label} ({section.projects.length})
               </h3>
-              <span>Updated</span>
             </div>
             <div className="studio-project-list">
               {section.projects.map((project) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { LogIn, LoaderCircle, Trash2 } from "lucide-react";
+import { Square, LoaderCircle, Trash2 } from "lucide-react";
 
 import { MediaBrowserItem } from "@/components/media/media-browser-item";
 import { IconButton } from "@/components/ui/icon-button";
@@ -40,38 +40,41 @@ export function StudioReferenceLibraryItem({
 }: StudioReferenceLibraryItemProps) {
   const previewUrl = item.thumb_url ?? item.stored_url ?? null;
   const label = item.original_filename ?? item.reference_id;
+  const selectLabel = actionLabel ?? defaultActionLabel(kind);
+  const lastUsedLabel = item.last_used_at
+    ? formatDateTime(item.last_used_at)
+    : "never";
+  const sizeLabel = `${Math.max(1, Math.round(item.file_size_bytes / 1024))} KB`;
 
   return (
     <MediaBrowserItem
       testId={`studio-reference-library-item-${item.reference_id}`}
       label={label}
+      layout="tile"
       previewUrl={previewUrl}
       previewLabel={`Preview ${label}`}
+      previewTitle={`${label} · ${referenceDimensions(item)} · ${sizeLabel} · Last used ${lastUsedLabel}`}
       onPreview={() => onPreview(item)}
       metadata={
         <>
           <div>
-            {referenceDimensions(item)} ·{" "}
-            {Math.max(1, Math.round(item.file_size_bytes / 1024))} KB
+            {referenceDimensions(item)} · {sizeLabel}
           </div>
-          <div>
-            Last used{" "}
-            {item.last_used_at ? formatDateTime(item.last_used_at) : "never"}
-          </div>
+          <div>Last used {lastUsedLabel}</div>
         </>
       }
       actions={
         <>
           <IconButton
-            icon={LogIn}
+            icon={Square}
             tone="primary"
             onClick={() => onSelect(item)}
             appearance="admin"
             size="compact"
             quiet
             disabled={deleting}
-            aria-label={actionLabel ?? defaultActionLabel(kind)}
-            title={actionLabel ?? defaultActionLabel(kind)}
+            aria-label={selectLabel}
+            title={selectLabel}
           />
           <IconButton
             icon={deleting ? LoaderCircle : Trash2}

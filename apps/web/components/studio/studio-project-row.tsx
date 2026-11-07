@@ -130,7 +130,7 @@ function ProjectRowActions({
       <IconButton
         key={action.key}
         appearance="admin"
-        size="default"
+        size="compact"
         tone={action.tone}
         icon={loading ? LoaderCircle : action.icon}
         iconClassName={loading ? "animate-spin" : undefined}

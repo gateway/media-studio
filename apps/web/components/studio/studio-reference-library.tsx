@@ -1,6 +1,14 @@
 "use client";
 
-import { LoaderCircle, ScanLine, X } from "lucide-react";
+import {
+  AudioLines,
+  Image as ImageIcon,
+  Layers,
+  LoaderCircle,
+  Play,
+  ScanLine,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
@@ -26,6 +34,12 @@ type StudioReferenceLibraryProps = {
 };
 
 const REFERENCE_LIBRARY_PAGE_SIZE = 60;
+const referenceLibraryKinds = {
+  image: { label: "Images", icon: ImageIcon },
+  video: { label: "Videos", icon: Play },
+  audio: { label: "Audio", icon: AudioLines },
+  all: { label: "All media", icon: Layers },
+};
 
 type ReferenceLibraryPage = {
   items: MediaReference[];
@@ -52,6 +66,13 @@ const fixtureReferenceItem: MediaReference = {
   created_at: "2026-06-19T00:00:00Z",
   updated_at: "2026-06-19T00:00:00Z",
 };
+
+function referenceLibraryFixturePage(offset: number): ReferenceLibraryPage {
+  return {
+    items: offset === 0 ? [fixtureReferenceItem] : [],
+    next_offset: null,
+  };
+}
 
 function referenceLibraryFixtureEnabled() {
   if (typeof window === "undefined") return false;
@@ -98,40 +119,47 @@ export function StudioReferenceLibrary({
     duration_seconds: number;
   } | null>(null);
 
-
-  const fetchItems = useCallback(async (offset: number, signal?: AbortSignal): Promise<ReferenceLibraryPage> => {
-    if (referenceLibraryFixtureEnabled()) {
-      return {
-        items: offset === 0 ? [fixtureReferenceItem] : [],
-        next_offset: null,
+  const fetchItems = useCallback(
+    async (
+      offset: number,
+      signal?: AbortSignal,
+    ): Promise<ReferenceLibraryPage> => {
+      if (referenceLibraryFixtureEnabled()) {
+        return referenceLibraryFixturePage(offset);
+      }
+      const params = new URLSearchParams({
+        limit: String(REFERENCE_LIBRARY_PAGE_SIZE),
+        offset: String(offset),
+      });
+      if (kind !== "all") {
+        params.set("kind", kind);
+      }
+      const response = await fetch(
+        `/api/control/reference-media?${params.toString()}`,
+        {
+          signal,
+          credentials: "same-origin",
+        },
+      );
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        items?: MediaReference[];
+        offset?: number;
+        next_offset?: number | null;
       };
-    }
-    const params = new URLSearchParams({
-      limit: String(REFERENCE_LIBRARY_PAGE_SIZE),
-      offset: String(offset),
-    });
-    if (kind !== "all") {
-      params.set("kind", kind);
-    }
-    const response = await fetch(`/api/control/reference-media?${params.toString()}`, {
-      signal,
-      credentials: "same-origin",
-    });
-    const payload = (await response.json()) as {
-      ok?: boolean;
-      error?: string;
-      items?: MediaReference[];
-      offset?: number;
-      next_offset?: number | null;
-    };
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.error ?? "Unable to load the reference library.");
-    }
-    return {
-      items: Array.isArray(payload.items) ? payload.items : [],
-      next_offset: payload.next_offset ?? null,
-    };
-  }, [kind]);
+      if (!response.ok || !payload.ok) {
+        throw new Error(
+          payload.error ?? "Unable to load the reference library.",
+        );
+      }
+      return {
+        items: Array.isArray(payload.items) ? payload.items : [],
+        next_offset: payload.next_offset ?? null,
+      };
+    },
+    [kind],
+  );
 
   const loadItems = useCallback(
     async (signal?: AbortSignal) => {
@@ -185,8 +213,6 @@ export function StudioReferenceLibrary({
       setLoadingMore(false);
     }
   }, [fetchItems, loading, loadingMore, nextOffset]);
-
-
 
   async function triggerBackfill() {
     setBackfilling(true);
@@ -262,6 +288,8 @@ export function StudioReferenceLibrary({
     }
   }
 
+  const KindIcon = referenceLibraryKinds[kind].icon;
+
   return (
     <>
       <StudioBrowserOverlay
@@ -308,15 +336,9 @@ export function StudioReferenceLibrary({
         <StudioBrowserToolbar
           countLabel={`Showing ${items.length} reference ${items.length === 1 ? "item" : "items"}`}
         >
-          <h3 className="studio-browser-section-title">
-            {
-              {
-                image: "Reference images",
-                video: "Reference videos",
-                audio: "Reference audio",
-                all: "Reference media",
-              }[kind]
-            }
+          <h3 className="studio-browser-section-title studio-reference-library-kind">
+            <KindIcon aria-hidden="true" />
+            {referenceLibraryKinds[kind].label}
           </h3>
         </StudioBrowserToolbar>
         {backfillSummary ? (
@@ -338,11 +360,11 @@ export function StudioReferenceLibrary({
             tone="danger"
             title="Library error"
             message={error}
-            className="rounded-[26px] px-5 py-5"
+            className="studio-browser-feedback"
           />
         ) : items.length ? (
           <>
-            <StudioBrowserGrid>
+            <StudioBrowserGrid className="studio-reference-library-grid">
               {items.map((item) => (
                 <StudioReferenceLibraryItem
                   key={item.reference_id}
@@ -363,9 +385,10 @@ export function StudioReferenceLibrary({
             {nextOffset != null ? (
               <StudioBrowserLoadSentinel
                 onLoadMore={loadMoreItems}
-              disabled={loading}
+                disabled={loading}
                 loading={loadingMore}
                 label="Loading more reference media..."
+                actionLabel="Load more"
               />
             ) : null}
           </>
@@ -396,7 +419,7 @@ export function StudioReferenceLibrary({
                 )}
               </Button>
             }
-            className="rounded-[26px] py-8"
+            className="studio-browser-feedback"
           />
         )}
       </StudioBrowserOverlay>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Folder } from "lucide-react";
+import { ChevronRight, Folder } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -51,9 +51,12 @@ export function MediaBrowserRow({
         <span className="media-browser-row-copy">
           <span className="media-browser-row-title">{name}</span>
           <span className="media-browser-row-description">{description}</span>
+          <span className="media-browser-row-metadata">{metadata}</span>
         </span>
-        <span className="media-browser-row-metadata">{metadata}</span>
-        <span className="media-browser-row-status">{status}</span>
+        <span className="media-browser-row-status">
+          {status}
+          <ChevronRight aria-hidden="true" />
+        </span>
       </button>
       <div className="media-browser-item-actions">{actions}</div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Plus, X } from "lucide-react";
+import { ChevronRight, LoaderCircle, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -298,22 +298,13 @@ export function StudioProjectBrowser({
         zIndexClassName="z-[121]"
         layout="list"
         title="Projects"
-        description="Your workspaces, outputs, and references."
+
         onClose={() => {
           if (!busyAction) onClose();
         }}
         suspended={dialogOpen}
         actions={
           <>
-            <Button
-              appearance="admin"
-              data-testid="studio-project-create-button"
-              variant="primary"
-              onClick={beginCreate}
-            >
-              <Plus className="mr-2 size-4" />
-              Create project
-            </Button>
             <IconButton
               appearance="admin"
               quiet
@@ -346,6 +337,17 @@ export function StudioProjectBrowser({
             ).catch((error: unknown) => setError(String(error)));
           }}
         />
+        <Button
+          appearance="admin"
+          variant="primary"
+          className="studio-project-create"
+          data-testid="studio-project-create-button"
+          onClick={beginCreate}
+        >
+          <Plus aria-hidden="true" />
+          <span>New project</span>
+          <ChevronRight aria-hidden="true" />
+        </Button>
       </StudioBrowserOverlay>
 
       {dialogOpen ? (

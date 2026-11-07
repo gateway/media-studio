@@ -1,7 +1,8 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { ChevronDown, LoaderCircle, Search } from "lucide-react";
 import {
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -10,6 +11,7 @@ import {
 } from "react";
 import { useDialogFocus } from "@/components/ui/use-dialog-focus";
 import { OverlayShell } from "@/components/ui/surface-primitives";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function StudioBrowserOverlay({
@@ -146,13 +148,20 @@ export function StudioBrowserLoadSentinel({
   disabled = false,
   onLoadMore,
   label = "Loading more...",
+  actionLabel,
 }: {
   loading: boolean;
   disabled?: boolean;
   onLoadMore: () => Promise<void>;
   label?: string;
+  actionLabel?: string;
 }) {
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const requestMore = useCallback(() => {
+    onLoadMore().catch((error: unknown) => {
+      console.error("Browser page loading failed.", error);
+    });
+  }, [onLoadMore]);
   useEffect(() => {
     const target = sentinelRef.current;
     if (
@@ -165,24 +174,60 @@ export function StudioBrowserLoadSentinel({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          onLoadMore().catch((error: unknown) => {
-            console.error("Browser page loading failed.", error);
-          });
+          requestMore();
         }
       },
       { rootMargin: "420px 0px" },
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [disabled, loading, onLoadMore]);
+  }, [disabled, loading, requestMore]);
   return (
     <div
       ref={sentinelRef}
       className="studio-browser-load-sentinel"
       aria-live="polite"
-      aria-hidden={!loading}
+      aria-hidden={!loading && !actionLabel}
     >
-      {loading ? label : null}
+      {actionLabel ? (
+        <BrowserLoadMoreButton
+          loading={loading}
+          disabled={disabled}
+          label={label}
+          actionLabel={actionLabel}
+          onLoadMore={requestMore}
+        />
+      ) : loading ? (
+        label
+      ) : null}
     </div>
+  );
+}
+
+function BrowserLoadMoreButton({
+  loading,
+  disabled,
+  label,
+  actionLabel,
+  onLoadMore,
+}: {
+  loading: boolean;
+  disabled: boolean;
+  label: string;
+  actionLabel: string;
+  onLoadMore: () => void;
+}) {
+  const Icon = loading ? LoaderCircle : ChevronDown;
+  return (
+    <Button
+      appearance="admin"
+      variant="subtle"
+      size="compact"
+      disabled={disabled || loading}
+      onClick={onLoadMore}
+    >
+      <Icon className={cn("size-4", loading && "animate-spin")} />
+      {loading ? label : actionLabel}
+    </Button>
   );
 }

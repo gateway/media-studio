@@ -1,7 +1,8 @@
 "use client";
 
 import { ImageIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { MediaBrowserCard } from "@/components/ui/surface-primitives";
 
 export function MediaBrowserItem({
@@ -15,6 +16,8 @@ export function MediaBrowserItem({
   description,
   metadata,
   testId,
+  layout = "card",
+  previewTitle,
 }: {
   label: string;
   previewUrl?: string | null;
@@ -26,11 +29,15 @@ export function MediaBrowserItem({
   description?: string;
   metadata: ReactNode;
   testId: string;
+  layout?: "card" | "tile";
+  previewTitle?: string;
 }) {
+  const detailsId = useId();
+  const tiled = layout === "tile";
   return (
     <MediaBrowserCard
       appearance="admin"
-      className="media-browser-item"
+      className={cn("media-browser-item", tiled && "media-browser-item-tile")}
       data-testid={testId}
     >
       <button
@@ -39,6 +46,8 @@ export function MediaBrowserItem({
         onClick={onPreview}
         disabled={disabled}
         aria-label={previewLabel}
+        aria-describedby={detailsId}
+        title={previewTitle}
       >
         {previewUrl ? (
           <img src={previewUrl} alt={label} loading="lazy" decoding="async" />
@@ -49,21 +58,56 @@ export function MediaBrowserItem({
           </span>
         )}
       </button>
-      <div className="media-browser-item-body">
-        <div className="media-browser-item-heading">
-          <h3 title={label}>{label}</h3>
-          <div className="media-browser-item-actions">{actions}</div>
-        </div>
-        {category ? (
-          <div className="media-browser-item-category">{category}</div>
-        ) : null}
-        {description ? (
-          <p className="media-browser-item-description" title={description}>
-            {description}
-          </p>
-        ) : null}
-        <div className="media-browser-item-metadata">{metadata}</div>
-      </div>
+      {tiled ? (
+        <div className="media-browser-item-actions">{actions}</div>
+      ) : null}
+      <MediaBrowserItemBody
+        id={detailsId}
+        label={label}
+        tiled={tiled}
+        category={category}
+        description={description}
+        metadata={metadata}
+        actions={actions}
+      />
     </MediaBrowserCard>
+  );
+}
+
+function MediaBrowserItemBody({
+  id,
+  label,
+  tiled,
+  category,
+  description,
+  metadata,
+  actions,
+}: {
+  id: string;
+  label: string;
+  tiled: boolean;
+  category?: string;
+  description?: string;
+  metadata: ReactNode;
+  actions: ReactNode;
+}) {
+  return (
+    <div id={id} className={cn("media-browser-item-body", tiled && "sr-only")}>
+      <div className="media-browser-item-heading">
+        <h3 title={label}>{label}</h3>
+      </div>
+      {category ? (
+        <div className="media-browser-item-category">{category}</div>
+      ) : null}
+      {description ? (
+        <p className="media-browser-item-description" title={description}>
+          {description}
+        </p>
+      ) : null}
+      <div className="media-browser-item-metadata">{metadata}</div>
+      {!tiled ? (
+        <div className="media-browser-item-actions">{actions}</div>
+      ) : null}
+    </div>
   );
 }

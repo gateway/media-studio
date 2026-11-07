@@ -1,6 +1,14 @@
 "use client";
 
-import { ListFilter, LogIn, LoaderCircle, Pencil, Plus, X } from "lucide-react";
+import {
+  Box,
+  ListFilter,
+  LoaderCircle,
+  Pencil,
+  Play,
+  Plus,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useDeferredValue,
@@ -197,8 +205,7 @@ export function StudioPresetBrowser({
       testId="studio-preset-browser"
       zIndexClassName="z-[118]"
       onClose={onClose}
-      title="Studio presets"
-      description="Choose a preset to load its model and composer setup."
+      title="Media Presets"
       actions={
         <div className="flex items-center gap-2">
           <Button
@@ -236,8 +243,28 @@ export function StudioPresetBrowser({
             label="Search presets"
             value={query}
             onChange={setQuery}
-            placeholder="Search presets by name, key, or description..."
+            placeholder="Search"
           />
+          <div
+            className="studio-browser-category-shortcuts"
+            aria-label="Preset categories"
+          >
+            {categoryChoices.slice(0, 4).map((category) => (
+              <Button
+                key={category.value}
+                appearance="admin"
+                variant={
+                  selectedCategory === category.value ? "primary" : "subtle"
+                }
+                size="compact"
+                aria-label={`Filter presets: ${category.label}`}
+                aria-pressed={selectedCategory === category.value}
+                onClick={() => setSelectedCategory(category.value)}
+              >
+                {category.value === "all" ? "All" : category.label}
+              </Button>
+            ))}
+          </div>
           <PillSelect
             pickerId="studio-preset-category"
             open={categoryPickerOpen}
@@ -313,7 +340,8 @@ export function StudioPresetBrowser({
                   }
                   metadata={
                     <>
-                      <div title={modelScope}>
+                      <div title={modelScope} className="studio-preset-models">
+                        <Box aria-hidden="true" className="size-4" />
                         {modelScope || "No model scope"}
                       </div>
                       <div>{presetInputSummary(preset)}</div>
@@ -321,21 +349,24 @@ export function StudioPresetBrowser({
                   }
                   actions={
                     <>
-                      <IconButton
+                      <Button
                         data-testid={`studio-preset-browser-item-${preset.preset_id}`}
-                        icon={selecting ? LoaderCircle : LogIn}
-                        iconClassName={selecting ? "animate-spin" : undefined}
                         onClick={apply}
                         disabled={selectingPresetId != null}
                         appearance="admin"
                         size="compact"
-                        quiet
-                        tone="primary"
+                        variant="primary"
                         aria-label={selecting ? "Loading preset" : "Use preset"}
                         title="Use preset"
-                      />
-                      <IconButton
-                        icon={Pencil}
+                      >
+                        {selecting ? (
+                          <LoaderCircle className="size-4 animate-spin" />
+                        ) : (
+                          <Play className="size-4" />
+                        )}
+                        Use preset
+                      </Button>
+                      <Button
                         onClick={() =>
                           router.push(
                             `/presets/${preset.preset_id}?returnTo=${encodeURIComponent(studioReturnToHref)}`,
@@ -343,11 +374,12 @@ export function StudioPresetBrowser({
                         }
                         appearance="admin"
                         size="compact"
-                        quiet
-                        tone="primary"
+                        variant="subtle"
                         aria-label={`Edit ${preset.label}`}
                         title="Edit preset"
-                      />
+                      >
+                        <Pencil className="size-4" /> Edit
+                      </Button>
                     </>
                   }
                 />
@@ -360,6 +392,7 @@ export function StudioPresetBrowser({
               disabled={loading}
               loading={loadingMore}
               label="Loading more presets..."
+              actionLabel="Load more presets"
             />
           ) : null}
         </>

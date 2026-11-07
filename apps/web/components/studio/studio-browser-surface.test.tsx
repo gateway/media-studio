@@ -179,3 +179,31 @@ it("skips inactive roving tabs when containing keyboard focus", () => {
   fireEvent.keyDown(window, { key: "Tab" });
   expect(document.activeElement).toBe(selected);
 });
+
+it("offers keyboard paging without IntersectionObserver and locks the action while loading", () => {
+  vi.stubGlobal("IntersectionObserver", undefined);
+  const load = vi.fn(async () => {});
+  const view = render(
+    <StudioBrowserLoadSentinel
+      loading={false}
+      onLoadMore={load}
+      actionLabel="Load more"
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  expect(load).toHaveBeenCalledTimes(1);
+  view.rerender(
+    <StudioBrowserLoadSentinel
+      loading
+      onLoadMore={load}
+      label="Loading references"
+      actionLabel="Load more"
+    />,
+  );
+  const button = screen.getByRole("button", {
+    name: "Loading references",
+  }) as HTMLButtonElement;
+  expect(button.disabled).toBe(true);
+  fireEvent.click(button);
+  expect(load).toHaveBeenCalledTimes(1);
+});

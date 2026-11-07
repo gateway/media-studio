@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
@@ -56,29 +63,51 @@ describe("StudioReferenceLibrary", () => {
   });
 
   it("dismisses only the preview on Escape before dismissing the library", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ ok: true, items: [referenceItem] })));
-    const onClose = vi.fn(); render(<StudioReferenceLibrary title="Reference Library" onClose={onClose} onSelect={vi.fn()} />);
-    expect(screen.getByText("Choose an image to reuse in Studio.")).toBeTruthy();
-    fireEvent.click(await screen.findByRole("button", { name: "Preview reference-one.png" }));
-    expect(screen.getByRole("dialog", { name: "Preview reference-one.png" })).toBeTruthy();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ ok: true, items: [referenceItem] })),
+    );
+    const onClose = vi.fn();
+    render(
+      <StudioReferenceLibrary
+        title="Reference Library"
+        onClose={onClose}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText("Choose an image to reuse in Studio."),
+    ).toBeTruthy();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Preview reference-one.png" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Preview reference-one.png" }),
+    ).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByTestId("studio-image-lightbox")).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
-    fireEvent.keyDown(window, { key: "Escape" }); expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("preserves preview, contextual select, and delete behavior", async () => {
     const onSelect = vi.fn();
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes("/api/control/reference-media?")) {
-        return jsonResponse({ ok: true, items: [referenceItem] });
-      }
-      if (url === "/api/control/reference-media/reference-1" && init?.method === "DELETE") {
-        return jsonResponse({ ok: true });
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/control/reference-media?")) {
+          return jsonResponse({ ok: true, items: [referenceItem] });
+        }
+        if (
+          url === "/api/control/reference-media/reference-1" &&
+          init?.method === "DELETE"
+        ) {
+          return jsonResponse({ ok: true });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      },
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     render(
@@ -92,47 +121,70 @@ describe("StudioReferenceLibrary", () => {
 
     await screen.findByTestId("studio-reference-library-item-reference-1");
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview reference-one.png" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Preview reference-one.png" }),
+    );
     expect(screen.getByTestId("studio-image-lightbox")).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
 
     fireEvent.click(screen.getByRole("button", { name: "Attach image" }));
-    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ reference_id: "reference-1" }));
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ reference_id: "reference-1" }),
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete reference-one.png from the library" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Delete reference-one.png from the library",
+      }),
+    );
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/control/reference-media/reference-1",
-        expect.objectContaining({ method: "DELETE", credentials: "same-origin" }),
+        expect.objectContaining({
+          method: "DELETE",
+          credentials: "same-origin",
+        }),
       );
     });
     await waitFor(() => {
-      expect(screen.queryByTestId("studio-reference-library-item-reference-1")).toBeNull();
+      expect(
+        screen.queryByTestId("studio-reference-library-item-reference-1"),
+      ).toBeNull();
     });
   });
 
   it("preserves upload scanning and backfill summary behavior", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes("/api/control/reference-media?")) {
-        const hasBackfilled = fetchMock.mock.calls.some(
-          ([calledUrl, calledInit]) => String(calledUrl) === "/api/control/reference-media/backfill" && calledInit?.method === "POST",
-        );
-        return jsonResponse({ ok: true, items: hasBackfilled ? [referenceItem] : [] });
-      }
-      if (url === "/api/control/reference-media/backfill" && init?.method === "POST") {
-        return jsonResponse({
-          ok: true,
-          scanned: 4,
-          imported: 1,
-          reused: 2,
-          skipped: 1,
-          duration_seconds: 0.123,
-        });
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/control/reference-media?")) {
+          const hasBackfilled = fetchMock.mock.calls.some(
+            ([calledUrl, calledInit]) =>
+              String(calledUrl) === "/api/control/reference-media/backfill" &&
+              calledInit?.method === "POST",
+          );
+          return jsonResponse({
+            ok: true,
+            items: hasBackfilled ? [referenceItem] : [],
+          });
+        }
+        if (
+          url === "/api/control/reference-media/backfill" &&
+          init?.method === "POST"
+        ) {
+          return jsonResponse({
+            ok: true,
+            scanned: 4,
+            imported: 1,
+            reused: 2,
+            skipped: 1,
+            duration_seconds: 0.123,
+          });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      },
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     render(
@@ -148,11 +200,15 @@ describe("StudioReferenceLibrary", () => {
 
     await screen.findByTestId("studio-reference-library-backfill-summary");
     expect(screen.getByText(/Scanned 4 uploads/)).toBeTruthy();
-    expect(await screen.findByTestId("studio-reference-library-item-reference-1")).toBeTruthy();
+    expect(
+      await screen.findByTestId("studio-reference-library-item-reference-1"),
+    ).toBeTruthy();
   });
 
   it("loads additional reference pages through the hidden scroll sentinel", async () => {
-    const references = Array.from({ length: 65 }, (_, index) => makeReference(index));
+    const references = Array.from({ length: 65 }, (_, index) =>
+      makeReference(index),
+    );
     let intersectionCallback: IntersectionObserverCallback | null = null;
     class MockIntersectionObserver {
       constructor(callback: IntersectionObserverCallback) {
@@ -185,16 +241,23 @@ describe("StudioReferenceLibrary", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByTestId(/studio-reference-library-item-/)).toHaveLength(60);
+      expect(
+        screen.getAllByTestId(/studio-reference-library-item-/),
+      ).toHaveLength(60);
       expect(intersectionCallback).not.toBeNull();
     });
 
     act(() => {
-      intersectionCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+      intersectionCallback?.(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
     });
 
     await waitFor(() => {
-      expect(screen.getAllByTestId(/studio-reference-library-item-/)).toHaveLength(65);
+      expect(
+        screen.getAllByTestId(/studio-reference-library-item-/),
+      ).toHaveLength(65);
     });
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/control/reference-media?limit=60&offset=60&kind=image",
@@ -202,4 +265,68 @@ describe("StudioReferenceLibrary", () => {
     );
     expect(screen.getByText("Showing 65 reference items")).toBeTruthy();
   });
+});
+
+it("shows read errors and leaves stored deletion failures visible without selecting the item", async () => {
+  const onSelect = vi.fn();
+  const fetchMock = vi.fn(
+    async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "DELETE")
+        return jsonResponse(
+          { ok: false, error: "Item is still in use" },
+          { status: 409 },
+        );
+      return jsonResponse({ ok: true, items: [referenceItem] });
+    },
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  render(
+    <StudioReferenceLibrary
+      title="Reference Library"
+      onClose={vi.fn()}
+      onSelect={onSelect}
+    />,
+  );
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "Delete reference-one.png from the library",
+    }),
+  );
+  await screen.findByText("Item is still in use");
+  expect(onSelect).not.toHaveBeenCalled();
+});
+
+it("keeps kind-constrained reads and offers manual paging when automatic paging is unavailable", async () => {
+  vi.stubGlobal("IntersectionObserver", undefined);
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+    jsonResponse({
+      ok: true,
+      items: [
+        String(input).includes("offset=60") ? makeReference(2) : referenceItem,
+      ],
+      next_offset: String(input).includes("offset=60") ? null : 60,
+    }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  render(
+    <StudioReferenceLibrary
+      kind="video"
+      title="Pick a driving video"
+      onClose={vi.fn()}
+      onSelect={vi.fn()}
+    />,
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/control/reference-media?limit=60&offset=60&kind=video",
+      expect.objectContaining({ credentials: "same-origin" }),
+    ),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getAllByTestId(/studio-reference-library-item-/),
+    ).toHaveLength(2),
+  );
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
 });
