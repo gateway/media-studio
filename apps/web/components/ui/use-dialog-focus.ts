@@ -20,6 +20,7 @@ function dialogControls(panel: HTMLElement) {
     ),
   ).filter(
     (element) =>
+      !(element.hasAttribute("tabindex") && element.tabIndex < 0) &&
       !element.closest("[hidden], [inert]") &&
       element.getAttribute("aria-hidden") !== "true" &&
       isVisibleControl(element, panel),

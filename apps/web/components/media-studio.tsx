@@ -1215,6 +1215,15 @@ export function MediaStudio({
     });
   }
 
+  function openImageReferenceLibrary() {
+    openReferenceLibrary({
+      type: "attachment",
+      title: "Pick a reusable image from your reference library.",
+      role: "reference",
+      allowedKinds: ["images"],
+    });
+  }
+
   const referenceManagerProps = {
     expanded: referencesExpanded,
     suspended: Boolean(selectedReferencePreview || referenceLibraryTarget),
@@ -1228,7 +1237,7 @@ export function MediaStudio({
     <StudioMultiImageReferenceStrip
       {...referenceManagerProps}
       imageLimit={maxImageInputs}
-      onOpenLibrary={openContextualReferenceLibrary}
+      onOpenLibrary={openImageReferenceLibrary}
       orderedImageInputs={orderedImageInputs}
       buildOrderedImageInputPreview={orderedImageInputPreview}
       onClearOrderedImageInput={clearOrderedImageInput}
@@ -1382,14 +1391,7 @@ export function MediaStudio({
         maxAudioReferences={maxAudioInputs}
         buildAttachmentPreview={buildAttachmentPreview}
         onReferenceDrop={handleSeedanceReferenceDrop}
-        onOpenLibrary={() =>
-          openReferenceLibrary({
-            type: "attachment",
-            title: "Pick a reusable image for Seedance reference guidance.",
-            role: "reference",
-            allowedKinds: ["images"],
-          })
-        }
+        onOpenLibrary={openImageReferenceLibrary}
         onRemoveAttachment={removeAttachment}
         onAddFiles={(files, options) => {
           addFiles(files, options).catch(reportActionError);

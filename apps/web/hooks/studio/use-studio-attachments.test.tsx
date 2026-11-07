@@ -18,7 +18,11 @@ import type {
   AttachmentRecord,
   ComposerStatusMessage,
 } from "@/lib/media-studio-contract";
-import type { PresetSlotState } from "@/lib/media-studio-helpers";
+import {
+  buildOrderedImageInputs,
+  type PresetSlotState,
+} from "@/lib/media-studio-helpers";
+import type { MediaAsset, MediaReference } from "@/lib/types";
 
 vi.mock("@/lib/studio-composer-file-utils", () => ({
   buildAttachmentPreviewUrl: vi.fn(async () => "blob:preview"),
@@ -143,7 +147,11 @@ function imageAttachment(
   return { id, role, file: null, kind: "images", previewUrl: `/${id}.png` };
 }
 
-function renderFileStaging(initial: AttachmentRecord[], sourceCount = 0) {
+function renderFileStaging(
+  initial: AttachmentRecord[],
+  sourceCount = 0,
+  maxImageInputs = initial.length + sourceCount,
+) {
   URL.revokeObjectURL = vi.fn();
   const { result } = renderHook(() => {
     const [attachments, setAttachments] = useState(initial);
@@ -156,10 +164,10 @@ function renderFileStaging(initial: AttachmentRecord[], sourceCount = 0) {
       seedanceReferenceImages: [],
       seedanceReferenceVideos: [],
       seedanceReferenceAudios: [],
-      maxImageInputs: initial.length + sourceCount,
+      maxImageInputs,
       maxVideoInputs: 0,
       maxAudioInputs: 0,
-      stagedImageCount: initial.length + sourceCount,
+      stagedImageCount: attachments.length + sourceCount,
       stagedVideoCount: 0,
       stagedAudioCount: 0,
       setFormMessage: vi.fn(),
@@ -290,4 +298,49 @@ it("discards a decode when the real source owner clears and re-stages the same g
   expect(staging.current.source.sourceAssetId).toBe("gallery-asset");
   expect(staging.current.attachments).toEqual([library]);
   expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:stale-source");
+});
+
+it("appends a library reference after a gallery source and an uploaded image", () => {
+  const gallerySource: MediaAsset = {
+    asset_id: "gallery-source",
+    generation_kind: "image",
+    created_at: "2026-11-07T00:00:00Z",
+  };
+  const uploaded = { ...imageAttachment("uploaded"), file: replacement() };
+  const reference: MediaReference = {
+    reference_id: "saved-reference",
+    kind: "image",
+    status: "ready",
+    stored_path: "references/saved.png",
+    stored_url: "/references/saved.png",
+    file_size_bytes: 12,
+    sha256: "fixture",
+    usage_count: 0,
+  };
+  const staging = renderFileStaging([uploaded], 1, 3);
+
+  act(() => {
+    staging.current.source.setSourceAssetId(gallerySource.asset_id);
+    staging.current.actions.addReferenceMediaAsAttachment(reference, {
+      role: "reference",
+      allowedKinds: imageKinds,
+    });
+  });
+
+  expect(staging.current.source.sourceAssetId).toBe(gallerySource.asset_id);
+  expect(
+    buildOrderedImageInputs(gallerySource, staging.current.attachments, true),
+  ).toEqual([
+    { source: "asset", asset: gallerySource },
+    { source: "attachment", attachment: uploaded },
+    expect.objectContaining({ source: "reference", reference }),
+  ]);
+
+  act(() => {
+    staging.current.actions.addReferenceMediaAsAttachment(reference, {
+      role: "reference",
+      allowedKinds: imageKinds,
+    });
+  });
+  expect(staging.current.attachments).toHaveLength(2);
 });

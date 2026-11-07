@@ -263,9 +263,13 @@ it("uses one manager for hidden slots and preserves the selected kind and drop r
   fireEvent.click(overflow);
   const dialog = screen.getByRole("dialog", { name: "References" });
   const manager = within(dialog);
-  expect(
-    manager.getByRole("tab", { name: "Videos 7/10", selected: true }),
-  ).toBeTruthy();
+  const managerVideos = manager.getByRole("tab", {
+    name: "Videos 7/10",
+    selected: true,
+  });
+  expect(document.activeElement).toBe(dialog);
+  fireEvent.keyDown(dialog, { key: "Tab" });
+  expect(document.activeElement).toBe(managerVideos);
   expect(
     manager.queryByRole("button", { name: "Choose from library" }),
   ).toBeNull();
