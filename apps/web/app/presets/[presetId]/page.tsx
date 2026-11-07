@@ -24,6 +24,7 @@ export default async function EditMediaPresetPage({
 
   return (
     <StudioAdminShell
+      className="studio-preset-editor-theme"
       section="presets"
       currentProjectId={resolvedSearchParams.project ?? null}
       eyebrow="Studio Admin"

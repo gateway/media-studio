@@ -19,6 +19,7 @@ export default async function NewMediaPresetPage({
 
   return (
     <StudioAdminShell
+      className="studio-preset-editor-theme"
       section="presets"
       currentProjectId={resolvedSearchParams.project ?? null}
       eyebrow="Studio Admin"
@@ -31,8 +32,12 @@ export default async function NewMediaPresetPage({
         initialModelKey={resolvedSearchParams.model ?? "nano-banana-2"}
         initialReturnTo={resolvedSearchParams.returnTo ?? null}
         initialAssistantDraftId={resolvedSearchParams.assistantDraft ?? null}
-        initialAssistantSessionId={resolvedSearchParams.assistantSession ?? null}
-        initialAssistantMessageId={resolvedSearchParams.assistantMessage ?? null}
+        initialAssistantSessionId={
+          resolvedSearchParams.assistantSession ?? null
+        }
+        initialAssistantMessageId={
+          resolvedSearchParams.assistantMessage ?? null
+        }
       />
     </StudioAdminShell>
   );

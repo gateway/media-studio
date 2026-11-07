@@ -2394,6 +2394,7 @@ export function MediaStudio({
                 {structuredPresetActive ? (
                   <StudioStructuredPresetComposer
                     preset={currentPreset}
+                    onOpenPresets={() => setPresetBrowserOpen(true)}
                     imageSlots={structuredPresetImageSlots}
                     textFields={structuredPresetTextFields}
                     slotStates={presetSlotStates}
