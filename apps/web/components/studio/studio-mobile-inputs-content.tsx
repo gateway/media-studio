@@ -283,24 +283,36 @@ export function StudioMobileInputsContent({
                   isDragActive ? MOBILE_INPUT_DROP_ZONE_ACTIVE_CLASS : "",
                 )}
               >
-                <div className="scrollbar-none flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden pb-1">
-                  {group.attachments
-                    .slice(0, group.maxVisibleTiles)
-                    .map((attachment) => (
-                      <StudioStagedMediaTile
-                        key={attachment.id}
-                        preview={seedanceReferencePreview(
-                          attachment,
-                          `mobile-${group.key}`,
-                          buildAttachmentPreview,
+                <div className="studio-reference-rail">
+                  <div className="studio-reference-rail-items">
+                    {group.attachments
+                      .slice(0, group.maxVisibleTiles)
+                      .map((attachment) => (
+                        <StudioStagedMediaTile
+                          key={attachment.id}
+                          preview={seedanceReferencePreview(
+                            attachment,
+                            `mobile-${group.key}`,
+                            buildAttachmentPreview,
+                          )}
+                          visualUrl={seedanceReferenceVisual(attachment)}
+                          onOpenPreview={onOpenPreview}
+                          onRemove={() => onRemoveAttachment(attachment.id)}
+                          className={cn("shrink-0", group.tileClassName)}
+                          testId={`studio-mobile-seedance-group-tile-${group.key}-${attachment.id}`}
+                        />
+                      ))}
+                    {group.attachments.length > group.maxVisibleTiles ? (
+                      <div
+                        className={cn(
+                          MOBILE_INPUT_MORE_TILE_CLASS,
+                          group.addTileClassName,
                         )}
-                        visualUrl={seedanceReferenceVisual(attachment)}
-                        onOpenPreview={onOpenPreview}
-                        onRemove={() => onRemoveAttachment(attachment.id)}
-                        className={cn("shrink-0", group.tileClassName)}
-                        testId={`studio-mobile-seedance-group-tile-${group.key}-${attachment.id}`}
-                      />
-                    ))}
+                      >
+                        +{group.attachments.length - group.maxVisibleTiles}
+                      </div>
+                    ) : null}
+                  </div>
                   {group.attachments.length < group.maxLabel ? (
                     <label
                       className={cn(
@@ -333,16 +345,6 @@ export function StudioMobileInputsContent({
                         }}
                       />
                     </label>
-                  ) : null}
-                  {group.attachments.length > group.maxVisibleTiles ? (
-                    <div
-                      className={cn(
-                        MOBILE_INPUT_MORE_TILE_CLASS,
-                        group.addTileClassName,
-                      )}
-                    >
-                      +{group.attachments.length - group.maxVisibleTiles}
-                    </div>
                   ) : null}
                 </div>
               </div>

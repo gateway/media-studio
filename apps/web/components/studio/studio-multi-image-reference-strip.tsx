@@ -153,10 +153,10 @@ export function StudioMultiImageReferenceStrip({
           shape="soft"
         />
       </div>
-      <div className="studio-ordered-reference-strip">
+      <div className="studio-reference-rail studio-ordered-reference-strip">
         {expanded ? null : (
           <>
-            {tiles}
+            <div className="studio-reference-rail-items">{tiles}</div>
             {upload}
           </>
         )}

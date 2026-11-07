@@ -16,6 +16,24 @@ import { orderedImageInputPreview } from "@/lib/studio-reference-previews";
 
 type StripProps = ComponentProps<typeof StudioMultiImageReferenceStrip>;
 
+function referenceStripProps() {
+  return {
+    imageLimitLabel: "0 / 16 images",
+    orderedImageInputs: [],
+    canAddMoreImages: true,
+    suspended: false,
+    isDragActive: false,
+    buildOrderedImageInputPreview: orderedImageInputPreview,
+    onOpenPreview: vi.fn(),
+    onOpenLibrary: vi.fn(),
+    onClearOrderedImageInput: vi.fn(),
+    onSetDragActive: vi.fn(),
+    onDropIntoSlot: vi.fn(),
+    onAddImageFilesToOrderedSlot: vi.fn(),
+    onReplaceImageFile: vi.fn(),
+  } satisfies Omit<StripProps, "expanded" | "onExpandedChange">;
+}
+
 function ReferenceStripHarness(
   props: Omit<StripProps, "expanded" | "onExpandedChange">,
 ) {
@@ -51,6 +69,54 @@ function ReferenceStripHarness(
 
 afterEach(cleanup);
 
+it("keeps the compact drop target available outside the thumbnails until capacity", () => {
+  const props = referenceStripProps();
+  const { rerender } = render(<ReferenceStripHarness {...props} />);
+  const add = screen.getByLabelText("Add image references");
+  const references = Array.from(
+    { length: 16 },
+    (_, index): StripProps["orderedImageInputs"][number] => ({
+      source: "attachment",
+      attachment: {
+        id: String(index),
+        file: null,
+        kind: "images",
+        previewUrl: `/${index}.png`,
+      },
+    }),
+  );
+
+  rerender(
+    <ReferenceStripHarness
+      {...props}
+      imageLimitLabel="4 / 16 images"
+      orderedImageInputs={references.slice(0, 4)}
+    />,
+  );
+  expect(screen.getByText("4/16")).toBeTruthy();
+  expect(screen.getByLabelText("Add image references")).toBe(add);
+  const thumbnails = screen.getByTestId(
+    "studio-multi-image-slot-4",
+  ).parentElement;
+  expect(thumbnails?.contains(add)).toBe(false);
+  fireEvent.drop(add.closest("label")!);
+  expect(props.onDropIntoSlot).toHaveBeenCalledExactlyOnceWith(
+    expect.anything(),
+    4,
+  );
+
+  rerender(
+    <ReferenceStripHarness
+      {...props}
+      imageLimitLabel="16 / 16 images"
+      orderedImageInputs={references}
+      canAddMoreImages={false}
+    />,
+  );
+  expect(screen.getByText("16/16")).toBeTruthy();
+  expect(screen.queryByLabelText("Add image references")).toBeNull();
+});
+
 it("keeps the ordered reference actions available when the mobile composer and references are expanded", () => {
   const first = {
     source: "attachment",
@@ -69,24 +135,12 @@ it("keeps the ordered reference actions available when the mobile composer and r
       previewUrl: "/second.png",
     },
   } satisfies StripProps["orderedImageInputs"][number];
-  const callbacks = {
-    onOpenPreview: vi.fn(),
-    onOpenLibrary: vi.fn(),
-    onClearOrderedImageInput: vi.fn(),
-    onSetDragActive: vi.fn(),
-    onDropIntoSlot: vi.fn(),
-    onAddImageFilesToOrderedSlot: vi.fn(),
-    onReplaceImageFile: vi.fn(),
-  };
+  const callbacks = referenceStripProps();
   render(
     <ReferenceStripHarness
+      {...callbacks}
       imageLimitLabel="2 / 16 images"
       orderedImageInputs={[first, second]}
-      canAddMoreImages
-      suspended={false}
-      isDragActive={false}
-      buildOrderedImageInputPreview={orderedImageInputPreview}
-      {...callbacks}
     />,
   );
 

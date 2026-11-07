@@ -141,24 +141,36 @@ export function StudioSeedanceReferenceStrip({
                 {` / ${group.maxLabel}`}
               </div>
             </div>
-            <div className="scrollbar-none flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden pb-0.5">
-              {group.attachments
-                .slice(0, group.maxVisibleTiles)
-                .map((attachment) => (
-                  <StudioStagedMediaTile
-                    key={attachment.id}
-                    preview={seedanceReferencePreview(
-                      attachment,
-                      group.key,
-                      buildAttachmentPreview,
+            <div className="studio-reference-rail">
+              <div className="studio-reference-rail-items">
+                {group.attachments
+                  .slice(0, group.maxVisibleTiles)
+                  .map((attachment) => (
+                    <StudioStagedMediaTile
+                      key={attachment.id}
+                      preview={seedanceReferencePreview(
+                        attachment,
+                        group.key,
+                        buildAttachmentPreview,
+                      )}
+                      visualUrl={seedanceReferenceVisual(attachment)}
+                      onOpenPreview={onOpenPreview}
+                      onRemove={() => onRemoveAttachment(attachment.id)}
+                      className={cn("shrink-0", group.tileClassName)}
+                      testId={`seedance-group-tile-${group.key}-${attachment.id}`}
+                    />
+                  ))}
+                {group.attachments.length > group.maxVisibleTiles ? (
+                  <div
+                    className={cn(
+                      "studio-composer-muted-tile flex shrink-0 items-center justify-center text-[0.58rem] font-semibold uppercase tracking-[0.12em]",
+                      group.addTileClassName,
                     )}
-                    visualUrl={seedanceReferenceVisual(attachment)}
-                    onOpenPreview={onOpenPreview}
-                    onRemove={() => onRemoveAttachment(attachment.id)}
-                    className={cn("shrink-0", group.tileClassName)}
-                    testId={`seedance-group-tile-${group.key}-${attachment.id}`}
-                  />
-                ))}
+                  >
+                    +{group.attachments.length - group.maxVisibleTiles}
+                  </div>
+                ) : null}
+              </div>
               {group.attachments.length < group.maxLabel ? (
                 <label
                   className={cn(
@@ -191,16 +203,6 @@ export function StudioSeedanceReferenceStrip({
                     }}
                   />
                 </label>
-              ) : null}
-              {group.attachments.length > group.maxVisibleTiles ? (
-                <div
-                  className={cn(
-                    "studio-composer-muted-tile flex shrink-0 items-center justify-center text-[0.58rem] font-semibold uppercase tracking-[0.12em]",
-                    group.addTileClassName,
-                  )}
-                >
-                  +{group.attachments.length - group.maxVisibleTiles}
-                </div>
               ) : null}
             </div>
           </div>

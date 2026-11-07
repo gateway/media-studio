@@ -2707,14 +2707,31 @@ textarea {
 }
 
 .studio-ordered-reference-strip {
+  --studio-reference-rail-gap: 10px;
+}
+
+.studio-reference-rail,
+.studio-reference-rail-items {
   display: flex;
-  gap: 10px;
+  min-width: 0;
+  gap: var(--studio-reference-rail-gap, 8px);
+}
+
+.studio-reference-rail {
+  align-items: flex-start;
+}
+
+.studio-reference-rail-items {
   overflow: auto hidden;
   padding-block-end: 4px;
   scrollbar-width: thin;
 }
 
-.studio-ordered-reference-strip > * {
+.studio-reference-rail-items:empty {
+  display: none;
+}
+
+.studio-reference-rail-items > * {
   flex-shrink: 0;
 }
 
@@ -2723,7 +2740,9 @@ textarea {
   height: 82px;
 }
 
-.studio-ordered-reference-strip .studio-ordered-reference-tile > button {
+.studio-ordered-reference-strip
+  .studio-ordered-reference-tile
+  > .surface-preview-frame {
   display: block;
 }
 
