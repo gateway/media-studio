@@ -2645,6 +2645,9 @@ export function MediaStudio({
             Boolean,
           )}
           selectedAsset={selectedAsset}
+          selectedAssetModelLabel={
+            models.find((model) => model.key === selectedAsset.model_key)?.label
+          }
           selectedAssetDisplayVisual={selectedAssetDisplayVisual}
           selectedAssetPlaybackVisual={selectedAssetPlaybackVisual}
           selectedAssetPrompt={selectedAssetPrompt}

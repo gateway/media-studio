@@ -1300,7 +1300,7 @@ textarea {
   background: var(--ms-surface-primary);
 }
 
-.studio-reference-lightbox-close {
+.studio-lightbox-root .studio-reference-lightbox-close {
   position: absolute;
   top: 1rem;
   right: 1rem;
@@ -1313,7 +1313,7 @@ textarea {
 }
 
 @media (width >= 768px) {
-  .studio-reference-lightbox-close {
+  .studio-lightbox-root .studio-reference-lightbox-close {
     top: 1.5rem;
     right: 1.5rem;
   }
@@ -1704,7 +1704,7 @@ textarea {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: var(--ms-surface-soft);
+  background: transparent;
 }
 
 .studio-gallery-state-visual {

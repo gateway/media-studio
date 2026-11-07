@@ -21,6 +21,7 @@ import type { MediaAsset } from "@/lib/types";
 type StudioAssetInspectorProps = {
   suspended?: boolean;
   selectedAsset: MediaAsset;
+  selectedAssetModelLabel?: string | null;
   selectedAssetDisplayVisual: string | null;
   selectedAssetPlaybackVisual: string | null;
   selectedAssetPrompt: string | null;
@@ -57,6 +58,7 @@ type StudioAssetInspectorProps = {
 export function StudioAssetInspector({
   suspended = false,
   selectedAsset,
+  selectedAssetModelLabel,
   selectedAssetDisplayVisual,
   selectedAssetPlaybackVisual,
   selectedAssetPrompt,
@@ -160,6 +162,7 @@ export function StudioAssetInspector({
         <div className="studio-media-inspector-details">
           <StudioInspectorInfo
             selectedAsset={selectedAsset}
+            modelLabel={selectedAssetModelLabel}
             projectLabel={selectedAssetProjectLabel}
             onOpenProject={onOpenProject}
             presetLabel={selectedAssetPresetLabel}

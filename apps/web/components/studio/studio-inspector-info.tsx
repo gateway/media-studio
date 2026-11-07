@@ -20,6 +20,7 @@ import { formatDateTime } from "@/lib/utils";
 
 type StudioInspectorInfoProps = {
   selectedAsset: MediaAsset;
+  modelLabel?: string | null;
   projectLabel?: string | null;
   onOpenProject?: (projectId: string) => void;
   presetLabel?: string | null;
@@ -31,6 +32,7 @@ type StudioInspectorInfoProps = {
 };
 export function StudioInspectorInfo({
   selectedAsset,
+  modelLabel,
   projectLabel,
   onOpenProject,
   presetLabel,
@@ -55,7 +57,7 @@ export function StudioInspectorInfo({
             Model
           </dt>
           <dd className="[overflow-wrap:anywhere]">
-            {selectedAsset.model_key ?? "Unknown"}
+            {modelLabel ?? selectedAsset.model_key ?? "Unknown"}
           </dd>
         </div>
         <div className="studio-media-inspector-project">
@@ -172,6 +174,14 @@ export function StudioInspectorInfo({
           />
         </div>
         <dl className="studio-media-inspector-metadata">
+          {modelLabel ? (
+            <div>
+              <dt>Model key</dt>
+              <dd className="[overflow-wrap:anywhere]">
+                {selectedAsset.model_key ?? "Unknown"}
+              </dd>
+            </div>
+          ) : null}
           <div className="studio-media-inspector-created">
             <dt>Created</dt>
             <dd>{formatDateTime(selectedAsset.created_at)}</dd>

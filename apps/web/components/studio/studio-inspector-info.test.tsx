@@ -116,3 +116,24 @@ it("keeps unknown metadata, the existing six-option limit and project navigation
   screen.getByRole("button", { name: "project-1" }).click();
   expect(onOpenProject).toHaveBeenCalledWith("project-1");
 });
+
+it("shows the existing catalog label while preserving the raw model key as read-only metadata", () => {
+  render(
+    <StudioInspectorInfo
+      selectedAsset={
+        {
+          asset_id: "labeled",
+          model_key: "gpt-image-2-5-sunburst-text-to-image",
+        } as MediaAsset
+      }
+      modelLabel="GPT Image 2.5 Sunburst"
+    />,
+  );
+  expect(
+    screen.getByText("GPT Image 2.5 Sunburst").closest("button"),
+  ).toBeNull();
+  expect(
+    screen.getByText("gpt-image-2-5-sunburst-text-to-image").closest("button"),
+  ).toBeNull();
+  expect(screen.getByText("Model key")).toBeTruthy();
+});
