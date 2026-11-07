@@ -372,6 +372,14 @@ html:has(.studio-browser-backdrop) {
   align-self: flex-start;
 }
 
+.media-browser-item-tile
+  > .media-browser-item-actions
+  > :first-child
+  > .control-tooltip {
+  left: 0;
+  right: auto;
+}
+
 .studio-project-filters {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
