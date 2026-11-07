@@ -1,8 +1,8 @@
 "use client";
-import { Image as ImageIcon, Play, Volume2 } from "lucide-react";
+import { Box, Folder, Image as ImageIcon, Play, Volume2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { StatusPill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
-import { SurfaceInset } from "@/components/ui/surface-primitives";
 import {
   studioCaptionClassName,
   studioPreviewFallbackClassName,
@@ -27,6 +27,7 @@ type StudioInspectorInfoProps = {
   onUsePreset?: (presetIdOrKey: string) => void;
   referencePreviews?: StudioReferencePreview[];
   onOpenReference?: (reference: StudioReferencePreview) => void;
+  children?: ReactNode;
 };
 export function StudioInspectorInfo({
   selectedAsset,
@@ -37,6 +38,7 @@ export function StudioInspectorInfo({
   onUsePreset,
   referencePreviews = [],
   onOpenReference,
+  children,
 }: StudioInspectorInfoProps) {
   const optionEntries = Object.entries(
     (selectedAsset.payload?.resolved_options as
@@ -46,36 +48,21 @@ export function StudioInspectorInfo({
     .slice(0, 6);
   return (
     <section className="studio-media-inspector-info">
-      <div className="studio-media-inspector-section-heading studio-media-inspector-info-heading">
-        <h3>Details</h3>
-        <StatusPill
-          label={selectedAsset.status ?? "stored"}
-          tone={toneForStatus(selectedAsset.status)}
-        />
-      </div>
-      <dl className="studio-media-inspector-metadata">
-        <div className="studio-media-inspector-created">
-          <dt>Created</dt>
-          <dd>
-            <span className="studio-media-inspector-mobile-status">
-              <StatusPill
-                label={selectedAsset.status ?? "stored"}
-                tone={toneForStatus(selectedAsset.status)}
-              />
-            </span>
-            {formatDateTime(selectedAsset.created_at)}
-          </dd>
-        </div>
-        <div className="studio-media-inspector-type">
-          <dt>Type</dt>
-          <dd>
-            {selectedAsset.generation_kind ??
-              selectedAsset.task_mode ??
-              "asset"}
+      <dl className="studio-media-inspector-metadata studio-media-inspector-summary">
+        <div className="studio-media-inspector-model">
+          <dt>
+            <Box aria-hidden="true" className="size-4" />
+            Model
+          </dt>
+          <dd className="[overflow-wrap:anywhere]">
+            {selectedAsset.model_key ?? "Unknown"}
           </dd>
         </div>
         <div className="studio-media-inspector-project">
-          <dt>Project</dt>
+          <dt>
+            <Folder aria-hidden="true" className="size-4" />
+            Project
+          </dt>
           <dd>
             {selectedAsset.project_id ? (
               <Button
@@ -95,58 +82,25 @@ export function StudioInspectorInfo({
             )}
           </dd>
         </div>
-        <div className="studio-media-inspector-preset">
-          <dt>Preset</dt>
-          <dd>
-            {presetLoadKey ? (
-              <Button
-                appearance="admin"
-                size="inline"
-                variant="ghost"
-                title="Load this preset into the Studio composer"
-                onClick={() => onUsePreset?.(presetLoadKey)}
-              >
-                <span className="[overflow-wrap:anywhere]">
-                  {presetLabel ?? selectedAsset.preset_key ?? "Preset"}
-                </span>
-              </Button>
-            ) : (
-              (presetLabel ?? selectedAsset.preset_key ?? "builtin")
-            )}
-          </dd>
-        </div>
-        <div className="studio-media-inspector-model">
-          <dt>Model</dt>
-          <dd className="[overflow-wrap:anywhere]">
-            {selectedAsset.model_key ?? "Unknown"}
-          </dd>
-        </div>
-        {optionEntries.map(([key, value]) => (
-          <div key={key} className="studio-media-inspector-option">
-            <dt>{optionShortLabel(key)}</dt>
-            <dd className="[overflow-wrap:anywhere]">
-              {displayChoiceLabel(key, {}, value) || formatOptionValue(value)}
-            </dd>
-          </div>
-        ))}
       </dl>
+      {children}
       {referencePreviews.length ? (
-        <SurfaceInset
-          appearance="studio"
-          density="compact"
-          className="min-w-0 overflow-hidden rounded-[18px]"
+        <section
+          className="studio-media-inspector-references"
+          aria-label="References"
         >
-          <div className="flex items-center gap-2 surface-label-muted">
-            <ImageIcon className="size-3.5 text-[var(--accent-strong)]" />
+          <h3 className="studio-media-inspector-reference-heading">
+            <ImageIcon aria-hidden="true" className="size-4" />
             References
-          </div>
-          <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+          </h3>
+          <div className="studio-media-inspector-reference-list">
             {referencePreviews.map((reference) => (
               <button
                 key={reference.key}
                 type="button"
                 onClick={() => onOpenReference?.(reference)}
-                className="grid w-[5.25rem] shrink-0 gap-2 text-left transition hover:opacity-95"
+                className="studio-media-inspector-reference"
+                title={reference.label}
               >
                 <span className="surface-preview-frame">
                   {reference.kind === "videos" ? (
@@ -204,8 +158,62 @@ export function StudioInspectorInfo({
               </button>
             ))}
           </div>
-        </SurfaceInset>
+        </section>
       ) : null}
+      <section
+        className="studio-media-inspector-extra-details"
+        aria-label="Asset metadata"
+      >
+        <div className="studio-media-inspector-section-heading">
+          <h3>Details</h3>
+          <StatusPill
+            label={selectedAsset.status ?? "stored"}
+            tone={toneForStatus(selectedAsset.status)}
+          />
+        </div>
+        <dl className="studio-media-inspector-metadata">
+          <div className="studio-media-inspector-created">
+            <dt>Created</dt>
+            <dd>{formatDateTime(selectedAsset.created_at)}</dd>
+          </div>
+          <div className="studio-media-inspector-type">
+            <dt>Type</dt>
+            <dd>
+              {selectedAsset.generation_kind ??
+                selectedAsset.task_mode ??
+                "asset"}
+            </dd>
+          </div>
+          <div className="studio-media-inspector-preset">
+            <dt>Preset</dt>
+            <dd>
+              {presetLoadKey ? (
+                <Button
+                  appearance="admin"
+                  size="inline"
+                  variant="ghost"
+                  title="Load this preset into the Studio composer"
+                  onClick={() => onUsePreset?.(presetLoadKey)}
+                >
+                  <span className="[overflow-wrap:anywhere]">
+                    {presetLabel ?? selectedAsset.preset_key ?? "Preset"}
+                  </span>
+                </Button>
+              ) : (
+                (presetLabel ?? selectedAsset.preset_key ?? "builtin")
+              )}
+            </dd>
+          </div>
+          {optionEntries.map(([key, value]) => (
+            <div key={key} className="studio-media-inspector-option">
+              <dt>{optionShortLabel(key)}</dt>
+              <dd className="[overflow-wrap:anywhere]">
+                {displayChoiceLabel(key, {}, value) || formatOptionValue(value)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
     </section>
   );
 }

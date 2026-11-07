@@ -110,7 +110,7 @@ it("keeps unknown metadata, the existing six-option limit and project navigation
     />,
   );
   expect(screen.getAllByText("Unknown")).toHaveLength(2);
-  expect(screen.getAllByText("stored")).toHaveLength(2);
+  expect(screen.getByText("stored")).toBeTruthy();
   expect(screen.getByText("sixth-value")).toBeTruthy();
   expect(screen.queryByText("seventh-value")).toBeNull();
   screen.getByRole("button", { name: "project-1" }).click();

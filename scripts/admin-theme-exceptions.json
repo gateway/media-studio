@@ -126,13 +126,6 @@
     "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
   },
   {
-    "file": "apps/web/components/studio/studio-lightbox.tsx",
-    "rule": "literal-color",
-    "detail": "bg-[rgba(4,6,5,0.96)]",
-    "count": 1,
-    "reason": "Shared original-output viewer backdrop; migrate at the viewer owner."
-  },
-  {
     "file": "apps/web/components/ui/button.tsx",
     "rule": "literal-color",
     "detail": "text-white",

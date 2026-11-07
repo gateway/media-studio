@@ -4,11 +4,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StudioGallery } from "@/components/studio/studio-gallery";
+import { StudioGalleryTile } from "@/components/studio/studio-gallery-tile";
 import type { GalleryTile } from "@/lib/studio-gallery";
 
-describe("StudioGallery", () => {
-  afterEach(cleanup);
+afterEach(cleanup);
 
+describe("StudioGallery", () => {
   it("offers a manual first-page retry even when no gallery cards could load", () => {
     const onLoadMore = vi.fn();
     render(
@@ -30,9 +31,11 @@ describe("StudioGallery", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Retry loading gallery" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry loading gallery" }),
+    );
     expect(onLoadMore).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText("Start your first render.")).toBeNull();
+    expect(screen.queryByText("No media yet")).toBeNull();
   });
 
   it("shows a startup state instead of a misleading empty gallery when the media backend is not ready", () => {
@@ -55,8 +58,12 @@ describe("StudioGallery", () => {
     );
 
     expect(screen.getByText("Media Studio is connecting.")).toBeTruthy();
-    expect(screen.getByText("This page is up, but the media backend is still coming online. Once it is ready, your recent renders and tools will appear here.")).toBeTruthy();
-    expect(screen.queryByText("Start your first render.")).toBeNull();
+    expect(
+      screen.getByText(
+        "This page is up, but the media backend is still coming online. Once it is ready, your recent renders and tools will appear here.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("No media yet")).toBeNull();
   });
 
   it("shows a clean failed summary in the gallery and keeps provider error details out of the first viewport", () => {
@@ -105,10 +112,18 @@ describe("StudioGallery", () => {
       />,
     );
 
-    expect(screen.getByText("Render failed. Open this tile to review the issue and retry in Studio.")).toBeTruthy();
-    expect(screen.queryByText("Internal Error, Please try again later.")).toBeNull();
+    expect(
+      screen.getByText(
+        "Render failed. Open this tile to review the issue and retry in Studio.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText("Internal Error, Please try again later."),
+    ).toBeNull();
 
-    fireEvent.click(screen.getByTestId("studio-gallery-batch-card"));
+    fireEvent.click(
+      screen.getByRole("button", { name: /View details for failed/ }),
+    );
     expect(onSelectFailedJob).toHaveBeenCalledWith("job-1");
   });
 
@@ -205,7 +220,9 @@ describe("StudioGallery", () => {
     const favoriteButtons = screen.getAllByTestId("studio-favorite-toggle");
     fireEvent.click(favoriteButtons[favoriteButtons.length - 1] as HTMLElement);
 
-    expect(onToggleFavorite).toHaveBeenCalledWith(expect.objectContaining({ asset_id: "asset-1" }));
+    expect(onToggleFavorite).toHaveBeenCalledWith(
+      expect.objectContaining({ asset_id: "asset-1" }),
+    );
     expect(onSelectAsset).not.toHaveBeenCalled();
   });
 
@@ -241,9 +258,88 @@ describe("StudioGallery", () => {
       />,
     );
 
-    expect(container.querySelectorAll('[data-testid="studio-gallery-card"]')).toHaveLength(8);
-    expect(container.querySelectorAll('[data-testid="studio-gallery-card"] img')).toHaveLength(8);
-    expect(container.querySelectorAll('[data-testid="studio-gallery-card"] img[loading="eager"]')).toHaveLength(4);
-    expect(container.querySelectorAll('[data-testid="studio-gallery-card"] img[loading="lazy"]')).toHaveLength(4);
+    expect(
+      container.querySelectorAll('[data-testid="studio-gallery-card"]'),
+    ).toHaveLength(8);
+    expect(
+      container.querySelectorAll('[data-testid="studio-gallery-card"] img'),
+    ).toHaveLength(8);
+    expect(
+      container.querySelectorAll(
+        '[data-testid="studio-gallery-card"] img[loading="eager"]',
+      ),
+    ).toHaveLength(4);
+    expect(
+      container.querySelectorAll(
+        '[data-testid="studio-gallery-card"] img[loading="lazy"]',
+      ),
+    ).toHaveLength(4);
   });
 });
+
+it("keeps inspect, favorite and drag actions independent on a selected gallery asset", () => {
+  const asset = {
+    asset_id: "selected",
+    generation_kind: "image",
+    prompt_summary: "Saved image",
+    favorited: true,
+  } as NonNullable<GalleryTile["asset"]>;
+  const onSelectAsset = vi.fn();
+  const onToggleFavorite = vi.fn();
+  const onDragAsset = vi.fn();
+  render(
+    <StudioGalleryTile
+      tile={{ asset, label: "Saved image", batch: null, job: null }}
+      index={0}
+      selectedAssetId="selected"
+      favoriteAssetIdBusy="selected"
+      onSelectAsset={onSelectAsset}
+      onSelectFailedJob={vi.fn()}
+      onDragAsset={onDragAsset}
+      onToggleFavorite={onToggleFavorite}
+    />,
+  );
+  const inspect = screen.getByRole("button", {
+    name: "Inspect image: Saved image",
+  });
+  inspect.focus();
+  expect(document.activeElement).toBe(inspect);
+  expect(inspect.getAttribute("aria-pressed")).toBe("true");
+  fireEvent.click(inspect);
+  expect(onSelectAsset).toHaveBeenCalledExactlyOnceWith("selected");
+  const favorite = screen.getByRole("button", {
+    name: "Unfavorite media asset",
+  });
+  expect(favorite.getAttribute("disabled")).toBe("");
+  fireEvent.click(favorite);
+  expect(onToggleFavorite).not.toHaveBeenCalled();
+  fireEvent.dragStart(screen.getByTestId("studio-gallery-card"));
+  expect(onDragAsset).toHaveBeenCalledExactlyOnceWith(expect.anything(), asset);
+});
+
+it.each(["queued", "running", "submitted", "processing"])(
+  "shows the actual %s job state without an inspect action",
+  (status) => {
+    render(
+      <StudioGalleryTile
+        tile={{
+          asset: null,
+          label: "Pending",
+          batch: { batch_id: "pending", status } as GalleryTile["batch"],
+          job: { job_id: "pending-job", status } as GalleryTile["job"],
+        }}
+        index={0}
+        selectedAssetId={null}
+        favoriteAssetIdBusy={null}
+        onSelectAsset={vi.fn()}
+        onSelectFailedJob={vi.fn()}
+        onDragAsset={vi.fn()}
+        onToggleFavorite={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText(status === "queued" ? "Queued" : "Running"),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
+  },
+);

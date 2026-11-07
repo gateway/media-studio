@@ -5,6 +5,7 @@ import { useRef } from "react";
 
 import { useDialogFocus } from "@/components/ui/use-dialog-focus";
 import { OverlayShell } from "@/components/ui/surface-primitives";
+import { IconButton } from "@/components/ui/icon-button";
 import type { MediaAsset } from "@/lib/types";
 
 type StudioLightboxProps = {
@@ -61,19 +62,32 @@ export function StudioLightbox({
 
   return (
     <OverlayShell
-      backdropClassName="z-[140] bg-[rgba(4,6,5,0.96)]"
-      panelClassName="flex min-h-dvh items-center justify-center border-0 bg-transparent shadow-none"
-      innerClassName="p-0"
+      backdropClassName="admin-theme-root studio-browser-theme studio-media-lightbox-backdrop"
+      panelClassName="studio-media-lightbox-panel"
+      innerClassName="studio-media-lightbox-position"
     >
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Full size media" tabIndex={-1} data-testid="studio-lightbox" className="studio-lightbox-root" onClick={closeLightbox}>
-        <button
-          type="button"
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Full size media"
+        tabIndex={-1}
+        data-testid="studio-lightbox"
+        className="studio-lightbox-root"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) closeLightbox();
+        }}
+      >
+        <IconButton
+          appearance="admin"
+          icon={X}
+          quiet
+          size="touch"
           onClick={closeLightbox}
-          className="overlay-close-button absolute right-4 top-4 z-10 h-11 w-11 md:right-6 md:top-6"
+          className="studio-reference-lightbox-close"
+          title="Close media lightbox"
           aria-label="Close media lightbox"
-        >
-          <X className="size-5" />
-        </button>
+        />
         <div
           data-testid="studio-lightbox-swipe-surface"
           className="studio-lightbox-swipe-surface"
@@ -81,7 +95,8 @@ export function StudioLightbox({
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {selectedAsset.generation_kind === "video" && selectedAssetPlaybackVisual ? (
+          {selectedAsset.generation_kind === "video" &&
+          selectedAssetPlaybackVisual ? (
             <video
               ref={lightboxVideoRef}
               src={selectedAssetPlaybackVisual}
@@ -94,7 +109,8 @@ export function StudioLightbox({
               poster={selectedAssetDisplayVisual ?? undefined}
               className="studio-lightbox-media"
             />
-          ) : selectedAsset.generation_kind === "audio" && selectedAssetPlaybackVisual ? (
+          ) : selectedAsset.generation_kind === "audio" &&
+            selectedAssetPlaybackVisual ? (
             <div className="studio-lightbox-audio-shell">
               {selectedAssetDisplayVisual ? (
                 <img
@@ -109,11 +125,13 @@ export function StudioLightbox({
               <audio
                 src={selectedAssetPlaybackVisual}
                 controls
-              tabIndex={0}
+                tabIndex={0}
                 autoPlay
                 preload="metadata"
                 className="w-full"
-                aria-label={selectedAsset.prompt_summary ?? "Selected audio artifact"}
+                aria-label={
+                  selectedAsset.prompt_summary ?? "Selected audio artifact"
+                }
               />
             </div>
           ) : selectedAssetLightboxVisual ? (
@@ -125,7 +143,11 @@ export function StudioLightbox({
               decoding="async"
               className="studio-lightbox-media"
             />
-          ) : null}
+          ) : (
+            <p className="studio-lightbox-unavailable" role="status">
+              Media preview unavailable
+            </p>
+          )}
         </div>
       </div>
     </OverlayShell>

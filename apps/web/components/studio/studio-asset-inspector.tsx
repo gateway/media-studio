@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Copy, X } from "lucide-react";
+import { Check, ChevronDown, Copy, FileText, X } from "lucide-react";
 import { useId } from "react";
 import { SelectedAssetPromptPanelContent } from "@/components/studio/selected-asset-prompt-panel-content";
 import { StudioInspectorActions } from "@/components/studio/studio-inspector-actions";
@@ -96,7 +96,7 @@ export function StudioAssetInspector({
     selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "Media";
   const title = `${kind.charAt(0).toUpperCase()}${kind.slice(1)} details`;
   return (
-    <div className="admin-theme-root studio-media-inspector-backdrop scrollbar-none">
+    <div className="admin-theme-root studio-browser-theme studio-media-inspector-backdrop">
       <div
         ref={panelRef}
         role="dialog"
@@ -137,15 +137,6 @@ export function StudioAssetInspector({
             onOpenLightbox={onOpenLightbox}
           />
           <div className="studio-media-inspector-action-bar">
-            <StudioInspectorUtilities
-              selectedAsset={selectedAsset}
-              favoriteAssetIdBusy={favoriteAssetIdBusy}
-              onToggleFavorite={onToggleFavorite}
-              canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
-              downloadActionLabel={downloadActionLabel}
-              onDownload={onDownload}
-              onDismiss={onDismiss}
-            />
             <div className="studio-media-inspector-media-actions">
               <StudioInspectorActions
                 showImageActions={selectedAsset.generation_kind === "image"}
@@ -155,9 +146,18 @@ export function StudioAssetInspector({
                 onRevise={onRevise}
               />
             </div>
+            <StudioInspectorUtilities
+              selectedAsset={selectedAsset}
+              favoriteAssetIdBusy={favoriteAssetIdBusy}
+              onToggleFavorite={onToggleFavorite}
+              canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
+              downloadActionLabel={downloadActionLabel}
+              onDownload={onDownload}
+              onDismiss={onDismiss}
+            />
           </div>
         </div>
-        <div className="studio-media-inspector-details scrollbar-none">
+        <div className="studio-media-inspector-details">
           <StudioInspectorInfo
             selectedAsset={selectedAsset}
             projectLabel={selectedAssetProjectLabel}
@@ -167,87 +167,89 @@ export function StudioAssetInspector({
             onUsePreset={onUsePreset}
             referencePreviews={selectedAssetReferencePreviews}
             onOpenReference={onOpenReference}
-          />
-          <section className="studio-media-inspector-prompt">
-            <div className="studio-media-inspector-section-heading">
-              <h3>
-                {selectedAssetStructuredPresetActive
-                  ? "Preset Details"
-                  : "Prompt"}
-              </h3>
-              <div className="flex items-center gap-1">
-                {!selectedAssetStructuredPresetActive ? (
-                  <Button
+          >
+            <section className="studio-media-inspector-prompt">
+              <div className="studio-media-inspector-section-heading">
+                <h3>
+                  <FileText aria-hidden="true" className="size-4" />
+                  {selectedAssetStructuredPresetActive
+                    ? "Preset Details"
+                    : "Prompt"}
+                </h3>
+                <div className="flex items-center gap-1">
+                  {!selectedAssetStructuredPresetActive ? (
+                    <Button
+                      appearance="admin"
+                      variant="ghost"
+                      size="inline"
+                      aria-label={
+                        copyPromptStatus === "copied"
+                          ? "Copied"
+                          : copyPromptStatus === "error"
+                            ? "Copy failed"
+                            : "Copy"
+                      }
+                      onClick={onCopyPrompt}
+                    >
+                      {copyPromptStatus === "copied" ? (
+                        <Check className="size-4" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
+                      <span role="status">
+                        {copyPromptStatus === "copied"
+                          ? "Copied"
+                          : copyPromptStatus === "error"
+                            ? "Copy failed"
+                            : "Copy"}
+                      </span>
+                    </Button>
+                  ) : null}
+                  <IconButton
                     appearance="admin"
-                    variant="ghost"
                     size="touch"
-                    aria-label={
-                      copyPromptStatus === "copied"
-                        ? "Copied"
-                        : copyPromptStatus === "error"
-                          ? "Copy failed"
-                          : "Copy"
+                    icon={ChevronDown}
+                    quiet
+                    title={
+                      mobileInspectorPromptOpen
+                        ? "Collapse prompt"
+                        : "Expand prompt"
                     }
-                    onClick={onCopyPrompt}
-                  >
-                    {copyPromptStatus === "copied" ? (
-                      <Check className="size-4" />
-                    ) : (
-                      <Copy className="size-4" />
-                    )}
-                    <span role="status">
-                      {copyPromptStatus === "copied"
-                        ? "Copied"
-                        : copyPromptStatus === "error"
-                          ? "Copy failed"
-                          : "Copy"}
-                    </span>
-                  </Button>
-                ) : null}
-                <IconButton
-                  appearance="admin"
-                  size="touch"
-                  icon={ChevronDown}
-                  quiet
-                  title={
-                    mobileInspectorPromptOpen
-                      ? "Collapse prompt"
-                      : "Expand prompt"
-                  }
-                  aria-label={
-                    mobileInspectorPromptOpen
-                      ? "Collapse prompt"
-                      : "Expand prompt"
-                  }
-                  aria-expanded={mobileInspectorPromptOpen}
-                  aria-controls={promptId}
-                  onClick={() =>
-                    onMobileInspectorPromptOpenChange(
-                      !mobileInspectorPromptOpen,
-                    )
-                  }
-                  className="studio-media-inspector-disclosure"
+                    aria-label={
+                      mobileInspectorPromptOpen
+                        ? "Collapse prompt"
+                        : "Expand prompt"
+                    }
+                    aria-expanded={mobileInspectorPromptOpen}
+                    aria-controls={promptId}
+                    onClick={() =>
+                      onMobileInspectorPromptOpenChange(
+                        !mobileInspectorPromptOpen,
+                      )
+                    }
+                    className="studio-media-inspector-disclosure"
+                  />
+                </div>
+              </div>
+              <div
+                id={promptId}
+                data-open={mobileInspectorPromptOpen}
+                className="studio-media-inspector-prompt-content"
+              >
+                <SelectedAssetPromptPanelContent
+                  structuredPresetActive={selectedAssetStructuredPresetActive}
+                  presetLabel={selectedAssetPresetLabel || "Preset"}
+                  presetDescription={selectedAssetPresetDescription}
+                  presetSlots={selectedAssetPresetSlots}
+                  presetSlotValues={selectedAssetPresetSlotValues}
+                  presetFields={selectedAssetPresetFields}
+                  presetInputValues={selectedAssetPresetInputValues}
+                  prompt={selectedAssetPrompt}
+                  promptContainerClassName="studio-media-inspector-prompt-text"
                 />
               </div>
-            </div>
-            <div
-              id={promptId}
-              data-open={mobileInspectorPromptOpen}
-              className="studio-media-inspector-prompt-content"
-            >
-              <SelectedAssetPromptPanelContent
-                structuredPresetActive={selectedAssetStructuredPresetActive}
-                presetLabel={selectedAssetPresetLabel || "Preset"}
-                presetDescription={selectedAssetPresetDescription}
-                presetSlots={selectedAssetPresetSlots}
-                presetSlotValues={selectedAssetPresetSlotValues}
-                presetFields={selectedAssetPresetFields}
-                presetInputValues={selectedAssetPresetInputValues}
-                prompt={selectedAssetPrompt}
-                promptContainerClassName="studio-media-inspector-prompt-text"
-              />
-            </div>
-          </section>
+            </section>
+          </StudioInspectorInfo>
         </div>
       </div>
     </div>

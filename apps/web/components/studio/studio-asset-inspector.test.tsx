@@ -82,7 +82,10 @@ it("keeps keyboard focus out of CSS-hidden controls", () => {
   const hidden = screen.getByRole("button", { name: "Collapse prompt" });
   hidden.style.display = "none";
   const first = screen.getByRole("button", { name: "Close media details" });
-  const last = screen.getByRole("button", { name: "Copy", exact: true });
+  const last = screen.getByRole("button", {
+    name: "Saved preset",
+    exact: true,
+  });
   first.focus();
   fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
   expect(document.activeElement).toBe(last);
@@ -221,7 +224,11 @@ it("reports clipboard failure and retains prompt-copy failure feedback", async (
   inspector({ copyPromptStatus: "error" });
   fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
   await screen.findAllByRole("button", { name: "Copy failed" });
-  expect(screen.getAllByText("Copy failed")).toHaveLength(2);
+  expect(
+    screen
+      .getAllByRole("status")
+      .filter((status) => status.textContent === "Copy failed"),
+  ).toHaveLength(2);
   vi.unstubAllGlobals();
 });
 
@@ -230,4 +237,32 @@ it("keeps the full-size control named when its visible text is hidden", () => {
   const expand = screen.getByRole("button", { name: "Open full size" });
   expand.querySelector("span")!.style.display = "none";
   expect(screen.getByRole("button", { name: "Open full size" })).toBe(expand);
+});
+
+it("returns focus to the gallery opener after closing inspection", () => {
+  const opener = document.createElement("button");
+  opener.textContent = "Inspect image";
+  document.body.append(opener);
+  opener.focus();
+  const props = inspector();
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(props.onClose).toHaveBeenCalledTimes(1);
+  props.view.unmount();
+  expect(document.activeElement).toBe(opener);
+  opener.remove();
+});
+
+it("keeps unavailable media readable without offering an empty full-size action", () => {
+  inspector({
+    selectedAssetDisplayVisual: null,
+    selectedAssetPlaybackVisual: null,
+    selectedAssetPrompt: null,
+    showReviseAction: false,
+  });
+  expect(screen.getByText("Media preview unavailable")).toBeTruthy();
+  expect(
+    screen.getByText("No prompt text was stored for this asset."),
+  ).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Open full size" })).toBeNull();
+  expect(screen.getByText("raw-model-key").closest("button")).toBeNull();
 });

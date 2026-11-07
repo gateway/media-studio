@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useDialogFocus } from "@/components/ui/use-dialog-focus";
+import { IconButton } from "@/components/ui/icon-button";
 
 type StudioImageLightboxProps = {
   src: string;
@@ -28,19 +29,21 @@ export function StudioImageLightbox({
       aria-label={`Preview ${alt}`}
       tabIndex={-1}
       data-testid="studio-image-lightbox"
-      className="studio-lightbox-root studio-reference-lightbox-root"
+      className="admin-theme-root studio-browser-theme studio-lightbox-root studio-reference-lightbox-root"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <button
-        type="button"
+      <IconButton
+        appearance="admin"
+        icon={X}
+        quiet
+        size="touch"
         onClick={onClose}
         className="studio-reference-lightbox-close"
+        title="Close reference image lightbox"
         aria-label="Close reference image lightbox"
-      >
-        <X className="size-5" />
-      </button>
+      />
       <div
         className="studio-lightbox-swipe-surface"
         onClick={(event) => event.stopPropagation()}

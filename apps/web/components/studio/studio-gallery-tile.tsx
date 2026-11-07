@@ -1,8 +1,22 @@
 "use client";
 
-import { AlertTriangle, Clapperboard, Heart, Image as ImageIcon, LoaderCircle, Music2, Play } from "lucide-react";
+import {
+  ChevronRight,
+  CircleAlert,
+  Clapperboard,
+  Heart,
+  Image as ImageIcon,
+  Layers3,
+  LoaderCircle,
+  Music2,
+  Play,
+} from "lucide-react";
 
-import { mediaThumbnailUrl, prettifyModelLabel } from "@/lib/media-studio-helpers";
+import {
+  jobStatusLabel,
+  mediaThumbnailUrl,
+  prettifyModelLabel,
+} from "@/lib/media-studio-helpers";
 import { galleryTileSizeBand, type GalleryTile } from "@/lib/studio-gallery";
 import type { MediaAsset } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -14,13 +28,12 @@ type StudioGalleryTileProps = {
   favoriteAssetIdBusy: string | number | null;
   onSelectAsset: (assetId: string | number) => void;
   onSelectFailedJob: (jobId: string) => void;
-  onDragAsset: (event: React.DragEvent<HTMLDivElement>, asset: MediaAsset | null) => void;
+  onDragAsset: (
+    event: React.DragEvent<HTMLDivElement>,
+    asset: MediaAsset | null,
+  ) => void;
   onToggleFavorite: (asset: MediaAsset | null) => void;
 };
-
-function failedBatchSummary(_jobError: string | null | undefined) {
-  return "Render failed. Open this tile to review the issue and retry in Studio.";
-}
 
 function tileBandClassName(tile: GalleryTile) {
   const band = galleryTileSizeBand(tile);
@@ -48,13 +61,32 @@ export function StudioGalleryTile({
   const batchJob = tile.job;
   const jobPreview = preview;
   const eagerTile = index < 4;
-  const selected = tile.asset?.asset_id != null && tile.asset.asset_id === selectedAssetId && !batchTile;
+  const assetId = tile.asset?.asset_id;
+  const inspectableAsset = assetId != null && !batchTile;
+  const selected = inspectableAsset && assetId === selectedAssetId;
   const failedBatchTile = Boolean(batchTile && batchJob?.status === "failed");
+  const canInspect = inspectableAsset || failedBatchTile;
+  const modelLabel = prettifyModelLabel(
+    batchJob?.model_key ?? tile.asset?.model_key ?? batchTile?.model_key,
+  );
+  const status = batchJob?.status ?? batchTile?.status;
+
+  function selectTile() {
+    if (inspectableAsset) {
+      onSelectAsset(assetId);
+    } else if (failedBatchTile && batchJob?.job_id) {
+      onSelectFailedJob(batchJob.job_id);
+    }
+  }
 
   return (
     <div
-      data-testid={batchTile ? "studio-gallery-batch-card" : "studio-gallery-card"}
-      data-asset-id={tile.asset?.asset_id != null ? String(tile.asset.asset_id) : undefined}
+      data-testid={
+        batchTile ? "studio-gallery-batch-card" : "studio-gallery-card"
+      }
+      data-asset-id={
+        tile.asset?.asset_id != null ? String(tile.asset.asset_id) : undefined
+      }
       data-job-id={tile.job?.job_id ?? undefined}
       data-generation-kind={tile.asset?.generation_kind ?? undefined}
       key={
@@ -64,25 +96,16 @@ export function StudioGalleryTile({
             ? `asset-${tile.asset.asset_id}`
             : `placeholder-${index}-${tile.label}`
       }
-      draggable={Boolean(tile.asset?.asset_id != null && !batchTile)}
+      draggable={Boolean(inspectableAsset)}
       onDragStart={(event) => onDragAsset(event, tile.asset)}
       className={cn(
         "studio-gallery-tile group",
         tileBandClassName(tile),
         selected ? "studio-gallery-tile-selected" : "",
         failedBatchTile ? "cursor-pointer" : "",
-        tile.asset?.asset_id != null && !batchTile ? "cursor-pointer" : "",
-        tile.asset?.asset_id != null && !batchTile ? "cursor-grab active:cursor-grabbing" : "",
+        inspectableAsset ? "cursor-pointer" : "",
+        inspectableAsset ? "cursor-grab active:cursor-grabbing" : "",
       )}
-      onClick={() => {
-        if (tile.asset?.asset_id != null && !batchTile) {
-          onSelectAsset(tile.asset.asset_id);
-          return;
-        }
-        if (failedBatchTile && batchJob?.job_id) {
-          onSelectFailedJob(batchJob.job_id);
-        }
-      }}
     >
       {jobPreview ? (
         <img
@@ -97,6 +120,19 @@ export function StudioGalleryTile({
         <div className="studio-gallery-placeholder h-full w-full" />
       )}
       <div className="studio-gallery-scrim" />
+      {canInspect ? (
+        <button
+          type="button"
+          className="studio-gallery-select"
+          aria-label={
+            failedBatchTile
+              ? `View details for failed ${modelLabel} job`
+              : `Inspect ${tile.asset?.generation_kind ?? "media"}: ${tile.asset?.prompt_summary ?? tile.label}`
+          }
+          aria-pressed={selected}
+          onClick={selectTile}
+        />
+      ) : null}
       {tile.asset?.generation_kind === "video" && !batchTile ? (
         <div className="studio-gallery-video-overlay">
           <span className="studio-icon-button studio-gallery-icon-button-md">
@@ -105,38 +141,11 @@ export function StudioGalleryTile({
         </div>
       ) : null}
       {batchTile ? (
-        <div className="studio-gallery-overlay">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="studio-icon-button studio-gallery-icon-button-lg">
-              {batchJob?.status === "queued" ? (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="relative flex h-11 w-11 items-center justify-center">
-                    <div className="absolute inset-0 animate-pulse rounded-full border border-[var(--accent-border)]" />
-                    <div className="absolute inset-[6px] rounded-full border border-[var(--accent-border)] opacity-60" />
-                    <div className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent-strong)]" />
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent-strong)] [animation-delay:180ms]" />
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent-strong)] [animation-delay:360ms]" />
-                    </div>
-                  </div>
-                  <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--text-primary)]">Queued</div>
-                </div>
-              ) : batchJob?.status === "failed" ? (
-                <AlertTriangle className="size-6 text-[var(--feedback-danger-text)]" />
-              ) : (
-                <LoaderCircle className="size-6 animate-spin text-[var(--accent-strong)]" />
-              )}
-            </div>
-            <div className="text-[0.88rem] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-              {prettifyModelLabel(batchJob?.model_key ?? batchTile.model_key)}
-            </div>
-            {batchJob?.status === "failed" ? (
-              <div className="max-w-[18rem] text-[0.74rem] leading-5 text-[var(--feedback-danger-text)]">
-                {failedBatchSummary(batchJob?.error)}
-              </div>
-            ) : null}
-          </div>
-        </div>
+        <StudioGalleryJobState
+          status={status}
+          failed={failedBatchTile}
+          modelLabel={modelLabel}
+        />
       ) : null}
       {!batchTile ? (
         <div className="studio-gallery-footer">
@@ -155,15 +164,25 @@ export function StudioGalleryTile({
                   }}
                   disabled={favoriteAssetIdBusy === tile.asset.asset_id}
                   className={cn(
-                    "studio-icon-button studio-gallery-icon-button-sm",
-                    tile.asset?.favorited
-                      ? "studio-icon-button-favorite"
+                    "studio-icon-button studio-gallery-icon-button-sm studio-gallery-favorite",
+                    tile.asset.favorited ? "studio-icon-button-favorite" : "",
+                    favoriteAssetIdBusy === tile.asset.asset_id
+                      ? "opacity-60"
                       : "",
-                    favoriteAssetIdBusy === tile.asset.asset_id ? "opacity-60" : "",
                   )}
-                  aria-label={tile.asset?.favorited ? "Unfavorite media asset" : "Favorite media asset"}
+                  aria-label={
+                    tile.asset.favorited
+                      ? "Unfavorite media asset"
+                      : "Favorite media asset"
+                  }
+                  aria-pressed={Boolean(tile.asset.favorited)}
                 >
-                  <Heart className={cn("size-3.5", tile.asset?.favorited ? "fill-current" : "")} />
+                  <Heart
+                    className={cn(
+                      "size-3.5",
+                      tile.asset.favorited ? "fill-current" : "",
+                    )}
+                  />
                 </button>
               ) : null}
               <div className="studio-icon-button studio-gallery-icon-button-sm">
@@ -178,6 +197,52 @@ export function StudioGalleryTile({
             </div>
           </div>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StudioGalleryJobState({
+  status,
+  failed,
+  modelLabel,
+}: {
+  status: string | null | undefined;
+  failed: boolean;
+  modelLabel: string;
+}) {
+  return (
+    <div className="studio-gallery-overlay" data-status={status}>
+      <div className="studio-gallery-state-visual" aria-hidden="true">
+        {status === "queued" ? (
+          <Layers3 className="size-10" />
+        ) : failed ? (
+          <ImageIcon className="size-10" />
+        ) : (
+          <LoaderCircle className="size-10 animate-spin" />
+        )}
+      </div>
+      <div className="studio-gallery-state-footer">
+        <span className="studio-gallery-state-label">
+          {failed ? (
+            <CircleAlert className="studio-gallery-state-danger size-4" />
+          ) : status === "queued" ? (
+            <Layers3 className="size-4" />
+          ) : null}
+          {jobStatusLabel(status)}
+        </span>
+        {failed ? (
+          <span className="studio-gallery-state-details">
+            View details
+            <ChevronRight className="size-4" />
+          </span>
+        ) : null}
+      </div>
+      <span className="sr-only">{modelLabel}</span>
+      {failed ? (
+        <span className="sr-only">
+          Render failed. Open this tile to review the issue and retry in Studio.
+        </span>
       ) : null}
     </div>
   );

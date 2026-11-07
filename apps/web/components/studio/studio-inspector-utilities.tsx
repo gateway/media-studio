@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Check, Download, Heart, Link, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import type { MediaAsset } from "@/lib/types";
 
 export function StudioInspectorUtilities({
@@ -23,44 +23,43 @@ export function StudioInspectorUtilities({
 }) {
   return (
     <div className="studio-media-inspector-utilities">
-      <Button
+      <IconButton
+        icon={Heart}
         appearance="admin"
-        variant="ghost"
-        size="touch-compact"
+        quiet
+        title={selectedAsset.favorited ? "Saved" : "Favorite"}
+        aria-label={selectedAsset.favorited ? "Saved" : "Favorite"}
+        iconClassName={
+          selectedAsset.favorited ? "size-4 fill-current" : "size-4"
+        }
         aria-pressed={Boolean(selectedAsset.favorited)}
         disabled={favoriteAssetIdBusy === selectedAsset.asset_id}
         onClick={() => onToggleFavorite(selectedAsset)}
-      >
-        <Heart
-          className={selectedAsset.favorited ? "size-5 fill-current" : "size-5"}
-        />
-        <span>{selectedAsset.favorited ? "Saved" : "Favorite"}</span>
-      </Button>
+      />
       <CopyAssetLinkButton selectedAsset={selectedAsset} />
       {canDownload ? (
-        <Button
+        <IconButton
+          icon={Download}
           appearance="admin"
-          variant="utility"
-          size="touch-compact"
+          quiet
+          title={downloadActionLabel}
+          aria-label={downloadActionLabel}
+          iconClassName="size-4"
           data-testid="studio-inspector-download"
           onClick={onDownload}
-        >
-          <Download className="size-5" />
-          <span>{downloadActionLabel}</span>
-        </Button>
+        />
       ) : null}
-      <Button
+      <IconButton
+        icon={Trash2}
         appearance="admin"
-        size="touch-compact"
-        variant="danger-ghost"
-        className="admin-action-separated"
+        quiet
+        tone="danger"
+        title="Remove"
+        iconClassName="size-4"
         aria-label="Remove"
         data-testid="studio-inspector-remove"
         onClick={onDismiss}
-      >
-        <Trash2 className="size-5" />
-        <span className="studio-media-inspector-remove-label">Remove</span>
-      </Button>
+      />
     </div>
   );
 }
@@ -93,35 +92,29 @@ function CopyAssetLinkButton({ selectedAsset }: { selectedAsset: MediaAsset }) {
       setCopyLinkStatus("error");
     }
   }
+  const label =
+    copyLinkStatus === "copied"
+      ? "Link copied"
+      : copyLinkStatus === "error"
+        ? "Copy failed"
+        : "Copy link";
   return (
-    <Button
-      appearance="admin"
-      variant="ghost"
-      size="touch-compact"
-      aria-label={
-        copyLinkStatus === "copied"
-          ? "Link copied"
-          : copyLinkStatus === "error"
-            ? "Copy failed"
-            : "Copy link"
-      }
-      data-testid="studio-inspector-copy-link"
-      onClick={() => {
-        copyAssetLink().catch(console.error);
-      }}
-    >
-      {copyLinkStatus === "copied" ? (
-        <Check className="size-5" />
-      ) : (
-        <Link className="size-5" />
-      )}
-      <span role="status">
-        {copyLinkStatus === "copied"
-          ? "Link copied"
-          : copyLinkStatus === "error"
-            ? "Copy failed"
-            : "Copy link"}
+    <>
+      <IconButton
+        icon={copyLinkStatus === "copied" ? Check : Link}
+        appearance="admin"
+        quiet
+        title={label}
+        aria-label={label}
+        iconClassName="size-4"
+        data-testid="studio-inspector-copy-link"
+        onClick={() => {
+          copyAssetLink().catch(console.error);
+        }}
+      />
+      <span role="status" className="sr-only">
+        {copyLinkStatus === "idle" ? "" : label}
       </span>
-    </Button>
+    </>
   );
 }
