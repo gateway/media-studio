@@ -14,6 +14,7 @@ type StudioStagedMediaTileProps = {
   visualUrl?: string | null;
   footerLabel?: string | null;
   positionBadge?: React.ReactNode;
+  previewBadge?: React.ReactNode;
   onOpenPreview: (preview: StudioReferencePreview) => void;
   onRemove?: () => void;
   replaceControl?: React.ReactNode;
@@ -27,6 +28,7 @@ export function StudioStagedMediaTile({
   visualUrl,
   footerLabel,
   positionBadge,
+  previewBadge,
   onOpenPreview,
   onRemove,
   replaceControl,
@@ -110,6 +112,7 @@ export function StudioStagedMediaTile({
             <ImageIcon className="size-5" />
           </span>
         )}
+        {previewBadge}
         {footerLabel ? (
           <div className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1 text-[0.5rem] font-semibold uppercase leading-[1.15] tracking-[0.1em] text-white/92">
             {footerLabel}

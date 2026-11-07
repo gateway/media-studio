@@ -31,7 +31,7 @@ function renderComposer(
       estimatedCredits="~6 cr"
       structuredPresetActive={false}
       presetLabel={null}
-      externalTopContent={<div>Seedance reference strip</div>}
+      referenceInputs={<div>Seedance reference strip</div>}
       mobileInputsContent={<div>Mobile reference inputs</div>}
       sourceAttachmentStrip={<div>Source attachment strip</div>}
       floatingComposerStatus={null}
@@ -107,9 +107,10 @@ describe("StudioComposer", () => {
     expect(composerShell?.className).toContain("lg:absolute");
     expect(composerShell?.className).toContain("lg:top-auto");
     expect(composerShell?.className).toContain("lg:bottom-6");
+    expect(screen.getAllByText("Seedance reference strip")).toHaveLength(1);
     expect(
       screen.getByText("Seedance reference strip").parentElement?.className,
-    ).toContain("lg:block");
+    ).toContain("studio-composer-body");
   });
   it("shows one model picker and only the live balance in expanded mobile chrome", () => {
     const onToggleMobile = vi.fn();

@@ -18,9 +18,8 @@ type StripProps = ComponentProps<typeof StudioMultiImageReferenceStrip>;
 
 function referenceStripProps() {
   return {
-    imageLimitLabel: "0 / 16 images",
+    imageLimit: 16,
     orderedImageInputs: [],
-    canAddMoreImages: true,
     suspended: false,
     isDragActive: false,
     buildOrderedImageInputPreview: orderedImageInputPreview,
@@ -52,7 +51,7 @@ function ReferenceStripHarness(
       floatingComposerStatus={null}
       onToggleCollapsed={vi.fn()}
       onToggleComposerCollapsed={vi.fn()}
-      orderedImageReferences={
+      referenceInputs={
         <StudioMultiImageReferenceStrip
           {...props}
           expanded={expanded}
@@ -89,16 +88,16 @@ it("keeps the compact drop target available outside the thumbnails until capacit
   rerender(
     <ReferenceStripHarness
       {...props}
-      imageLimitLabel="4 / 16 images"
       orderedImageInputs={references.slice(0, 4)}
     />,
   );
   expect(screen.getByText("4/16")).toBeTruthy();
   expect(screen.getByLabelText("Add image references")).toBe(add);
-  const thumbnails = screen.getByTestId(
-    "studio-multi-image-slot-4",
-  ).parentElement;
-  expect(thumbnails?.contains(add)).toBe(false);
+  expect(screen.getByTestId("studio-multi-image-slot-1")).toBeTruthy();
+  expect(screen.queryByTestId("studio-multi-image-slot-2")).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Show 3 more image references" }),
+  ).toBeTruthy();
   fireEvent.drop(add.closest("label")!);
   expect(props.onDropIntoSlot).toHaveBeenCalledExactlyOnceWith(
     expect.anything(),
@@ -106,15 +105,13 @@ it("keeps the compact drop target available outside the thumbnails until capacit
   );
 
   rerender(
-    <ReferenceStripHarness
-      {...props}
-      imageLimitLabel="16 / 16 images"
-      orderedImageInputs={references}
-      canAddMoreImages={false}
-    />,
+    <ReferenceStripHarness {...props} orderedImageInputs={references} />,
   );
   expect(screen.getByText("16/16")).toBeTruthy();
   expect(screen.queryByLabelText("Add image references")).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Show 14 more image references" }),
+  ).toBeTruthy();
 });
 
 it("keeps the ordered reference actions available when the mobile composer and references are expanded", () => {
@@ -139,7 +136,6 @@ it("keeps the ordered reference actions available when the mobile composer and r
   render(
     <ReferenceStripHarness
       {...callbacks}
-      imageLimitLabel="2 / 16 images"
       orderedImageInputs={[first, second]}
     />,
   );

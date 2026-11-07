@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 function isVisibleControl(element: HTMLElement, panel: HTMLElement) {
   for (
@@ -46,8 +46,14 @@ function containTabFocus(event: KeyboardEvent, panel: HTMLElement) {
   }
 }
 
+const noReturnFocusFallback = { current: null };
+
 /** Own keyboard focus only while this is the topmost dialog. */
-export function useDialogFocus(onClose: () => void, suspended = false) {
+export function useDialogFocus(
+  onClose: () => void,
+  suspended = false,
+  returnFocusFallback: RefObject<HTMLElement | null> = noReturnFocusFallback,
+) {
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -58,6 +64,7 @@ export function useDialogFocus(onClose: () => void, suspended = false) {
   useEffect(() => {
     if (suspended) return;
     const panel = panelRef.current;
+    const fallback = returnFocusFallback.current;
     const previousFocus =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -94,8 +101,9 @@ export function useDialogFocus(onClose: () => void, suspended = false) {
       const active = document.activeElement;
       if (active instanceof HTMLElement && panel?.contains(active))
         resumeFocus.current = active;
-      returnFocus.current?.focus();
+      const previous = returnFocus.current;
+      (previous?.isConnected ? previous : fallback)?.focus();
     };
-  }, [suspended]);
+  }, [suspended, returnFocusFallback]);
   return panelRef;
 }

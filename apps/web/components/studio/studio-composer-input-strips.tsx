@@ -2,14 +2,16 @@
 
 import type { DragEvent } from "react";
 
-import {
-  StudioMediaSlotAddTile,
-  studioMediaSlotAddTileIcon,
-} from "@/components/studio/studio-media-slot-add-tile";
+import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
 import {
   StudioStagedMediaReplaceControl,
   StudioStagedMediaTile,
 } from "@/components/studio/studio-staged-media-tile";
+import {
+  StudioReferenceManager,
+  type StudioReferenceGroup,
+  type StudioReferenceManagerProps,
+} from "@/components/studio/studio-reference-manager";
 import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
 import type {
   AttachmentPreviewBuilder,
@@ -30,11 +32,7 @@ import { cn } from "@/lib/utils";
 export { StudioMobileInputsContent } from "@/components/studio/studio-mobile-inputs-content";
 
 const STUDIO_COMPOSER_TILE_CLASS_NAME = "h-[82px] w-[82px]";
-const STUDIO_COMPOSER_ADD_TILE_CLASS_NAME = `${STUDIO_COMPOSER_TILE_CLASS_NAME} rounded-[22px]`;
-const STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME = "size-4.5";
-
-type StudioSeedanceReferenceStripProps = {
-  isDragActive: boolean;
+type StudioSeedanceReferenceStripProps = StudioReferenceManagerProps & {
   referenceImages: AttachmentRecord[];
   referenceVideos: AttachmentRecord[];
   referenceAudios: AttachmentRecord[];
@@ -42,19 +40,17 @@ type StudioSeedanceReferenceStripProps = {
   maxVideoReferences: number;
   maxAudioReferences: number;
   buildAttachmentPreview: AttachmentPreviewBuilder;
-  onSetDragActive: (value: boolean) => void;
   onReferenceDrop: (
-    event: DragEvent<HTMLDivElement>,
-    kind: "images" | "videos" | "audios",
+    event: DragEvent<HTMLElement>,
+    kind: AttachmentRecord["kind"],
   ) => void;
-  onOpenPreview: (preview: StudioReferencePreview) => void;
+  onOpenLibrary: () => void;
   onRemoveAttachment: (attachmentId: string) => void;
   onAddFiles: StudioAddFilesHandler;
   onResetFileInput: (input: HTMLInputElement | null) => void;
 };
 
 export function StudioSeedanceReferenceStrip({
-  isDragActive,
   referenceImages,
   referenceVideos,
   referenceAudios,
@@ -62,153 +58,48 @@ export function StudioSeedanceReferenceStrip({
   maxVideoReferences,
   maxAudioReferences,
   buildAttachmentPreview,
-  onSetDragActive,
   onReferenceDrop,
-  onOpenPreview,
+  onOpenLibrary,
   onRemoveAttachment,
   onAddFiles,
   onResetFileInput,
+  ...managerProps
 }: StudioSeedanceReferenceStripProps) {
   const groups = [
-    {
-      key: "images" as const,
-      label: "Image refs",
-      tokenHint: "image@",
-      attachments: referenceImages,
-      accept: "image/*",
-      maxLabel: maxImageReferences,
-      tileClassName: STUDIO_COMPOSER_TILE_CLASS_NAME,
-      addTileClassName: STUDIO_COMPOSER_ADD_TILE_CLASS_NAME,
-      plusIconClassName: STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME,
-      maxVisibleTiles: 4,
-    },
-    {
-      key: "videos" as const,
-      label: "Video refs",
-      tokenHint: "video@",
-      attachments: referenceVideos,
-      accept: "video/*",
-      maxLabel: maxVideoReferences,
-      tileClassName: STUDIO_COMPOSER_TILE_CLASS_NAME,
-      addTileClassName: STUDIO_COMPOSER_ADD_TILE_CLASS_NAME,
-      plusIconClassName: STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME,
-      maxVisibleTiles: 3,
-    },
-    {
-      key: "audios" as const,
-      label: "Audio refs",
-      tokenHint: "audio@",
-      attachments: referenceAudios,
-      accept: "audio/*",
-      maxLabel: maxAudioReferences,
-      tileClassName: STUDIO_COMPOSER_TILE_CLASS_NAME,
-      addTileClassName: STUDIO_COMPOSER_ADD_TILE_CLASS_NAME,
-      plusIconClassName: STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME,
-      maxVisibleTiles: 3,
-    },
-  ];
+    { kind: "images", limit: maxImageReferences, attachments: referenceImages },
+    { kind: "videos", limit: maxVideoReferences, attachments: referenceVideos },
+    { kind: "audios", limit: maxAudioReferences, attachments: referenceAudios },
+  ] as const;
 
   return (
-    <div className="studio-composer-input-panel rounded-[26px] px-4 py-3 backdrop-blur-2xl">
-      <div className="studio-meta-label mb-3">Seedance References</div>
-      <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,0.85fr)_minmax(260px,0.85fr)]">
-        {groups.map((group) => (
-          <div
-            key={group.key}
-            data-testid={`seedance-group-${group.key}`}
-            onDragOver={(event) => {
-              event.preventDefault();
-              onSetDragActive(true);
-            }}
-            onDragLeave={() => onSetDragActive(false)}
-            onDrop={(event) => onReferenceDrop(event, group.key)}
-            className={cn(
-              "studio-composer-reference-group relative rounded-[20px] px-3 py-2.5 transition",
-              isDragActive ? "studio-composer-reference-group-active" : "",
-            )}
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                  {group.label}{" "}
-                  <span className="text-[var(--text-subtle)]">
-                    - {group.tokenHint}
-                  </span>
-                </div>
-              </div>
-              <div className="studio-composer-count-badge shrink-0 rounded-full px-1.5 py-0.5 text-[0.52rem] font-semibold uppercase tracking-[0.12em]">
-                {group.attachments.length}
-                {` / ${group.maxLabel}`}
-              </div>
-            </div>
-            <div className="studio-reference-rail">
-              <div className="studio-reference-rail-items">
-                {group.attachments
-                  .slice(0, group.maxVisibleTiles)
-                  .map((attachment) => (
-                    <StudioStagedMediaTile
-                      key={attachment.id}
-                      preview={seedanceReferencePreview(
-                        attachment,
-                        group.key,
-                        buildAttachmentPreview,
-                      )}
-                      visualUrl={seedanceReferenceVisual(attachment)}
-                      onOpenPreview={onOpenPreview}
-                      onRemove={() => onRemoveAttachment(attachment.id)}
-                      className={cn("shrink-0", group.tileClassName)}
-                      testId={`seedance-group-tile-${group.key}-${attachment.id}`}
-                    />
-                  ))}
-                {group.attachments.length > group.maxVisibleTiles ? (
-                  <div
-                    className={cn(
-                      "studio-composer-muted-tile flex shrink-0 items-center justify-center text-[0.58rem] font-semibold uppercase tracking-[0.12em]",
-                      group.addTileClassName,
-                    )}
-                  >
-                    +{group.attachments.length - group.maxVisibleTiles}
-                  </div>
-                ) : null}
-              </div>
-              {group.attachments.length < group.maxLabel ? (
-                <label
-                  className={cn(
-                    "studio-composer-add-control flex shrink-0 cursor-pointer items-center justify-center transition",
-                    group.addTileClassName,
-                  )}
-                >
-                  {(() => {
-                    const AddIcon = studioMediaSlotAddTileIcon(
-                      group.key === "videos"
-                        ? "video"
-                        : group.key === "audios"
-                          ? "audio"
-                          : "image",
-                    );
-                    return <AddIcon className={group.plusIconClassName} />;
-                  })()}
-                  <input
-                    type="file"
-                    multiple
-                    accept={group.accept}
-                    data-testid={`seedance-group-input-${group.key}`}
-                    className="hidden"
-                    onChange={(event) => {
-                      onAddFiles(event.target.files, {
-                        role: "reference",
-                        allowedKinds: [group.key],
-                      });
-                      onResetFileInput(event.currentTarget);
-                    }}
-                  />
-                </label>
-              ) : null}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <StudioReferenceManager
+      {...managerProps}
+      compact
+      groups={groups.map(
+        ({ kind, limit, attachments }): StudioReferenceGroup => ({
+          kind,
+          limit,
+          slots: attachments.map((attachment) => ({
+            key: attachment.id,
+            testId: `seedance-group-tile-${kind}-${attachment.id}`,
+            preview: seedanceReferencePreview(
+              attachment,
+              kind,
+              buildAttachmentPreview,
+            ),
+            visualUrl: seedanceReferenceVisual(attachment),
+            onRemove: () => onRemoveAttachment(attachment.id),
+          })),
+          uploadTestId: `seedance-group-input-${kind}`,
+          onAdd: (files, input) => {
+            onAddFiles(files, { role: "reference", allowedKinds: [kind] });
+            onResetFileInput(input);
+          },
+          onDrop: (event) => onReferenceDrop(event, kind),
+          onOpenLibrary: kind === "images" ? onOpenLibrary : undefined,
+        }),
+      )}
+    />
   );
 }
 

@@ -22,6 +22,7 @@ type StudioMediaSlotAddTileProps = {
   inputLabel?: string;
   actionLabel?: React.ReactNode;
   mediaKind?: StudioMediaSlotAddTileKind;
+  icon?: LucideIcon;
   required?: boolean;
   testId?: string;
   wrapperClassName?: string;
@@ -52,7 +53,7 @@ function inferMediaKindFromAccept(accept: string): StudioMediaSlotAddTileKind {
   return "image";
 }
 
-export function studioMediaSlotAddTileIcon(
+function studioMediaSlotAddTileIcon(
   kind: StudioMediaSlotAddTileKind,
 ): LucideIcon {
   if (kind === "video") {
@@ -80,6 +81,7 @@ export function StudioMediaSlotAddTile({
   inputLabel,
   actionLabel,
   mediaKind,
+  icon,
   required,
   testId,
   wrapperClassName,
@@ -91,7 +93,7 @@ export function StudioMediaSlotAddTile({
   onPickFiles,
 }: StudioMediaSlotAddTileProps) {
   const resolvedKind = mediaKind ?? inferMediaKindFromAccept(accept);
-  const Icon = studioMediaSlotAddTileIcon(resolvedKind);
+  const Icon = icon ?? studioMediaSlotAddTileIcon(resolvedKind);
 
   function handleDragOver(event: React.DragEvent<HTMLLabelElement>) {
     event.preventDefault();

@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ComponentType } from "react";
+import type { ButtonHTMLAttributes, ComponentType, Ref } from "react";
 
 import { buttonClassName } from "./button";
 import { ControlTooltip } from "./control-tooltip";
@@ -90,6 +90,7 @@ export function IconButton({
   title,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
+  ref?: Ref<HTMLButtonElement>;
   icon: ComponentType<{ className?: string }>;
   appearance?: IconButtonAppearance;
   tone?: IconButtonTone;

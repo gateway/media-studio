@@ -1,7 +1,13 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { useDialogFocus } from "@/components/ui/use-dialog-focus";
 import { OverlayShell } from "@/components/ui/surface-primitives";
 import { cn } from "@/lib/utils";
@@ -12,7 +18,10 @@ export function StudioBrowserOverlay({
   zIndexClassName,
   title,
   description,
+  heading,
   actions,
+  footer,
+  returnFocusFallback,
   onClose,
   suspended = false,
   layout = "grid",
@@ -22,13 +31,16 @@ export function StudioBrowserOverlay({
   zIndexClassName: string;
   title: string;
   description?: ReactNode;
+  heading?: ReactNode;
   actions?: ReactNode;
+  footer?: ReactNode;
+  returnFocusFallback?: RefObject<HTMLElement | null>;
   onClose: () => void;
   suspended?: boolean;
   layout?: "grid" | "list";
 }) {
   const titleId = useId();
-  const panelRef = useDialogFocus(onClose, suspended);
+  const panelRef = useDialogFocus(onClose, suspended, returnFocusFallback);
 
   return (
     <OverlayShell
@@ -54,12 +66,16 @@ export function StudioBrowserOverlay({
       >
         <header className="studio-browser-header">
           <div>
-            <h2 id={titleId}>{title}</h2>
+            <h2 id={titleId} className={heading ? "sr-only" : undefined}>
+              {title}
+            </h2>
+            {heading}
             {description ? <p>{description}</p> : null}
           </div>
           <div className="studio-browser-header-actions">{actions}</div>
         </header>
         <div className="studio-browser-body scrollbar-none">{children}</div>
+        {footer}
       </div>
     </OverlayShell>
   );

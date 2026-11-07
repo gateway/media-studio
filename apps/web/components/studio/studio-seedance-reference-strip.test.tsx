@@ -11,6 +11,9 @@ describe("StudioSeedanceReferenceStrip", () => {
   it("renders the selected model's reference limits", () => {
     render(
       <StudioSeedanceReferenceStrip
+        expanded={false}
+        suspended={false}
+        onExpandedChange={vi.fn()}
         isDragActive={false}
         referenceImages={[]}
         referenceVideos={[]}
@@ -23,12 +26,16 @@ describe("StudioSeedanceReferenceStrip", () => {
         onReferenceDrop={vi.fn()}
         onOpenPreview={vi.fn()}
         onRemoveAttachment={vi.fn()}
+        onOpenLibrary={vi.fn()}
         onAddFiles={vi.fn()}
         onResetFileInput={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("0 / 30")).toBeTruthy();
-    expect(screen.getAllByText("0 / 10")).toHaveLength(2);
+    expect(
+      screen.getByRole("tab", { name: "Images 0/30", selected: true }),
+    ).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Videos 0/10" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Audio 0/10" })).toBeTruthy();
   });
 });

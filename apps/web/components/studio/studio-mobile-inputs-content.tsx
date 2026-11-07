@@ -2,10 +2,7 @@
 
 import type { DragEvent } from "react";
 
-import {
-  StudioMediaSlotAddTile,
-  studioMediaSlotAddTileIcon,
-} from "@/components/studio/studio-media-slot-add-tile";
+import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
 import {
   StudioMobileInputsGroup,
   StudioMobileInputsSection,
@@ -23,21 +20,9 @@ import {
   type StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
 import type { StudioComposerInputRail } from "@/lib/studio-model-support";
-import {
-  seedanceReferencePreview,
-  seedanceReferenceVisual,
-} from "@/lib/studio-reference-previews";
-import { cn } from "@/lib/utils";
 
 const MOBILE_INPUT_TILE_CLASS = "h-[72px] w-[72px]";
-const MOBILE_INPUT_DROP_ZONE_CLASS =
-  "rounded-[18px] border border-white/8 bg-white/[0.025] p-2 transition";
-const MOBILE_INPUT_DROP_ZONE_ACTIVE_CLASS =
-  "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]";
-const MOBILE_INPUT_INLINE_ADD_TILE_CLASS =
-  "flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]";
-const MOBILE_INPUT_MORE_TILE_CLASS =
-  "flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58";
+
 type StudioMobileInputsContentProps = {
   inputRail: StudioComposerInputRail;
   effectiveSeedanceMode: string;
@@ -45,12 +30,6 @@ type StudioMobileInputsContentProps = {
   isDragActive: boolean;
   seedanceFirstFrameAttachment: AttachmentRecord | null;
   seedanceLastFrameAttachment: AttachmentRecord | null;
-  seedanceReferenceImages: AttachmentRecord[];
-  seedanceReferenceVideos: AttachmentRecord[];
-  seedanceReferenceAudios: AttachmentRecord[];
-  maxImageReferences: number;
-  maxVideoReferences: number;
-  maxAudioReferences: number;
   standardComposerSectionTitle: string;
   standardComposerSummaryLabel: string | null;
   standardComposerSlots: StudioComposerSlot[];
@@ -68,10 +47,6 @@ type StudioMobileInputsContentProps = {
     event: DragEvent<HTMLDivElement | HTMLLabelElement>,
     slotIndex?: number,
     slot?: StudioComposerSlot,
-  ) => void;
-  onSeedanceReferenceDrop: (
-    event: DragEvent<HTMLDivElement>,
-    kind: "images" | "videos" | "audios",
   ) => void;
   onOpenPreview: (preview: StudioReferencePreview | null) => void;
   onRemoveAttachment: (attachmentId: string) => void;
@@ -93,12 +68,6 @@ export function StudioMobileInputsContent({
   isDragActive,
   seedanceFirstFrameAttachment,
   seedanceLastFrameAttachment,
-  seedanceReferenceImages,
-  seedanceReferenceVideos,
-  seedanceReferenceAudios,
-  maxImageReferences,
-  maxVideoReferences,
-  maxAudioReferences,
   standardComposerSectionTitle,
   standardComposerSummaryLabel,
   standardComposerSlots,
@@ -110,7 +79,6 @@ export function StudioMobileInputsContent({
   onSetDragActive,
   onSetFormWarning,
   onDropIntoSourceSlot,
-  onSeedanceReferenceDrop,
   onOpenPreview,
   onRemoveAttachment,
   onClearStandardComposerSlot,
@@ -119,45 +87,6 @@ export function StudioMobileInputsContent({
   onResetFileInput,
 }: StudioMobileInputsContentProps) {
   if (inputRail === "seedance") {
-    const groups = [
-      {
-        key: "images" as const,
-        label: "Image refs",
-        tokenHint: "image@",
-        attachments: seedanceReferenceImages,
-        accept: "image/*",
-        maxLabel: maxImageReferences,
-        tileClassName: MOBILE_INPUT_TILE_CLASS,
-        addTileClassName: mobileAddTileClassName,
-        plusIconClassName: mobileAddTilePlusIconClassName,
-        maxVisibleTiles: 4,
-      },
-      {
-        key: "videos" as const,
-        label: "Video refs",
-        tokenHint: "video@",
-        attachments: seedanceReferenceVideos,
-        accept: "video/*",
-        maxLabel: maxVideoReferences,
-        tileClassName: MOBILE_INPUT_TILE_CLASS,
-        addTileClassName: mobileAddTileClassName,
-        plusIconClassName: mobileAddTilePlusIconClassName,
-        maxVisibleTiles: 3,
-      },
-      {
-        key: "audios" as const,
-        label: "Audio refs",
-        tokenHint: "audio@",
-        attachments: seedanceReferenceAudios,
-        accept: "audio/*",
-        maxLabel: maxAudioReferences,
-        tileClassName: MOBILE_INPUT_TILE_CLASS,
-        addTileClassName: mobileAddTileClassName,
-        plusIconClassName: mobileAddTilePlusIconClassName,
-        maxVisibleTiles: 3,
-      },
-    ];
-
     return (
       <StudioMobileInputsSection title="Inputs">
         <div className="grid gap-3">
@@ -264,92 +193,6 @@ export function StudioMobileInputsContent({
               })}
             </div>
           </StudioMobileInputsGroup>
-
-          {groups.map((group) => (
-            <StudioMobileInputsGroup
-              key={`mobile-${group.key}`}
-              label={`${group.label} - ${group.tokenHint}`}
-              summary={`${group.attachments.length} / ${group.maxLabel}`}
-            >
-              <div
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  onSetDragActive(true);
-                }}
-                onDragLeave={() => onSetDragActive(false)}
-                onDrop={(event) => onSeedanceReferenceDrop(event, group.key)}
-                className={cn(
-                  MOBILE_INPUT_DROP_ZONE_CLASS,
-                  isDragActive ? MOBILE_INPUT_DROP_ZONE_ACTIVE_CLASS : "",
-                )}
-              >
-                <div className="studio-reference-rail">
-                  <div className="studio-reference-rail-items">
-                    {group.attachments
-                      .slice(0, group.maxVisibleTiles)
-                      .map((attachment) => (
-                        <StudioStagedMediaTile
-                          key={attachment.id}
-                          preview={seedanceReferencePreview(
-                            attachment,
-                            `mobile-${group.key}`,
-                            buildAttachmentPreview,
-                          )}
-                          visualUrl={seedanceReferenceVisual(attachment)}
-                          onOpenPreview={onOpenPreview}
-                          onRemove={() => onRemoveAttachment(attachment.id)}
-                          className={cn("shrink-0", group.tileClassName)}
-                          testId={`studio-mobile-seedance-group-tile-${group.key}-${attachment.id}`}
-                        />
-                      ))}
-                    {group.attachments.length > group.maxVisibleTiles ? (
-                      <div
-                        className={cn(
-                          MOBILE_INPUT_MORE_TILE_CLASS,
-                          group.addTileClassName,
-                        )}
-                      >
-                        +{group.attachments.length - group.maxVisibleTiles}
-                      </div>
-                    ) : null}
-                  </div>
-                  {group.attachments.length < group.maxLabel ? (
-                    <label
-                      className={cn(
-                        MOBILE_INPUT_INLINE_ADD_TILE_CLASS,
-                        group.addTileClassName,
-                      )}
-                    >
-                      {(() => {
-                        const AddIcon = studioMediaSlotAddTileIcon(
-                          group.key === "videos"
-                            ? "video"
-                            : group.key === "audios"
-                              ? "audio"
-                              : "image",
-                        );
-                        return <AddIcon className={group.plusIconClassName} />;
-                      })()}
-                      <input
-                        type="file"
-                        multiple
-                        accept={group.accept}
-                        data-testid={`studio-mobile-seedance-group-input-${group.key}`}
-                        className="hidden"
-                        onChange={(event) => {
-                          onAddFiles(event.target.files, {
-                            role: "reference",
-                            allowedKinds: [group.key],
-                          });
-                          onResetFileInput(event.currentTarget);
-                        }}
-                      />
-                    </label>
-                  ) : null}
-                </div>
-              </div>
-            </StudioMobileInputsGroup>
-          ))}
         </div>
       </StudioMobileInputsSection>
     );

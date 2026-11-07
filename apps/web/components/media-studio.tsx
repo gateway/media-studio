@@ -147,7 +147,7 @@ export function MediaStudio({
     MediaPreset[]
   >([]);
   const [projectBrowserOpen, setProjectBrowserOpen] = useState(false);
-  const [imageReferencesExpanded, setImageReferencesExpanded] = useState(false);
+  const [referencesExpanded, setReferencesExpanded] = useState(false);
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(
     null,
   );
@@ -490,8 +490,6 @@ export function MediaStudio({
     inferredInputPattern,
     canSubmit,
     composerStatusMessage,
-    imageLimitLabel,
-    canAddMoreImages,
     seedanceFirstFrameAttachment,
     seedanceLastFrameAttachment,
     seedanceReferenceImages,
@@ -748,6 +746,7 @@ export function MediaStudio({
     setReferenceLibraryTarget,
     openReferencePreview,
     openContextualReferenceLibrary,
+    openReferenceLibrary,
     handleReferenceLibrarySelect,
   } = useStudioReferenceLibrary({
     canOpenReferenceLibrary,
@@ -777,6 +776,7 @@ export function MediaStudio({
       setSelectedMediaLightboxOpen(false);
       setSelectedReferencePreview(null);
       setReferenceLibraryTarget(null);
+      setReferencesExpanded(false);
       setPresetBrowserOpen(false);
       setProjectBrowserOpen(false);
     };
@@ -1215,20 +1215,23 @@ export function MediaStudio({
     });
   }
 
+  const referenceManagerProps = {
+    expanded: referencesExpanded,
+    suspended: Boolean(selectedReferencePreview || referenceLibraryTarget),
+    onExpandedChange: setReferencesExpanded,
+    isDragActive,
+    onSetDragActive: setIsDragActive,
+    onOpenPreview: openReferencePreview,
+    feedback: formMessage,
+  };
   const multiImageReferenceStrip = dedicatedImageReferenceRailActive ? (
     <StudioMultiImageReferenceStrip
-      imageLimitLabel={imageLimitLabel}
-      expanded={imageReferencesExpanded}
-      suspended={Boolean(selectedReferencePreview || referenceLibraryTarget)}
-      onExpandedChange={setImageReferencesExpanded}
+      {...referenceManagerProps}
+      imageLimit={maxImageInputs}
       onOpenLibrary={openContextualReferenceLibrary}
       orderedImageInputs={orderedImageInputs}
-      canAddMoreImages={canAddMoreImages}
-      isDragActive={isDragActive}
       buildOrderedImageInputPreview={orderedImageInputPreview}
-      onOpenPreview={openReferencePreview}
       onClearOrderedImageInput={clearOrderedImageInput}
-      onSetDragActive={setIsDragActive}
       onDropIntoSlot={(event, slotIndex) =>
         void handleSourceTileDrop(event, slotIndex)
       }
@@ -1367,28 +1370,34 @@ export function MediaStudio({
         onResetFileInput={resetFileInputValue}
       />
     ) : null;
-  const seedanceReferenceStrip = seedanceComposer ? (
-    <StudioSeedanceReferenceStrip
-      isDragActive={isDragActive}
-      referenceImages={seedanceReferenceImages}
-      referenceVideos={seedanceReferenceVideos}
-      referenceAudios={seedanceReferenceAudios}
-      maxImageReferences={maxImageInputs}
-      maxVideoReferences={maxVideoInputs}
-      maxAudioReferences={maxAudioInputs}
-      buildAttachmentPreview={buildAttachmentPreview}
-      onSetDragActive={setIsDragActive}
-      onReferenceDrop={(event, kind) =>
-        void handleSeedanceReferenceDrop(event, kind)
-      }
-      onOpenPreview={openReferencePreview}
-      onRemoveAttachment={removeAttachment}
-      onAddFiles={(files, options) => {
-        addFiles(files, options).catch(reportActionError);
-      }}
-      onResetFileInput={resetFileInputValue}
-    />
-  ) : null;
+  const seedanceReferenceStrip =
+    composerInputRail === "seedance" ? (
+      <StudioSeedanceReferenceStrip
+        {...referenceManagerProps}
+        referenceImages={seedanceReferenceImages}
+        referenceVideos={seedanceReferenceVideos}
+        referenceAudios={seedanceReferenceAudios}
+        maxImageReferences={maxImageInputs}
+        maxVideoReferences={maxVideoInputs}
+        maxAudioReferences={maxAudioInputs}
+        buildAttachmentPreview={buildAttachmentPreview}
+        onReferenceDrop={handleSeedanceReferenceDrop}
+        onOpenLibrary={() =>
+          openReferenceLibrary({
+            type: "attachment",
+            title: "Pick a reusable image for Seedance reference guidance.",
+            role: "reference",
+            allowedKinds: ["images"],
+          })
+        }
+        onRemoveAttachment={removeAttachment}
+        onAddFiles={(files, options) => {
+          addFiles(files, options).catch(reportActionError);
+        }}
+        onResetFileInput={resetFileInputValue}
+      />
+    ) : null;
+  const referenceInputs = multiImageReferenceStrip ?? seedanceReferenceStrip;
   const mobileInputsSection =
     !structuredPresetActive && !dedicatedImageReferenceRailActive ? (
       <StudioMobileInputsContent
@@ -1398,12 +1407,6 @@ export function MediaStudio({
         isDragActive={isDragActive}
         seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
         seedanceLastFrameAttachment={seedanceLastFrameAttachment}
-        seedanceReferenceImages={seedanceReferenceImages}
-        seedanceReferenceVideos={seedanceReferenceVideos}
-        seedanceReferenceAudios={seedanceReferenceAudios}
-        maxImageReferences={maxImageInputs}
-        maxVideoReferences={maxVideoInputs}
-        maxAudioReferences={maxAudioInputs}
         standardComposerSectionTitle={standardComposerSectionTitle}
         standardComposerSummaryLabel={standardComposerLayout.summaryLabel}
         standardComposerSlots={standardComposerSlots}
@@ -1412,9 +1415,6 @@ export function MediaStudio({
         {...composerMediaInteractionProps}
         onDropIntoSourceSlot={(event, slotIndex, slot) =>
           void handleSourceTileDrop(event, slotIndex, slot)
-        }
-        onSeedanceReferenceDrop={(event, kind) =>
-          void handleSeedanceReferenceDrop(event, kind)
         }
         onOpenPreview={openReferencePreview}
         onRemoveAttachment={removeAttachment}
@@ -1455,7 +1455,7 @@ export function MediaStudio({
     Boolean(selectedAssetId) ||
     studioSettingsOpen ||
     presetBrowserOpen ||
-    (dedicatedImageReferenceRailActive && imageReferencesExpanded) ||
+    (Boolean(referenceInputs) && referencesExpanded) ||
     selectedMediaLightboxOpen ||
     Boolean(selectedReferencePreview) ||
     Boolean(referenceLibraryTarget);
@@ -2369,8 +2369,7 @@ export function MediaStudio({
                 structuredPresetActive={structuredPresetActive}
                 presetLabel={currentPreset?.label ?? null}
                 modelPicker={leadingModelPicker}
-                externalTopContent={seedanceReferenceStrip}
-                orderedImageReferences={multiImageReferenceStrip}
+                referenceInputs={referenceInputs}
                 mobileInputsContent={mobileInputsSection}
                 sourceAttachmentStrip={sourceAttachmentStrip}
                 floatingComposerStatus={floatingComposerStatus}

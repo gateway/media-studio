@@ -25,8 +25,7 @@ type StudioComposerProps = {
   structuredPresetActive: boolean;
   presetLabel: string | null;
   modelPicker?: React.ReactNode;
-  externalTopContent?: React.ReactNode;
-  orderedImageReferences?: React.ReactNode;
+  referenceInputs?: React.ReactNode;
   mobileInputsContent?: React.ReactNode;
   sourceAttachmentStrip?: React.ReactNode;
   floatingComposerStatus: FloatingComposerStatus | null;
@@ -47,8 +46,7 @@ export function StudioComposer({
   structuredPresetActive,
   presetLabel,
   modelPicker,
-  externalTopContent,
-  orderedImageReferences,
+  referenceInputs,
   mobileInputsContent,
   sourceAttachmentStrip,
   floatingComposerStatus,
@@ -58,8 +56,7 @@ export function StudioComposer({
 }: StudioComposerProps) {
   const hasSidebar = Boolean(sourceAttachmentStrip);
   const hasReferenceInputs = [
-    orderedImageReferences,
-    externalTopContent,
+    referenceInputs,
     sourceAttachmentStrip,
     mobileInputsContent,
   ].some(Boolean);
@@ -74,18 +71,6 @@ export function StudioComposer({
       : "lg:absolute lg:inset-x-6 lg:bottom-6 lg:top-auto lg:z-20 lg:block lg:overflow-visible lg:bg-transparent lg:p-0 lg:backdrop-blur-none",
   );
 
-  const externalInputs = externalTopContent ? (
-    <div
-      className={cn(
-        "studio-composer-external-inputs pointer-events-auto mb-3 hidden w-full md:block",
-        mobileComposerExpanded ? "md:hidden lg:mx-auto lg:block" : "mx-auto",
-        immersive ? "max-w-[1480px]" : "max-w-[1240px]",
-      )}
-    >
-      {externalTopContent}
-    </div>
-  ) : null;
-
   return (
     <div
       data-structured-preset-active={structuredPresetActive}
@@ -97,7 +82,6 @@ export function StudioComposer({
           : dockedComposerClassName,
       )}
     >
-      {!composerCollapsed && !modelPicker ? externalInputs : null}
       {floatingComposerStatus ? (
         <div
           className={cn(
@@ -179,8 +163,7 @@ export function StudioComposer({
                 : "",
             )}
           >
-            {orderedImageReferences}
-            {modelPicker ? externalInputs : null}
+            {referenceInputs}
             <div
               className={cn(
                 "studio-composer-layout grid gap-4 md:items-stretch",

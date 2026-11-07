@@ -564,12 +564,13 @@ html:has(.studio-browser-backdrop) {
 
 .studio-expanded-references .studio-browser-position {
   align-items: center;
+  padding: 16px;
 }
 
 .studio-expanded-references .studio-browser-panel {
   width: min(100%, 774px);
   height: auto;
-  max-height: calc(100dvh - 48px);
+  max-height: calc(100dvh - 32px);
 }
 
 .studio-expanded-references .studio-browser-shell {
@@ -577,20 +578,19 @@ html:has(.studio-browser-backdrop) {
   max-height: inherit;
 }
 
-.studio-expanded-references .studio-browser-header h2 {
-  font-size: 1rem;
-  line-height: 2rem;
+.studio-expanded-references .studio-browser-header {
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px 0;
+  border: 0;
 }
 
-.studio-expanded-reference-kind {
-  display: flex;
-  margin-block-end: 12px;
-}
-
-.studio-expanded-reference-kind .studio-ordered-reference-count {
-  padding: 6px 12px;
-  border-radius: var(--radius-control);
-  background: var(--accent-soft);
+.studio-expanded-references .studio-browser-body {
+  overflow: hidden auto;
+  padding: 10px 14px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .studio-expanded-reference-grid.studio-browser-grid {
@@ -598,21 +598,26 @@ html:has(.studio-browser-backdrop) {
   gap: 10px;
 }
 
-.studio-ordered-reference-tile-expanded {
+.studio-expanded-reference-grid .studio-ordered-reference-tile {
   width: 100%;
-  height: auto;
+  min-height: 64px;
   aspect-ratio: 2;
 }
 
-.studio-expanded-reference-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-block-start: 12px;
+.studio-expanded-reference-feedback {
+  margin-block-end: 10px;
 }
 
-.studio-expanded-reference-actions .studio-media-slot-add-wrapper {
-  display: grid;
+.studio-expanded-reference-actions {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: 12px;
+  padding: 0 14px 12px;
+}
+
+.studio-expanded-reference-actions > * {
+  flex: 1 1 140px;
 }
 
 .studio-expanded-reference-actions .studio-slot-tile-drag-active {
@@ -621,18 +626,25 @@ html:has(.studio-browser-backdrop) {
   --action-subtle-surface-hover: var(--accent-soft);
 }
 
-.studio-expanded-reference-actions > button {
-  text-align: center;
-}
-
 .studio-expanded-reference-actions svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
 }
 
 @media (width < 600px) {
   .studio-expanded-reference-grid.studio-browser-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width < 420px) {
+  .studio-expanded-references .studio-reference-tabs svg {
+    display: none;
+  }
+
+  .studio-expanded-references .studio-reference-tabs > [role="tab"] {
+    padding-inline: 5px;
+    font-size: 0.8125rem;
   }
 }
