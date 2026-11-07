@@ -1,10 +1,21 @@
 "use client";
 
-import { LoaderCircle, Sparkles, X } from "lucide-react";
+import {
+  ArrowRight,
+  ChartNoAxesColumn,
+  ChevronDown,
+  FileText,
+  LoaderCircle,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { useId } from "react";
 
 import { enhancementFailureMessage } from "@/lib/studio-enhancement";
 
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { useDialogFocus } from "@/components/ui/use-dialog-focus";
 
 type StudioEnhanceDialogProps = {
   open: boolean;
@@ -30,181 +41,241 @@ type StudioEnhanceDialogProps = {
   onUsePrompt: () => void;
 };
 
-export function StudioEnhanceDialog({
-  open,
-  previewVisual,
-  userPrompt,
-  enhancedPrompt,
-  imageAnalysisText,
-  currentModelLabel,
-  currentPresetLabel,
-  providerLabel,
-  providerModelId,
-  modeLabel,
-  readinessLabel,
-  imageAnalysisStatus,
+export function StudioEnhanceDialog(props: StudioEnhanceDialogProps) {
+  const {
+    open,
+    previewVisual,
+    userPrompt,
+    enhancedPrompt,
+    imageAnalysisText,
+    currentModelLabel,
+    currentPresetLabel,
+    providerLabel,
+    providerModelId,
+    modeLabel,
+    readinessLabel,
+    imageAnalysisStatus,
+    busy,
+    error,
+    warnings,
+    onClose,
+  } = props;
+  const titleId = useId();
+  const panelRef = useDialogFocus(onClose, !open);
+  const errorMessage = error ? enhancementFailureMessage(error) : null;
+  if (!open) return null;
+
+  return (
+    <div
+      data-testid="studio-enhance-dialog"
+      className="studio-flow-backdrop studio-enhance-backdrop"
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-busy={busy}
+        tabIndex={-1}
+        className="admin-theme-root studio-browser-theme studio-flow-dialog studio-enhance-dialog"
+      >
+        <header className="studio-flow-header">
+          <h2 id={titleId}>Prompt enhancer</h2>
+          <IconButton
+            icon={X}
+            iconClassName="size-4"
+            appearance="admin"
+            size="compact"
+            quiet
+            aria-label="Close prompt enhancer"
+            onClick={onClose}
+          />
+        </header>
+        <div className="studio-flow-body studio-enhance-body">
+          <div className="studio-enhance-comparison">
+            <section className="studio-enhance-prompt">
+              <h3>Original prompt</h3>
+              <pre>{userPrompt || "No prompt entered yet."}</pre>
+            </section>
+            <ArrowRight className="studio-enhance-arrow" aria-hidden="true" />
+            <section
+              className="studio-enhance-prompt studio-enhance-result"
+              aria-live="polite"
+            >
+              <h3>Enhanced prompt</h3>
+              <pre data-testid="studio-enhance-preview-text">
+                {enhancedPrompt ||
+                  (busy
+                    ? "Enhancing prompt..."
+                    : "Run enhance to preview the rewritten prompt.")}
+              </pre>
+            </section>
+          </div>
+          <div className="studio-enhance-context">
+            <section className="studio-enhance-reference">
+              <h3>Reference</h3>
+              <div className="studio-enhance-reference-frame">
+                {previewVisual ? (
+                  <img src={previewVisual} alt="Enhancement reference" />
+                ) : (
+                  <p>
+                    No image reference is staged for this enhancement preview.
+                  </p>
+                )}
+              </div>
+            </section>
+            <div className="studio-enhance-config">
+              <p>Uses configured enhancement model</p>
+              <dl>
+                <div>
+                  <dt>Provider</dt>
+                  <dd>{providerLabel}</dd>
+                </div>
+                <div>
+                  <dt>Enhancement model</dt>
+                  <dd>{providerModelId ?? "Not selected"}</dd>
+                </div>
+                <div>
+                  <dt>Readiness</dt>
+                  <dd>{readinessLabel}</dd>
+                </div>
+              </dl>
+              <details className="studio-enhance-details">
+                <summary tabIndex={0}>
+                  Preview details <ChevronDown aria-hidden="true" />
+                </summary>
+                <dl>
+                  <div>
+                    <dt>Model</dt>
+                    <dd>{currentModelLabel ?? "Unknown model"}</dd>
+                  </div>
+                  <div>
+                    <dt>Mode</dt>
+                    <dd>{modeLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>Preset</dt>
+                    <dd>{currentPresetLabel ?? "No preset selected"}</dd>
+                  </div>
+                  <div>
+                    <dt>Image reference</dt>
+                    <dd>{previewVisual ? "Attached" : "None"}</dd>
+                  </div>
+                </dl>
+              </details>
+            </div>
+            <details className="studio-enhance-details studio-enhance-analysis">
+              <summary tabIndex={0}>
+                <ChartNoAxesColumn aria-hidden="true" /> Image analysis{" "}
+                <ChevronDown aria-hidden="true" />
+              </summary>
+              <p className="studio-enhance-analysis-status">
+                {imageAnalysisStatus}
+              </p>
+              <p>
+                {imageAnalysisText ||
+                  (previewVisual
+                    ? "No image analysis output is available for this preview yet."
+                    : "No image reference is staged, so there is nothing to analyze.")}
+              </p>
+            </details>
+          </div>
+          {error ? (
+            <div
+              role="alert"
+              className="callout-panel callout-panel-danger studio-enhance-notice"
+            >
+              {errorMessage}
+              {error !== errorMessage ? (
+                <details>
+                  <summary tabIndex={0}>Enhancement details</summary>
+                  <p>{error}</p>
+                </details>
+              ) : null}
+            </div>
+          ) : null}
+          {warnings.length ? (
+            <p role="status" className="studio-enhance-notice">
+              {warnings.join(" ")}
+            </p>
+          ) : null}
+        </div>
+        <StudioEnhanceActions {...props} />
+      </div>
+    </div>
+  );
+}
+
+function StudioEnhanceActions({
   configuredForModel,
-  hasSavedSystemPrompt,
   busy,
+  hasSavedSystemPrompt,
+  enhancedPrompt,
   error,
-  warnings,
-  onClose,
   onRequestPreview,
   onOpenSetup,
   onUsePrompt,
-}: StudioEnhanceDialogProps) {
-  const errorMessage = error ? enhancementFailureMessage(error) : null;
-  if (!open) {
-    return null;
-  }
-
+  onClose,
+}: Pick<
+  StudioEnhanceDialogProps,
+  | "configuredForModel"
+  | "busy"
+  | "hasSavedSystemPrompt"
+  | "enhancedPrompt"
+  | "error"
+  | "onRequestPreview"
+  | "onOpenSetup"
+  | "onUsePrompt"
+  | "onClose"
+>) {
   return (
-    <div data-testid="studio-enhance-dialog" className="studio-modal-backdrop fixed inset-0 z-[125] backdrop-blur-md">
-      <div className="absolute inset-0 p-3 md:p-6">
-        <div className="studio-modal-panel grid h-full gap-4 rounded-[34px] border border-[var(--surface-overlay-border)] p-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:p-6">
-          <div className="studio-enhance-workspace grid min-h-0 gap-4 overflow-hidden rounded-[30px] p-4 lg:p-6">
-            <div className="studio-enhance-preview-frame relative overflow-hidden rounded-[28px]">
-              {previewVisual ? (
-                <div className="flex min-h-[260px] items-center justify-center p-4 sm:min-h-[340px] sm:p-5">
-                  <img
-                    src={previewVisual}
-                    alt="Enhancement reference"
-                    className="max-h-[50vh] w-auto max-w-full rounded-[24px] object-contain shadow-[var(--shadow-overlay)]"
-                  />
-                </div>
-              ) : (
-                <div className="flex min-h-[260px] items-center justify-center px-6 text-center text-sm text-[var(--text-muted)] sm:min-h-[340px]">
-                  No image reference is staged for this enhancement preview.
-                </div>
-              )}
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              <div className="studio-panel-compact p-4">
-                <div className="studio-field-label">User prompt</div>
-                <pre className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[var(--text-muted)]">
-                  {userPrompt || "No prompt entered yet."}
-                </pre>
-              </div>
-              <div className="studio-enhance-accent-panel p-4">
-                <div className="studio-field-label text-[var(--feedback-warning-text)]">Enhanced prompt</div>
-                <pre data-testid="studio-enhance-preview-text" className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[var(--text-primary)]">
-                  {enhancedPrompt || (busy ? "Enhancing prompt..." : "Run enhance to preview the rewritten prompt.")}
-                </pre>
-              </div>
-              <div className="studio-panel-compact p-4 xl:col-span-2">
-                <div className="studio-field-label">Image analysis</div>
-                <div className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[var(--text-muted)]">
-                  {imageAnalysisText
-                    ? imageAnalysisText
-                    : previewVisual
-                      ? "No image analysis output is available for this preview yet."
-                      : "No image reference is staged, so there is nothing to analyze."}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="studio-panel grid auto-rows-max gap-4 overflow-y-auto rounded-[28px] p-4 text-[var(--text-primary)] lg:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="studio-field-label">Enhance prompt</div>
-                <div className="mt-1 text-base font-semibold text-[var(--text-primary)]">{currentModelLabel ?? "Unknown model"}</div>
-                <div className="mt-1 text-sm text-[var(--text-muted)]">Preview the rewrite, then send it back to the composer.</div>
-              </div>
-              <button type="button" onClick={onClose} className="studio-icon-button h-10 w-10">
-                <X className="size-5" />
-              </button>
-            </div>
-
-            <div className="studio-panel-compact p-4">
-              <div className="studio-field-label">Preview summary</div>
-              <div className="mt-3 grid gap-3 text-sm leading-6 text-[var(--text-muted)]">
-                <div>
-                  <span className="text-[var(--text-dim)]">Model:</span> {currentModelLabel ?? "Unknown model"}
-                </div>
-                <div>
-                  <span className="text-[var(--text-dim)]">Enhancement provider:</span> {providerLabel}
-                </div>
-                <div>
-                  <span className="text-[var(--text-dim)]">Enhancement model:</span> {providerModelId ?? "Not selected"}
-                </div>
-                <div>
-                  <span className="text-[var(--text-dim)]">Enhancement mode:</span> {modeLabel}
-                </div>
-                <div>
-                  <span className="text-[var(--text-dim)]">Readiness:</span> {readinessLabel}
-                </div>
-                <div>
-                  <span className="text-[var(--text-dim)]">Preset:</span> {currentPresetLabel ?? "No preset selected"}
-                </div>
-                <div>
-                  <span className="text-[var(--text-dim)]">Image reference:</span> {previewVisual ? "Attached" : "None"}
-                </div>
-                <div>
-                  <span className="text-[var(--text-dim)]">Image analysis:</span> {imageAnalysisStatus}
-                </div>
-              </div>
-            </div>
-
-            {error ? (
-              <div className="callout-panel callout-panel-danger px-4 py-3 text-sm">
-                {errorMessage}
-                {error !== errorMessage ? <details><summary>Enhancement details</summary><p>{error}</p></details> : null}
-              </div>
-            ) : null}
-            {warnings.length ? (
-              <div className="studio-panel-compact px-4 py-3 text-sm text-[var(--text-muted)]">
-                {warnings.join(" ")}
-              </div>
-            ) : null}
-
-            <div className="grid gap-3">
-              {configuredForModel ? (
-                <Button
-                  type="button"
-                  data-testid="studio-enhance-run-button"
-                  onClick={onRequestPreview}
-                  disabled={busy || !hasSavedSystemPrompt}
-                  variant="primary"
-                  className="h-auto w-full gap-3 rounded-[22px] px-5 py-4 text-[0.98rem] font-semibold"
-                >
-                  {busy ? <LoaderCircle className="size-4.5 animate-spin" /> : <Sparkles className="size-4.5" />}
-                  {busy ? "Enhancing..." : "Enhance"}
-                </Button>
-              ) : (
-                <button
-                  type="button"
-                  data-testid="studio-enhance-setup-button"
-                  onClick={onOpenSetup}
-                  className="studio-enhance-accent-panel inline-flex w-full items-center justify-center gap-3 px-5 py-4 text-[0.9rem] font-semibold text-[var(--feedback-warning-text)] transition hover:border-[var(--action-warning-border)] hover:text-[var(--text-primary)]"
-                >
-                  <Sparkles className="size-4.5" />
-                  Set up enhancement
-                </button>
-              )}
-              <Button
-                type="button"
-                data-testid="studio-enhance-use-prompt-button"
-                onClick={onUsePrompt}
-                disabled={busy || Boolean(error) || !enhancedPrompt}
-                variant="subtle"
-                className="h-auto w-full gap-3 rounded-[20px] px-5 py-4 text-sm font-semibold"
-              >
-                Use Prompt
-              </Button>
-              <Button
-                type="button"
-                onClick={onClose}
-                variant="subtle"
-                className="h-auto w-full rounded-[18px] px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em]"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <footer className="studio-flow-footer">
+      {configuredForModel ? (
+        <Button
+          appearance="admin"
+          variant="primary"
+          size="compact"
+          data-testid="studio-enhance-run-button"
+          onClick={onRequestPreview}
+          disabled={busy || !hasSavedSystemPrompt}
+        >
+          {busy ? (
+            <LoaderCircle className="size-4 animate-spin" />
+          ) : (
+            <Sparkles className="size-4" />
+          )}
+          {busy ? "Enhancing..." : enhancedPrompt ? "Enhance again" : "Enhance"}
+        </Button>
+      ) : (
+        <Button
+          appearance="admin"
+          variant="primary"
+          size="compact"
+          data-testid="studio-enhance-setup-button"
+          onClick={onOpenSetup}
+        >
+          <Sparkles className="size-4" /> Set up enhancement
+        </Button>
+      )}
+      <Button
+        appearance="admin"
+        variant="subtle"
+        size="compact"
+        data-testid="studio-enhance-use-prompt-button"
+        onClick={onUsePrompt}
+        disabled={busy || Boolean(error) || !enhancedPrompt}
+      >
+        <FileText className="size-4" /> Use prompt
+      </Button>
+      <Button
+        appearance="admin"
+        variant="subtle"
+        size="compact"
+        className="studio-flow-cancel"
+        onClick={onClose}
+      >
+        <X className="size-4" /> Cancel
+      </Button>
+    </footer>
   );
 }

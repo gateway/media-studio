@@ -462,7 +462,8 @@ textarea {
 /* The creation stage and shared Studio browsers use the approved palette. */
 .studio-create-stage-immersive,
 :root .studio-browser-theme,
-:root .studio-preset-editor-theme {
+:root .studio-preset-editor-theme,
+:root .studio-settings-theme {
   --ms-surface-primary: #0e1310;
   --ms-surface-secondary: #151b17;
   --ms-surface-tertiary: #202722;
@@ -500,6 +501,14 @@ textarea {
   --ms-feedback-working-text: var(--ms-warning);
   --ms-shadow-button: none;
   --ms-shadow-button-strong: none;
+}
+
+/* Semantic mapping is shared with the existing embedded Settings admin root. */
+.studio-create-stage-immersive,
+:root .studio-browser-theme,
+:root .studio-preset-editor-theme,
+:root .studio-settings-theme,
+:root .studio-settings-theme .admin-theme-root {
   --surface-card-bg: var(--ms-surface-secondary);
   --surface-card-border: var(--ms-border);
   --surface-card-accent-bg: var(--ms-surface-tertiary);
@@ -1868,26 +1877,6 @@ textarea {
 
 .studio-modal-header {
   border-bottom: 1px solid var(--surface-overlay-border);
-}
-
-.studio-enhance-workspace {
-  background:
-    radial-gradient(circle at center, rgb(255 255 255 / 8%), transparent 55%),
-    linear-gradient(180deg, #111514, #181d1b);
-}
-
-.studio-enhance-preview-frame {
-  border: 1px solid var(--border-soft);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 3%), rgb(255 255 255 / 1%)),
-    radial-gradient(circle at top, rgb(216 141 67 / 12%), transparent 36%),
-    rgb(5 7 6 / 86%);
-}
-
-.studio-enhance-accent-panel {
-  border: 1px solid rgb(216 141 67 / 14%);
-  border-radius: calc(var(--radius-panel) - 2px);
-  background: rgb(216 141 67 / 5%);
 }
 
 .studio-preview-fallback {
@@ -3601,7 +3590,9 @@ textarea {
 }
 
 /* Preset editors consume the same palette as Studio without changing other admin pages. */
-:root .studio-preset-editor-theme {
+:root .studio-preset-editor-theme,
+:root .studio-settings-theme,
+:root .studio-settings-theme .admin-theme-root {
   --admin-canvas: var(--ms-surface-primary);
   --admin-panel: var(--ms-surface-secondary);
   --admin-control: var(--ms-surface-tertiary);
@@ -3620,17 +3611,18 @@ textarea {
   --danger: var(--ms-danger);
 }
 
-.studio-preset-editor-theme
+:is(.studio-preset-editor-theme, .studio-settings-theme)
   :is(.admin-form-grid, .admin-form-main, .admin-form-aside) {
   gap: 16px;
 }
 
-.studio-preset-editor-theme
+:is(.studio-preset-editor-theme, .studio-settings-theme)
   :is(.admin-field-label, .admin-label-muted, .admin-label-accent) {
   font-size: 0.8125rem;
 }
 
-.studio-preset-editor-theme :is(.admin-panel-title, .admin-section-title) {
+:is(.studio-preset-editor-theme, .studio-settings-theme)
+  :is(.admin-panel-title, .admin-section-title) {
   font-size: 1rem;
   line-height: 1.5;
   font-weight: 500;

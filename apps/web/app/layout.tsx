@@ -5,6 +5,7 @@ import "./globals.css";
 import "./admin.css";
 import "./studio-browsers.css";
 import "./studio-inspector.css";
+import "./studio-enhancement.css";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -25,7 +26,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${sora.variable} ${plexMono.variable}`} suppressHydrationWarning>
+      <body
+        className={`${sora.variable} ${plexMono.variable}`}
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>
