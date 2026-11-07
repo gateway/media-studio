@@ -3625,6 +3625,10 @@ textarea {
   font-size: 0.8125rem;
 }
 
+.studio-structured-preset-field > .studio-text-input::placeholder {
+  color: var(--text-muted);
+}
+
 .studio-structured-preset-field:focus-within {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
