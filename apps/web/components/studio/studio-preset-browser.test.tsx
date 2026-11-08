@@ -181,9 +181,7 @@ describe("StudioPresetBrowser", () => {
       name: "Preview Car Magazine",
     });
     expect(preview.querySelectorAll('img[alt="Car Magazine"]')).toHaveLength(1);
-    expect(
-      preview.querySelector('img[aria-hidden="true"]')?.getAttribute("alt"),
-    ).toBe("");
+    expect(preview.querySelectorAll("img")).toHaveLength(1);
     preview.focus();
     fireEvent.click(preview);
     expect(

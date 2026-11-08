@@ -418,23 +418,12 @@ html:has(.studio-browser-backdrop) {
   border-radius: var(--radius-card);
 }
 
-.media-browser-item-preview-soft {
-  position: relative;
-  isolation: isolate;
-}
-
-.media-browser-item-preview .media-browser-item-backdrop {
-  position: absolute;
-  inset: 0;
+.media-browser-item-editorial .media-browser-item-visual {
   object-fit: cover;
-  filter: blur(24px);
-  transform: scale(1.12);
-  opacity: 0.35;
-  pointer-events: none;
 }
 
-.media-browser-item-preview-soft .media-browser-item-visual {
-  position: relative;
+.media-browser-item-editorial .media-browser-item-visual[data-portrait="true"] {
+  object-position: center top;
 }
 
 .media-browser-item-editorial .media-browser-item-body {

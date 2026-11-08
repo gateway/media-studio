@@ -422,7 +422,6 @@ function PresetBrowserCard({
       }}
       disabled={selectingPresetId != null || !thumb}
       layout="editorial"
-      previewBackdrop
       description={preset.description ?? "No description added yet."}
       metadata={
         <details className="studio-preset-models">
