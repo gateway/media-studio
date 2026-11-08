@@ -111,3 +111,23 @@ it("contains keyboard focus while open, closes with Escape and returns focus to 
   unmount();
   opener.remove();
 });
+
+it("returns focus to the current opener after a previous opener was replaced between sessions", () => {
+  const first = document.createElement("button");
+  document.body.append(first);
+  first.focus();
+  const callbacks = props();
+  const { rerender } = render(<StudioEnhanceDialog {...callbacks} />);
+  rerender(<StudioEnhanceDialog {...callbacks} open={false} />);
+  expect(document.activeElement).toBe(first);
+  first.remove();
+
+  const replacement = document.createElement("button");
+  document.body.append(replacement);
+  replacement.focus();
+  rerender(<StudioEnhanceDialog {...callbacks} />);
+  expect(document.activeElement).toBe(screen.getByRole("dialog"));
+  rerender(<StudioEnhanceDialog {...callbacks} open={false} />);
+  expect(document.activeElement).toBe(replacement);
+  replacement.remove();
+});

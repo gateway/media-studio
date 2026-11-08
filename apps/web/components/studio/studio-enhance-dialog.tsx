@@ -42,28 +42,14 @@ type StudioEnhanceDialogProps = {
 };
 
 export function StudioEnhanceDialog(props: StudioEnhanceDialogProps) {
-  const {
-    open,
-    previewVisual,
-    userPrompt,
-    enhancedPrompt,
-    imageAnalysisText,
-    currentModelLabel,
-    currentPresetLabel,
-    providerLabel,
-    providerModelId,
-    modeLabel,
-    readinessLabel,
-    imageAnalysisStatus,
-    busy,
-    error,
-    warnings,
-    onClose,
-  } = props;
+  return props.open ? <StudioEnhanceDialogContent {...props} /> : null;
+}
+
+function StudioEnhanceDialogContent(props: StudioEnhanceDialogProps) {
+  const { userPrompt, enhancedPrompt, busy, error, warnings, onClose } = props;
   const titleId = useId();
-  const panelRef = useDialogFocus(onClose, !open);
+  const panelRef = useDialogFocus(onClose);
   const errorMessage = error ? enhancementFailureMessage(error) : null;
-  if (!open) return null;
 
   return (
     <div
@@ -111,75 +97,7 @@ export function StudioEnhanceDialog(props: StudioEnhanceDialogProps) {
               </pre>
             </section>
           </div>
-          <div className="studio-enhance-context">
-            <section className="studio-enhance-reference">
-              <h3>Reference</h3>
-              <div className="studio-enhance-reference-frame">
-                {previewVisual ? (
-                  <img src={previewVisual} alt="Enhancement reference" />
-                ) : (
-                  <p>
-                    No image reference is staged for this enhancement preview.
-                  </p>
-                )}
-              </div>
-            </section>
-            <div className="studio-enhance-config">
-              <p>Uses configured enhancement model</p>
-              <dl>
-                <div>
-                  <dt>Provider</dt>
-                  <dd>{providerLabel}</dd>
-                </div>
-                <div>
-                  <dt>Enhancement model</dt>
-                  <dd>{providerModelId ?? "Not selected"}</dd>
-                </div>
-                <div>
-                  <dt>Readiness</dt>
-                  <dd>{readinessLabel}</dd>
-                </div>
-              </dl>
-              <details className="studio-enhance-details">
-                <summary tabIndex={0}>
-                  Preview details <ChevronDown aria-hidden="true" />
-                </summary>
-                <dl>
-                  <div>
-                    <dt>Model</dt>
-                    <dd>{currentModelLabel ?? "Unknown model"}</dd>
-                  </div>
-                  <div>
-                    <dt>Mode</dt>
-                    <dd>{modeLabel}</dd>
-                  </div>
-                  <div>
-                    <dt>Preset</dt>
-                    <dd>{currentPresetLabel ?? "No preset selected"}</dd>
-                  </div>
-                  <div>
-                    <dt>Image reference</dt>
-                    <dd>{previewVisual ? "Attached" : "None"}</dd>
-                  </div>
-                </dl>
-              </details>
-            </div>
-            <details className="studio-enhance-details studio-enhance-analysis">
-              <summary tabIndex={0}>
-                <ChartNoAxesColumn aria-hidden="true" /> Image analysis{" "}
-                <ChevronDown aria-hidden="true" />
-              </summary>
-              <p className="studio-enhance-analysis-status">
-                {imageAnalysisStatus}
-              </p>
-              <p>
-                {imageAnalysisText ||
-                  (previewVisual
-                    ? "No image analysis output is available for this preview yet."
-                    : "No image reference is staged, so there is nothing to analyze.")}
-              </p>
-            </details>
-          </div>
+          <StudioEnhanceContext {...props} />
           {error ? (
             <div
               role="alert"
@@ -202,6 +120,86 @@ export function StudioEnhanceDialog(props: StudioEnhanceDialogProps) {
         </div>
         <StudioEnhanceActions {...props} />
       </div>
+    </div>
+  );
+}
+
+function StudioEnhanceContext({
+  previewVisual,
+  imageAnalysisText,
+  currentModelLabel,
+  currentPresetLabel,
+  providerLabel,
+  providerModelId,
+  modeLabel,
+  readinessLabel,
+  imageAnalysisStatus,
+}: StudioEnhanceDialogProps) {
+  return (
+    <div className="studio-enhance-context">
+      <section className="studio-enhance-reference">
+        <h3>Reference</h3>
+        <div className="studio-enhance-reference-frame">
+          {previewVisual ? (
+            <img src={previewVisual} alt="Enhancement reference" />
+          ) : (
+            <p>No image reference is staged for this enhancement preview.</p>
+          )}
+        </div>
+      </section>
+      <div className="studio-enhance-config">
+        <p>Uses configured enhancement model</p>
+        <dl>
+          <div>
+            <dt>Provider</dt>
+            <dd>{providerLabel}</dd>
+          </div>
+          <div>
+            <dt>Enhancement model</dt>
+            <dd>{providerModelId ?? "Not selected"}</dd>
+          </div>
+          <div>
+            <dt>Readiness</dt>
+            <dd>{readinessLabel}</dd>
+          </div>
+        </dl>
+        <details className="studio-enhance-details">
+          <summary tabIndex={0}>
+            Preview details <ChevronDown aria-hidden="true" />
+          </summary>
+          <dl>
+            <div>
+              <dt>Model</dt>
+              <dd>{currentModelLabel ?? "Unknown model"}</dd>
+            </div>
+            <div>
+              <dt>Mode</dt>
+              <dd>{modeLabel}</dd>
+            </div>
+            <div>
+              <dt>Preset</dt>
+              <dd>{currentPresetLabel ?? "No preset selected"}</dd>
+            </div>
+            <div>
+              <dt>Image reference</dt>
+              <dd>{previewVisual ? "Attached" : "None"}</dd>
+            </div>
+          </dl>
+        </details>
+      </div>
+      <details className="studio-enhance-details studio-enhance-analysis">
+        <summary tabIndex={0}>
+          <ChartNoAxesColumn aria-hidden="true" /> Image analysis{" "}
+          <ChevronDown aria-hidden="true" />
+        </summary>
+        <p className="studio-enhance-analysis-status">{imageAnalysisStatus}</p>
+        <p>
+          {imageAnalysisText ||
+            (previewVisual
+              ? "No image analysis output is available for this preview yet."
+              : "No image reference is staged, so there is nothing to analyze.")}
+        </p>
+      </details>
     </div>
   );
 }
