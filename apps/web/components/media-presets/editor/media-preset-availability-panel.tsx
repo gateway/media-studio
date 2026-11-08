@@ -15,13 +15,13 @@ export function MediaPresetAvailabilityPanel({
   className: string;
   generatedPresetKey: string;
   models: MediaModelSummary[];
-  onFormChange: (updater: (current: PresetFormState) => PresetFormState) => void;
+  onFormChange: (
+    updater: (current: PresetFormState) => PresetFormState,
+  ) => void;
 }) {
   return (
     <div className={className}>
-      <div className="admin-label-accent">
-        Availability
-      </div>
+      <div className="admin-label-accent">Availability</div>
       <div className="mt-4 grid gap-4">
         <div className="grid gap-3">
           <label className="admin-toggle-row text-sm">
@@ -38,26 +38,22 @@ export function MediaPresetAvailabilityPanel({
             />
           </label>
 
-          <div className="surface-inset p-3 text-sm break-words">
-            <div className="admin-label-muted">
-              Snapshot
-            </div>
+          <div className="surface-inset p-3 text-sm wrap-anywhere">
+            <div className="admin-label-muted">Snapshot</div>
             <div className="mt-2 leading-6 text-[var(--foreground)]">
-              {generatedPresetKey || "pending key"} · {form.inputFields.length} text field{form.inputFields.length === 1 ? "" : "s"} · {form.imageSlots.length} image slot{form.imageSlots.length === 1 ? "" : "s"}
+              {generatedPresetKey || "pending key"} · {form.inputFields.length}{" "}
+              text field{form.inputFields.length === 1 ? "" : "s"} ·{" "}
+              {form.imageSlots.length} image slot
+              {form.imageSlots.length === 1 ? "" : "s"}
             </div>
           </div>
         </div>
 
         <div className="grid gap-2">
-          <div className="admin-label-muted">
-            Available in
-          </div>
+          <div className="admin-label-muted">Available in</div>
           <div className="grid gap-3">
             {models.map((model) => (
-              <label
-                key={model.key}
-                className="admin-toggle-row text-sm"
-              >
+              <label key={model.key} className="admin-toggle-row text-sm">
                 <span>{model.label}</span>
                 <AdminToggle
                   checked={form.appliesToModels.includes(model.key)}
@@ -65,9 +61,15 @@ export function MediaPresetAvailabilityPanel({
                   onToggle={() =>
                     onFormChange((current) => ({
                       ...current,
-                      appliesToModels: current.appliesToModels.includes(model.key)
-                        ? current.appliesToModels.filter((value) => value !== model.key)
-                        : Array.from(new Set([...current.appliesToModels, model.key])),
+                      appliesToModels: current.appliesToModels.includes(
+                        model.key,
+                      )
+                        ? current.appliesToModels.filter(
+                            (value) => value !== model.key,
+                          )
+                        : Array.from(
+                            new Set([...current.appliesToModels, model.key]),
+                          ),
                     }))
                   }
                 />
