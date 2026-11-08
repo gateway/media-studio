@@ -18,6 +18,7 @@ export function MediaBrowserItem({
   testId,
   layout = "card",
   previewTitle,
+  previewBackdrop = false,
 }: {
   label: string;
   previewUrl?: string | null;
@@ -29,34 +30,39 @@ export function MediaBrowserItem({
   description?: string;
   metadata: ReactNode;
   testId: string;
-  layout?: "card" | "tile";
+  layout?: "card" | "tile" | "editorial";
   previewTitle?: string;
+  previewBackdrop?: boolean;
 }) {
   const detailsId = useId();
   const tiled = layout === "tile";
   return (
     <MediaBrowserCard
       appearance="admin"
-      className={cn("media-browser-item", tiled && "media-browser-item-tile")}
+      className={cn(
+        "media-browser-item",
+        tiled && "media-browser-item-tile",
+        layout === "editorial" && "media-browser-item-editorial",
+      )}
       data-testid={testId}
     >
       <button
         type="button"
-        className="media-browser-item-preview"
+        className={cn(
+          "media-browser-item-preview",
+          previewBackdrop && "media-browser-item-preview-soft",
+        )}
         onClick={onPreview}
         disabled={disabled}
         aria-label={previewLabel}
         aria-describedby={detailsId}
         title={previewTitle}
       >
-        {previewUrl ? (
-          <img src={previewUrl} alt={label} loading="lazy" decoding="async" />
-        ) : (
-          <span className="media-browser-item-placeholder">
-            <ImageIcon aria-hidden="true" />
-            <span>No preview</span>
-          </span>
-        )}
+        <MediaBrowserPreview
+          previewUrl={previewUrl}
+          label={label}
+          previewBackdrop={previewBackdrop}
+        />
       </button>
       {tiled ? (
         <div className="media-browser-item-actions">{actions}</div>
@@ -71,6 +77,45 @@ export function MediaBrowserItem({
         actions={actions}
       />
     </MediaBrowserCard>
+  );
+}
+
+function MediaBrowserPreview({
+  previewUrl,
+  label,
+  previewBackdrop,
+}: {
+  previewUrl?: string | null;
+  label: string;
+  previewBackdrop: boolean;
+}) {
+  return (
+    <>
+      {previewUrl && previewBackdrop ? (
+        <img
+          src={previewUrl}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
+          className="media-browser-item-backdrop"
+        />
+      ) : null}
+      {previewUrl ? (
+        <img
+          src={previewUrl}
+          alt={label}
+          loading="lazy"
+          decoding="async"
+          className="media-browser-item-visual"
+        />
+      ) : (
+        <span className="media-browser-item-placeholder">
+          <ImageIcon aria-hidden="true" />
+          <span>No preview</span>
+        </span>
+      )}
+    </>
   );
 }
 

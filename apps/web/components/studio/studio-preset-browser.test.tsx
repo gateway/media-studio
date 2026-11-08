@@ -150,6 +150,251 @@ describe("StudioPresetBrowser", () => {
     expect(onSelectPreset).not.toHaveBeenCalled();
   });
 
+  it("previews the complete image without applying it and dismisses only the lightbox with X or Escape", async () => {
+    const previewPreset = {
+      ...presets[0],
+      thumbnail_url: "/preset-portrait.png",
+    };
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            presets: [previewPreset],
+            total: 1,
+            next_offset: null,
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const onSelectPreset = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <StudioPresetBrowser
+        presets={[previewPreset]}
+        models={models}
+        onSelectPreset={onSelectPreset}
+        onClose={onClose}
+      />,
+    );
+    const preview = await screen.findByRole("button", {
+      name: "Preview Car Magazine",
+    });
+    expect(preview.querySelectorAll('img[alt="Car Magazine"]')).toHaveLength(1);
+    expect(
+      preview.querySelector('img[aria-hidden="true"]')?.getAttribute("alt"),
+    ).toBe("");
+    preview.focus();
+    fireEvent.click(preview);
+    expect(
+      screen.getByRole("dialog", { name: "Preview Car Magazine" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId("studio-preset-browser").hasAttribute("inert"),
+    ).toBe(true);
+    expect(
+      screen
+        .getByTestId("studio-image-lightbox")
+        .querySelector("img")
+        ?.getAttribute("src"),
+    ).toBe("/preset-portrait.png");
+    expect(onSelectPreset).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls).toHaveLength(1);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Close preset image preview" }),
+    );
+    expect(screen.queryByTestId("studio-image-lightbox")).toBeNull();
+    expect(document.activeElement).toBe(preview);
+    fireEvent.click(preview);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByTestId("studio-image-lightbox")).toBeNull();
+    expect(
+      screen.getByTestId("studio-preset-browser").hasAttribute("inert"),
+    ).toBe(false);
+    expect(document.activeElement).toBe(preview);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps missing-image previews unavailable while leaving Use preset available", () => {
+    render(
+      <StudioPresetBrowser
+        presets={presets}
+        models={models}
+        onClose={vi.fn()}
+        onSelectPreset={vi.fn()}
+      />,
+    );
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Preview Car Magazine",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Use preset" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+
+  it("lets the lightbox own Escape when a parent category menu remains open", async () => {
+    const previewPreset = {
+      ...presets[0],
+      thumbnail_url: "/preset-portrait.png",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              ok: true,
+              presets: [previewPreset],
+              total: 1,
+              next_offset: null,
+            }),
+          ),
+      ),
+    );
+    const onClose = vi.fn();
+    render(
+      <StudioPresetBrowser
+        presets={[previewPreset]}
+        models={models}
+        onClose={onClose}
+        onSelectPreset={vi.fn()}
+      />,
+    );
+    const category = screen.getByRole("button", { name: "All categories" });
+    fireEvent.click(category);
+    const preview = await screen.findByRole("button", {
+      name: "Preview Car Magazine",
+    });
+    preview.focus();
+    fireEvent.click(preview);
+    expect(category.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByTestId("studio-image-lightbox")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByTestId("studio-image-lightbox")).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(preview);
+  });
+
+  it("upgrades matching output previews and falls back to the thumbnail if the original file is missing", async () => {
+    const thumbPath =
+      "outputs/2026-05-23/run_job_abc123_output_1/thumb/output_01.webp";
+    const originalPath = thumbPath
+      .replace("thumb/", "original/")
+      .replace(".webp", ".png");
+    const thumbnailUrl = `/api/control/files/${thumbPath}`;
+    const previewPreset = { ...presets[0], thumbnail_url: thumbnailUrl };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async (input: RequestInfo | URL) =>
+          new Response(
+            JSON.stringify(
+              String(input).endsWith("/run.json")
+                ? {
+                    outputs: [
+                      {
+                        kind: "image",
+                        thumb_path: "thumb/output_01.webp",
+                        original_path: "original/output_01.png",
+                      },
+                    ],
+                  }
+                : {
+                    ok: true,
+                    presets: [previewPreset],
+                    total: 1,
+                    next_offset: null,
+                  },
+            ),
+          ),
+      ),
+    );
+    render(
+      <StudioPresetBrowser
+        presets={[previewPreset]}
+        models={models}
+        onClose={vi.fn()}
+        onSelectPreset={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Preview Car Magazine" }),
+    );
+    const image = screen
+      .getByTestId("studio-image-lightbox")
+      .querySelector("img")!;
+    await waitFor(() =>
+      expect(image.getAttribute("src")).toBe(
+        `/api/control/files/${originalPath}?inline=1`,
+      ),
+    );
+    fireEvent.error(image);
+    expect(image.getAttribute("src")).toBe(thumbnailUrl);
+  });
+
+  it("keeps the lightbox closed when original-image metadata arrives after dismissal", async () => {
+    const thumbPath =
+      "outputs/2026-05-23/run_job_abc123_output_1/thumb/output_01.webp";
+    const previewPreset = {
+      ...presets[0],
+      thumbnail_url: `/api/control/files/${thumbPath}`,
+    };
+    let completeMetadata!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => {
+      completeMetadata = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input).endsWith("/run.json")
+          ? pending
+          : new Response(
+              JSON.stringify({
+                ok: true,
+                presets: [previewPreset],
+                total: 1,
+                next_offset: null,
+              }),
+            ),
+      ),
+    );
+    render(
+      <StudioPresetBrowser
+        presets={[previewPreset]}
+        models={models}
+        onClose={vi.fn()}
+        onSelectPreset={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Preview Car Magazine" }),
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    await act(async () =>
+      completeMetadata(
+        new Response(
+          JSON.stringify({
+            outputs: [
+              {
+                kind: "image",
+                thumb_path: "thumb/output_01.webp",
+                original_path: "original/output_01.png",
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+    expect(screen.queryByTestId("studio-image-lightbox")).toBeNull();
+  });
+
   it("renders a bounded initial preset page for large catalogs", () => {
     const manyPresets = Array.from({ length: 500 }, (_, index) => ({
       ...presets[0],

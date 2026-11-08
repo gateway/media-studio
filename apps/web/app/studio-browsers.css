@@ -335,7 +335,7 @@ html:has(.studio-browser-backdrop) {
   overflow-wrap: anywhere;
 }
 
-/* The M board's preset cards stay compact as the viewport grows. */
+/* Approved visual preset gallery: bounded image-led composition. */
 .studio-browser-panel-presets .studio-header-chrome-browser {
   position: static;
   z-index: auto;
@@ -370,7 +370,7 @@ html:has(.studio-browser-backdrop) {
   .studio-browser-filters
   > .studio-browser-search-shell {
   flex: 1 1 220px;
-  max-width: 420px;
+  max-width: 480px;
 }
 
 .studio-browser-panel-presets .studio-browser-filters > [data-studio-picker] {
@@ -381,33 +381,134 @@ html:has(.studio-browser-backdrop) {
   @apply sr-only;
 }
 
+.studio-browser-panel-presets .studio-browser-body {
+  width: 100%;
+  max-width: 1840px;
+  margin-inline: auto;
+  padding: 20px clamp(16px, 3vw, 56px) 32px;
+}
+
 .studio-browser-panel-presets .studio-browser-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
 }
 
-.studio-browser-panel-presets .media-browser-item-preview {
-  aspect-ratio: 2.6;
+.studio-preset-browser-title {
+  margin-inline: 28px 32px;
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 28px;
 }
 
-.studio-browser-panel-presets .media-browser-item-body {
-  gap: 4px;
-  padding-block: 4px 12px;
+.studio-preset-category-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-:where(.studio-browser-panel-presets) .media-browser-item-heading h3 {
+.media-browser-item-editorial {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.media-browser-item-editorial .media-browser-item-preview {
+  aspect-ratio: 1.92;
+  border-radius: var(--radius-card);
+}
+
+.media-browser-item-preview-soft {
+  position: relative;
+  isolation: isolate;
+}
+
+.media-browser-item-preview .media-browser-item-backdrop {
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  filter: blur(24px);
+  transform: scale(1.12);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.media-browser-item-preview-soft .media-browser-item-visual {
+  position: relative;
+}
+
+.media-browser-item-editorial .media-browser-item-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  gap: 4px 8px;
+  padding: 4px 12px 0;
+}
+
+.media-browser-item-editorial .media-browser-item-heading,
+.media-browser-item-editorial .media-browser-item-description {
+  grid-column: 1 / -1;
+}
+
+:where(.media-browser-item-editorial) .media-browser-item-heading h3 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 18px;
+  line-height: 24px;
 }
 
-.studio-browser-panel-presets .media-browser-item-metadata {
-  margin-block: 4px;
+.media-browser-item-editorial .media-browser-item-description {
+  font-size: 14px;
+  line-height: 20px;
 }
 
-.studio-browser-panel-presets .media-browser-item-actions {
-  display: grid;
-  grid-template-columns: 1.25fr 1fr;
-  gap: 12px;
+.media-browser-item-editorial .media-browser-item-metadata {
+  min-width: 0;
+  margin-top: 8px;
+  align-self: center;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.media-browser-item-editorial .media-browser-item-actions {
+  margin-top: 8px;
+  padding-top: 0;
+  justify-self: end;
+}
+
+.media-browser-item-editorial .media-browser-item-actions > button {
+  flex: none;
+}
+
+.studio-preset-models[open] > summary > :last-child {
+  transform: rotate(180deg);
+}
+
+@media (width < 1400px) {
+  .studio-browser-panel-presets .studio-browser-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .media-browser-item-editorial .media-browser-item-metadata,
+  .media-browser-item-editorial .media-browser-item-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (width < 1000px) {
+  .studio-preset-browser-title {
+    flex-basis: 100%;
+    margin-inline: 0;
+    margin-bottom: 4px;
+    font-size: 18px;
+  }
+}
+
+@media (width <= 760px) {
+  .studio-browser-panel-presets .studio-browser-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (width >= 640px) {

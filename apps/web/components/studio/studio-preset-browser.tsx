@@ -2,6 +2,7 @@
 
 import {
   Box,
+  ChevronDown,
   LoaderCircle,
   MoreHorizontal,
   Pencil,
@@ -20,6 +21,8 @@ import {
 
 import { useMediaPresetPages } from "@/hooks/use-media-preset-pages";
 import { MediaBrowserItem } from "@/components/media/media-browser-item";
+import { StudioImageLightbox } from "./studio-image-lightbox";
+import { resolvePresetPreviewOriginal } from "@/lib/preset-preview";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { PillSelect } from "@/components/ui/pill-select";
@@ -133,6 +136,11 @@ export function StudioPresetBrowser({
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [showModelPresets, setShowModelPresets] = useState(false);
+  const [previewItem, setPreviewItem] = useState<{
+    src: string;
+    label: string;
+    fallbackSrc?: string;
+  } | null>(null);
   const deferredQuery = useDeferredValue(query);
   const deferredCategory = useDeferredValue(selectedCategory);
   const {
@@ -194,6 +202,17 @@ export function StudioPresetBrowser({
     }
   }
 
+  async function previewPreset(src: string, label: string) {
+    setPreviewItem({ src, label });
+    const original = await resolvePresetPreviewOriginal(src);
+    if (original)
+      setPreviewItem((current) =>
+        current?.src === src
+          ? { ...current, src: original, fallbackSrc: src }
+          : current,
+      );
+  }
+
   const browserActions = (
     <PresetBrowserActions
       composerPresetPicker={composerPresetPicker}
@@ -207,96 +226,113 @@ export function StudioPresetBrowser({
     />
   );
   return (
-    <StudioBrowserOverlay
-      testId="studio-preset-browser"
-      zIndexClassName="z-[118]"
-      onClose={onClose}
-      title="Media Presets"
-      returnFocusFallback={returnFocusFallback}
-      layout="presets"
-      navigation={navigation?.(browserActions)}
-      actions={browserActions}
-    >
-      <PresetBrowserToolbar
-        query={query}
-        onQueryChange={setQuery}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        categoryPickerOpen={categoryPickerOpen}
-        onCategoryPickerOpenChange={setCategoryPickerOpen}
-        visibleCount={visiblePresets.length}
-        totalPresets={totalPresets}
-        showModelPresets={showModelPresets}
-        composerPresetPicker={composerPresetPicker}
-      />
-      {loadError ? (
-        <CalloutPanel tone="warning" className="mb-4">
-          {loadError}
-          {pageError && !remotePage
-            ? " Showing the first matching local presets instead."
-            : null}
-          {pageError ? (
-            <Button
-              appearance="admin"
-              type="button"
-              variant="subtle"
-              size="compact"
-              onClick={retry}
-            >
-              Retry loading presets
-            </Button>
-          ) : null}
-        </CalloutPanel>
-      ) : null}
-      {visiblePresets.length ? (
-        <>
-          <StudioBrowserGrid>
-            {visiblePresets.map((preset) => (
-              <PresetBrowserCard
-                key={preset.preset_id}
-                preset={preset}
-                models={models}
-                selectingPresetId={selectingPresetId}
-                onSelect={(item) => {
-                  selectPreset(item).catch((error: unknown) =>
-                    setSelectionError(String(error)),
-                  );
-                }}
-                onEdit={() =>
-                  router.push(
-                    `/presets/${preset.preset_id}?returnTo=${encodeURIComponent(studioReturnToHref)}`,
-                  )
-                }
-              />
-            ))}
-          </StudioBrowserGrid>
-          {nextOffset != null ? (
-            <StudioBrowserLoadSentinel
-              onLoadMore={loadMorePresets}
-              disabled={loading}
-              loading={loadingMore}
-              label="Loading more presets..."
-              actionLabel="Load more presets"
-            />
-          ) : null}
-        </>
-      ) : (
-        <EmptyState
-          appearance="admin"
-          title={
-            loading
-              ? "Loading presets..."
-              : "No active Studio presets are available yet."
-          }
-          description={
-            query.trim()
-              ? "Try a different preset search."
-              : "Add one in the Presets admin route first."
-          }
-          className="text-left"
+    <>
+      <StudioBrowserOverlay
+        testId="studio-preset-browser"
+        zIndexClassName="z-[118]"
+        onClose={onClose}
+        suspended={previewItem != null}
+        title="Media Presets"
+        returnFocusFallback={returnFocusFallback}
+        layout="presets"
+        navigation={navigation?.(browserActions)}
+        actions={browserActions}
+      >
+        <PresetBrowserToolbar
+          query={query}
+          onQueryChange={setQuery}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          categoryPickerOpen={categoryPickerOpen}
+          onCategoryPickerOpenChange={setCategoryPickerOpen}
+          visibleCount={visiblePresets.length}
+          totalPresets={totalPresets}
+          showModelPresets={showModelPresets}
+          composerPresetPicker={composerPresetPicker}
         />
-      )}
-    </StudioBrowserOverlay>
+        {loadError ? (
+          <CalloutPanel tone="warning" className="mb-4">
+            {loadError}
+            {pageError && !remotePage
+              ? " Showing the first matching local presets instead."
+              : null}
+            {pageError ? (
+              <Button
+                appearance="admin"
+                type="button"
+                variant="subtle"
+                size="compact"
+                onClick={retry}
+              >
+                Retry loading presets
+              </Button>
+            ) : null}
+          </CalloutPanel>
+        ) : null}
+        {visiblePresets.length ? (
+          <>
+            <StudioBrowserGrid>
+              {visiblePresets.map((preset) => (
+                <PresetBrowserCard
+                  key={preset.preset_id}
+                  preset={preset}
+                  models={models}
+                  selectingPresetId={selectingPresetId}
+                  onPreview={(src) => {
+                    previewPreset(src, preset.label).catch((error: unknown) =>
+                      setSelectionError(String(error)),
+                    );
+                  }}
+                  onSelect={(item) => {
+                    selectPreset(item).catch((error: unknown) =>
+                      setSelectionError(String(error)),
+                    );
+                  }}
+                  onEdit={() =>
+                    router.push(
+                      `/presets/${preset.preset_id}?returnTo=${encodeURIComponent(studioReturnToHref)}`,
+                    )
+                  }
+                />
+              ))}
+            </StudioBrowserGrid>
+            {nextOffset != null ? (
+              <StudioBrowserLoadSentinel
+                onLoadMore={loadMorePresets}
+                disabled={loading}
+                loading={loadingMore}
+                label="Loading more presets..."
+                actionLabel="Load more presets"
+              />
+            ) : null}
+          </>
+        ) : (
+          <EmptyState
+            appearance="admin"
+            title={
+              loading
+                ? "Loading presets..."
+                : "No active Studio presets are available yet."
+            }
+            description={
+              query.trim()
+                ? "Try a different preset search."
+                : "Add one in the Presets admin route first."
+            }
+            className="text-left"
+          />
+        )}
+      </StudioBrowserOverlay>
+      {previewItem ? (
+        <StudioImageLightbox
+          src={previewItem.src}
+          fallbackSrc={previewItem.fallbackSrc}
+          alt={previewItem.label}
+          closeLabel="Close preset image preview"
+          onClose={() => setPreviewItem(null)}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -352,12 +388,14 @@ function PresetBrowserCard({
   selectingPresetId,
   onSelect,
   onEdit,
+  onPreview,
 }: {
   preset: PresetBrowserItem;
   models: MediaModelSummary[];
   selectingPresetId: string | null;
   onSelect: (preset: PresetBrowserItem) => void;
   onEdit: () => void;
+  onPreview: (src: string) => void;
 }) {
   const modelScope = studioPresetSupportedModels(preset as MediaPreset, models)
     .map(
@@ -377,15 +415,21 @@ function PresetBrowserCard({
       testId={`studio-preset-browser-card-${preset.preset_id}`}
       label={preset.label}
       previewUrl={thumb}
-      previewLabel={`Apply ${preset.label}`}
-      onPreview={apply}
-      disabled={selectingPresetId != null}
+      previewLabel={`Preview ${preset.label}`}
+      previewTitle={thumb ? "Preview full image" : "No preview image available"}
+      onPreview={() => {
+        if (thumb) onPreview(thumb);
+      }}
+      disabled={selectingPresetId != null || !thumb}
+      layout="editorial"
+      previewBackdrop
       description={preset.description ?? "No description added yet."}
       metadata={
         <details className="studio-preset-models">
           <summary tabIndex={0}>
             <Box aria-hidden="true" className="size-4" />
             Compatible models
+            <ChevronDown aria-hidden="true" className="size-3" />
           </summary>
           <div>{modelScope || "No model scope"}</div>
           <div>{presetInputSummary(preset)}</div>
@@ -394,6 +438,16 @@ function PresetBrowserCard({
       }
       actions={
         <>
+          <Button
+            onClick={onEdit}
+            appearance="admin"
+            size="compact"
+            variant="ghost"
+            aria-label={`Edit ${preset.label}`}
+            title="Edit preset"
+          >
+            <Pencil className="size-4" /> Edit
+          </Button>
           <Button
             data-testid={`studio-preset-browser-item-${preset.preset_id}`}
             onClick={apply}
@@ -410,16 +464,6 @@ function PresetBrowserCard({
               <Play className="size-4" />
             )}
             Use preset
-          </Button>
-          <Button
-            onClick={() => onEdit()}
-            appearance="admin"
-            size="compact"
-            variant="subtle"
-            aria-label={`Edit ${preset.label}`}
-            title="Edit preset"
-          >
-            <Pencil className="size-4" /> Edit
           </Button>
         </>
       }
@@ -467,6 +511,9 @@ function PresetBrowserToolbar({
       }
     >
       <div className="studio-browser-filters">
+        <span className="studio-preset-browser-title" aria-hidden="true">
+          Media Presets
+        </span>
         <StudioBrowserSearchInput
           id="studio-preset-browser-search"
           label="Search presets"
@@ -474,43 +521,51 @@ function PresetBrowserToolbar({
           onChange={onQueryChange}
           placeholder="Search"
         />
-        <div
-          className="studio-browser-category-shortcuts"
-          aria-label="Preset categories"
-        >
-          {categoryChoices.slice(0, 5).map((category) => (
-            <Button
-              key={category.value}
-              appearance="admin"
-              variant={
-                selectedCategory === category.value ? "primary" : "subtle"
-              }
-              size="compact"
-              aria-label={`Filter presets: ${category.label}`}
-              aria-pressed={selectedCategory === category.value}
-              onClick={() => onCategoryChange(category.value)}
-            >
-              {category.value === "all" ? "All" : category.label}
-            </Button>
-          ))}
+        <div className="studio-preset-category-controls">
+          <div
+            className="studio-browser-category-shortcuts"
+            aria-label="Preset categories"
+          >
+            {categoryChoices
+              .filter((category) =>
+                ["all", "portrait", "product", "character"].includes(
+                  category.value,
+                ),
+              )
+              .map((category) => (
+                <Button
+                  key={category.value}
+                  appearance="admin"
+                  variant={
+                    selectedCategory === category.value ? "primary" : "subtle"
+                  }
+                  size="compact"
+                  aria-label={`Filter presets: ${category.label}`}
+                  aria-pressed={selectedCategory === category.value}
+                  onClick={() => onCategoryChange(category.value)}
+                >
+                  {category.value === "all" ? "All" : category.label}
+                </Button>
+              ))}
+          </div>
+          <PillSelect
+            pickerId="studio-preset-category"
+            menuAlign="end"
+            open={categoryPickerOpen}
+            onToggle={() => onCategoryPickerOpenChange(!categoryPickerOpen)}
+            onClose={() => onCategoryPickerOpenChange(false)}
+            appearance="admin"
+            iconOnly
+            label={categoryPickerLabel}
+            choices={categoryChoices}
+            selectedValue={selectedCategory}
+            menuTitle="Preset category"
+            onSelect={(value) => {
+              onCategoryChange(value);
+              onCategoryPickerOpenChange(false);
+            }}
+          />
         </div>
-        <PillSelect
-          pickerId="studio-preset-category"
-          menuAlign="end"
-          open={categoryPickerOpen}
-          onToggle={() => onCategoryPickerOpenChange(!categoryPickerOpen)}
-          onClose={() => onCategoryPickerOpenChange(false)}
-          appearance="admin"
-          iconOnly
-          label={categoryPickerLabel}
-          choices={categoryChoices}
-          selectedValue={selectedCategory}
-          menuTitle="Preset category"
-          onSelect={(value) => {
-            onCategoryChange(value);
-            onCategoryPickerOpenChange(false);
-          }}
-        />
         {showModelPresets ? composerPresetPicker : null}
       </div>
     </StudioBrowserToolbar>

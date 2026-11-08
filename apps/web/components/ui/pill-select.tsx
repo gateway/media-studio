@@ -123,7 +123,7 @@ export function PillSelect({
     }
 
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !containerRef.current?.closest("[inert]")) {
         event.preventDefault();
         containerRef.current?.querySelector("button")?.focus();
         onClose();

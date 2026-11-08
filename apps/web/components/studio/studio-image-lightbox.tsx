@@ -10,6 +10,8 @@ type StudioImageLightboxProps = {
   kind?: "images" | "videos" | "audios";
   posterSrc?: string | null;
   onClose: () => void;
+  closeLabel?: string;
+  fallbackSrc?: string;
 };
 
 export function StudioImageLightbox({
@@ -18,6 +20,8 @@ export function StudioImageLightbox({
   kind = "images",
   posterSrc,
   onClose,
+  closeLabel = "Close reference image lightbox",
+  fallbackSrc,
 }: StudioImageLightboxProps) {
   const panelRef = useDialogFocus(onClose);
 
@@ -41,8 +45,8 @@ export function StudioImageLightbox({
         size="touch"
         onClick={onClose}
         className="studio-reference-lightbox-close"
-        title="Close reference image lightbox"
-        aria-label="Close reference image lightbox"
+        title={closeLabel}
+        aria-label={closeLabel}
       />
       <div
         className="studio-lightbox-swipe-surface"
@@ -75,6 +79,13 @@ export function StudioImageLightbox({
         ) : (
           <img
             src={src}
+            onError={(event) => {
+              if (
+                fallbackSrc &&
+                event.currentTarget.getAttribute("src") !== fallbackSrc
+              )
+                event.currentTarget.src = fallbackSrc;
+            }}
             alt={alt}
             loading="eager"
             fetchPriority="high"
