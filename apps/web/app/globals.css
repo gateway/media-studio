@@ -3174,6 +3174,10 @@ textarea {
     min-height: 152px;
     padding: 10px 17px 44px;
     font-size: 0.9375rem;
+
+    @media (height <= 700px) {
+      min-height: 120px;
+    }
   }
 
   :where(.studio-create-stage-immersive)
@@ -3184,6 +3188,11 @@ textarea {
     align-items: stretch;
     align-self: stretch;
     gap: 8px;
+
+    /* Use the available CSS viewport height, including browser zoom. */
+    @media (height >= 1000px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   :where(.studio-create-stage-immersive)
