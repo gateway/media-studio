@@ -418,15 +418,10 @@ function ExpandedReferenceManager({
   const managerId = useId();
   const { label, singular } = referenceKinds[group.kind];
   const available = Math.max(0, group.limit - group.slots.length);
-  const columns = Math.min(
-    4,
-    Math.max(1, group.slots.length + Number(available > 0)),
-  );
-
   return createPortal(
     <StudioBrowserOverlay
       testId="studio-expanded-references"
-      zIndexClassName={`z-[118] studio-expanded-references studio-expanded-references-columns-${columns}`}
+      zIndexClassName="z-[118] studio-expanded-references"
       title="References"
       heading={
         <div className="studio-expanded-reference-title">

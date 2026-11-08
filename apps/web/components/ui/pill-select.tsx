@@ -175,9 +175,7 @@ export function PillSelect({
           : "up";
       const availableSpace = nextPlacement === "down" ? spaceBelow : spaceAbove;
       setMenuPlacement(nextPlacement);
-      setMenuMaxHeight(
-        Math.max(160, Math.min(Math.max(availableSpace, 0), desiredCap)),
-      );
+      setMenuMaxHeight(Math.max(0, Math.min(availableSpace, desiredCap)));
     }
 
     updateMenuPlacement();

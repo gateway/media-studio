@@ -29,20 +29,15 @@ html:has(.studio-browser-backdrop) {
   justify-content: center;
   align-items: center;
   min-height: 100dvh;
-  padding: 32px 24px;
+  padding: 24px;
 }
 
 .studio-browser-panel {
   width: 100%;
-  max-width: 1040px;
-  height: calc(100dvh - 64px);
+  height: calc(100dvh - 48px);
   overflow: hidden;
   border-radius: var(--radius-panel);
   background: var(--admin-canvas);
-}
-
-.studio-browser-panel-list {
-  max-width: 720px;
 }
 
 .studio-browser-shell {
@@ -528,13 +523,13 @@ html:has(.studio-browser-backdrop) {
   }
 }
 
-@media (width <= 639px), (height < 600px) {
+@media (width <= 639px), (height <= 700px) {
   .studio-browser-position {
-    padding: 12px;
+    padding: 16px;
   }
 
   .studio-browser-panel {
-    height: calc(100dvh - 24px);
+    height: calc(100dvh - 32px);
   }
 }
 
@@ -574,44 +569,13 @@ html:has(.studio-browser-backdrop) {
 }
 
 .studio-expanded-references {
-  --studio-reference-dialog-columns: 4;
-  --studio-reference-dialog-padding: clamp(16px, 8dvh, 80px);
   --admin-canvas: var(--ms-surface-secondary);
   --foreground: var(--text-primary);
 }
 
-.studio-expanded-references-columns-1 {
-  --studio-reference-dialog-columns: 1;
-}
-
-.studio-expanded-references-columns-2 {
-  --studio-reference-dialog-columns: 2;
-}
-
-.studio-expanded-references-columns-3 {
-  --studio-reference-dialog-columns: 3;
-}
-
-.studio-expanded-references .studio-browser-position {
-  align-items: center;
-  padding: var(--studio-reference-dialog-padding) clamp(16px, 8vw, 140px);
-}
-
 .studio-expanded-references .studio-browser-panel {
-  width: min(
-    100%,
-    max(480px, calc(var(--studio-reference-dialog-columns) * 336px + 48px))
-  );
-  max-width: 1400px;
-  height: auto;
-  max-height: calc(100dvh - 2 * var(--studio-reference-dialog-padding));
   border: 1px solid var(--border-strong);
   background: var(--ms-surface-primary);
-}
-
-.studio-expanded-references .studio-browser-shell {
-  height: auto;
-  max-height: inherit;
 }
 
 .studio-expanded-references .studio-browser-header {
@@ -634,7 +598,7 @@ html:has(.studio-browser-backdrop) {
 
 .studio-expanded-reference-title > :first-child {
   color: var(--text-primary);
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 500;
 }
 
@@ -661,7 +625,7 @@ html:has(.studio-browser-backdrop) {
 }
 
 .studio-expanded-reference-grid.studio-browser-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 16px;
 }
 
@@ -770,15 +734,7 @@ html:has(.studio-browser-backdrop) {
   --action-subtle-surface-hover: var(--accent-soft);
 }
 
-@media (width < 600px), (height < 600px) {
-  .studio-expanded-references {
-    --studio-reference-dialog-padding: 12px;
-  }
-
-  .studio-expanded-references .studio-browser-position {
-    padding-inline: 12px;
-  }
-
+@media (width < 600px), (height <= 700px) {
   .studio-expanded-references .studio-browser-header,
   .studio-expanded-reference-footer {
     margin-inline: 16px;
@@ -791,7 +747,7 @@ html:has(.studio-browser-backdrop) {
   }
 
   .studio-expanded-reference-grid.studio-browser-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
     gap: 12px;
   }
 }

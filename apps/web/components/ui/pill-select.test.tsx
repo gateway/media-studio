@@ -142,3 +142,57 @@ it("keeps in-flow model menu height stable while the menu scrolls", () => {
   fireEvent.click(screen.getByText("Seedance 2.5"));
   expect(onSelect).toHaveBeenCalledExactlyOnceWith("seedance-2.5");
 });
+
+it.each([
+  { top: 100, bottom: 134, height: 72, placement: "top-[calc(100%+0.65rem)]" },
+  {
+    top: 142,
+    bottom: 176,
+    height: 110,
+    placement: "bottom-[calc(100%+0.65rem)]",
+  },
+])(
+  "keeps a short viewport menu within its available $height px and adapts on resize",
+  ({ top, bottom, height, placement }) => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      top,
+      bottom,
+      left: 0,
+      right: 300,
+      width: 300,
+      height: bottom - top,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    } as DOMRect);
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 238,
+    });
+    const onSelect = vi.fn();
+    render(
+      <PillSelect
+        pickerId="resolution"
+        open
+        onToggle={vi.fn()}
+        onClose={vi.fn()}
+        appearance="admin"
+        label="Current resolution"
+        choices={[{ value: "720p", label: "720p" }]}
+        onSelect={onSelect}
+      />,
+    );
+    const choice = screen.getByRole("button", { name: "720p" });
+    const menu = choice.closest(".admin-select-menu") as HTMLElement;
+    expect(menu.style.maxHeight).toBe(`${height}px`);
+    expect(menu.className).toContain(placement);
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 900,
+    });
+    fireEvent.resize(window);
+    expect(menu.style.maxHeight).toBe("360px");
+    fireEvent.click(choice);
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith("720p");
+  },
+);
