@@ -19,7 +19,7 @@ import {
   StudioSeedanceReferenceStrip,
   StudioSourceAttachmentStrip,
 } from "@/components/studio/studio-composer-input-strips";
-import { seedanceComposerInputs } from "@/components/studio/studio-seedance-inputs";
+import { useSeedanceComposerInputs } from "@/components/studio/studio-seedance-inputs";
 import { StudioMultiImageReferenceStrip } from "@/components/studio/studio-multi-image-reference-strip";
 import { StudioCreateStage } from "@/components/studio/studio-create-stage";
 import { StudioGallery } from "@/components/studio/studio-gallery";
@@ -1434,7 +1434,7 @@ export function MediaStudio({
       />
     ) : null;
 
-  const composerInputs = seedanceComposerInputs({
+  const composerInputs = useSeedanceComposerInputs({
     seedance: seedanceComposer,
     effectiveMode: effectiveSeedanceMode,
     referenceInputs,

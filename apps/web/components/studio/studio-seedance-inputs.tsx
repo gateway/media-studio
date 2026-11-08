@@ -4,20 +4,25 @@ import { useId, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 
+type SeedanceInputSelection = {
+  pattern: string;
+  view: "frames" | "references";
+};
+
 export function StudioSeedanceInputs({
   effectiveMode,
   frames,
   references,
+  selection,
+  onSelect,
 }: {
   effectiveMode: string;
   frames: ReactNode;
   references: ReactNode;
+  selection: SeedanceInputSelection | null;
+  onSelect: (selection: SeedanceInputSelection) => void;
 }) {
   const id = useId();
-  const [selection, setSelection] = useState<{
-    pattern: string;
-    view: "frames" | "references";
-  } | null>(null);
   // Follow restored/staged input roles until the user chooses a presentation.
   // Switching this view never mutates the attachment-owned generation mode.
   const view =
@@ -44,7 +49,7 @@ export function StudioSeedanceInputs({
             aria-controls={`${id}-${mode}`}
             aria-selected={view === mode}
             tabIndex={view === mode ? 0 : -1}
-            onClick={() => setSelection({ pattern: effectiveMode, view: mode })}
+            onClick={() => onSelect({ pattern: effectiveMode, view: mode })}
             onKeyDown={(event) => {
               if (
                 !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
@@ -57,7 +62,7 @@ export function StudioSeedanceInputs({
                   : event.key === "End"
                     ? views[1]
                     : views[1 - index];
-              setSelection({ pattern: effectiveMode, view: next });
+              onSelect({ pattern: effectiveMode, view: next });
               document.getElementById(`${id}-${next}-tab`)?.focus();
             }}
           >
@@ -81,7 +86,7 @@ export function StudioSeedanceInputs({
   );
 }
 
-export function seedanceComposerInputs({
+export function useSeedanceComposerInputs({
   seedance,
   effectiveMode,
   ...inputs
@@ -92,6 +97,10 @@ export function seedanceComposerInputs({
   sourceAttachmentStrip: ReactNode;
   mobileInputsContent: ReactNode;
 }) {
+  // The composer panel unmounts on collapse; its stable caller owns the view.
+  const [selection, setSelection] = useState<SeedanceInputSelection | null>(
+    null,
+  );
   if (!seedance) return inputs;
   return {
     referenceInputs: (
@@ -99,6 +108,8 @@ export function seedanceComposerInputs({
         effectiveMode={effectiveMode}
         frames={inputs.sourceAttachmentStrip}
         references={inputs.referenceInputs}
+        selection={selection}
+        onSelect={setSelection}
       />
     ),
     sourceAttachmentStrip: null,

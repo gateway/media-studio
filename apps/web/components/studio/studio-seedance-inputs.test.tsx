@@ -10,13 +10,64 @@ import {
 import { useState, type ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { StudioSeedanceInputs } from "@/components/studio/studio-seedance-inputs";
+import { useSeedanceComposerInputs } from "@/components/studio/studio-seedance-inputs";
+import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioComposerControls } from "@/components/studio/studio-composer-controls";
 import { StudioSourceAttachmentStrip } from "@/components/studio/studio-composer-input-strips";
 import { buildAttachmentPreview } from "@/lib/studio-reference-previews";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
 
 afterEach(cleanup);
+
+function CollapsibleSeedanceInputs({ mode }: { mode: string }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const inputs = useSeedanceComposerInputs({
+    seedance: true,
+    effectiveMode: mode,
+    referenceInputs: <div>Reference inputs</div>,
+    sourceAttachmentStrip: <div>Frame inputs</div>,
+    mobileInputsContent: null,
+  });
+  return (
+    <StudioComposer
+      immersive
+      composerCollapsed={collapsed}
+      mobileComposerCollapsed={false}
+      mobileComposerExpanded
+      currentModelLabel="Seedance 2.5"
+      formattedRemainingCredits={null}
+      estimatedCredits={null}
+      structuredPresetActive={false}
+      presetLabel={null}
+      floatingComposerStatus={null}
+      onToggleCollapsed={() => undefined}
+      onToggleComposerCollapsed={() => setCollapsed((value) => !value)}
+      {...inputs}
+    >
+      <div>Prompt and options remain in their existing owner</div>
+    </StudioComposer>
+  );
+}
+
+it.each([
+  ["prompt_only", "References"],
+  ["multimodal_reference", "Frames"],
+])(
+  "retains the selected %s input view across composer collapse",
+  (mode, selected) => {
+    render(<CollapsibleSeedanceInputs mode={mode} />);
+    fireEvent.click(screen.getByRole("tab", { name: selected }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse Studio composer" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Expand Studio composer" }),
+    );
+    expect(
+      screen.getByRole("tab", { name: selected, selected: true }),
+    ).toBeTruthy();
+  },
+);
 
 function StagedInput() {
   const [value, setValue] = useState("staged");
@@ -29,14 +80,18 @@ function StagedInput() {
   );
 }
 
+function SeedanceInputs({ effectiveMode }: { effectiveMode: string }) {
+  return useSeedanceComposerInputs({
+    seedance: true,
+    effectiveMode,
+    sourceAttachmentStrip: <div>Frame inputs</div>,
+    referenceInputs: <StagedInput />,
+    mobileInputsContent: null,
+  }).referenceInputs;
+}
+
 it("switches input views with the keyboard and preserves staged state, following changed input roles", () => {
-  const props = {
-    frames: <div>Frame inputs</div>,
-    references: <StagedInput />,
-  };
-  const { rerender } = render(
-    <StudioSeedanceInputs {...props} effectiveMode="prompt_only" />,
-  );
+  const { rerender } = render(<SeedanceInputs effectiveMode="prompt_only" />);
   expect(screen.getByRole("tabpanel").textContent).toBe("Frame inputs");
   fireEvent.keyDown(screen.getByRole("tab", { name: "Frames" }), {
     key: "ArrowRight",
@@ -49,13 +104,11 @@ it("switches input views with the keyboard and preserves staged state, following
   fireEvent.click(screen.getByRole("tab", { name: "Frames" }));
   fireEvent.click(screen.getByRole("tab", { name: "References" }));
   expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("kept");
-  rerender(<StudioSeedanceInputs {...props} effectiveMode="single_image" />);
+  rerender(<SeedanceInputs effectiveMode="single_image" />);
   expect(
     screen.getByRole("tab", { name: "Frames", selected: true }),
   ).toBeTruthy();
-  rerender(
-    <StudioSeedanceInputs {...props} effectiveMode="multimodal_reference" />,
-  );
+  rerender(<SeedanceInputs effectiveMode="multimodal_reference" />);
   expect(
     screen.getByRole("tab", { name: "References", selected: true }),
   ).toBeTruthy();
