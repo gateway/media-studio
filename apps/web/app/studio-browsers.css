@@ -9,7 +9,7 @@
 }
 
 .studio-browser-theme
-  :is(button, input, select, textarea, a, [tabindex]):focus-visible,
+  :is(button, input, select, textarea, a, summary, [tabindex]):focus-visible,
 .studio-expanded-reference-actions label:has(> input:focus-visible) {
   outline: 2px solid var(--accent-strong);
   outline-offset: 3px;
@@ -310,13 +310,129 @@ html:has(.studio-browser-backdrop) {
 }
 
 .studio-preset-models {
+  color: var(--text-primary);
+}
+
+.studio-preset-models > summary {
   display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
+  list-style: none;
 }
 
-.studio-preset-models > svg {
+.studio-preset-models > summary::-webkit-details-marker {
+  display: none;
+}
+
+.studio-preset-models > :where(summary) > svg {
   flex-shrink: 0;
+}
+
+.studio-preset-models > div {
+  margin-top: 8px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* The M board's preset cards stay compact as the viewport grows. */
+.studio-browser-panel-presets .studio-header-chrome-browser {
+  position: static;
+  z-index: auto;
+  grid-template-columns: 1fr auto;
+  flex-shrink: 0;
+  margin-inline: 20px;
+  padding-inline: 0;
+}
+
+.studio-header-chrome-browser .studio-header-project:empty {
+  display: none;
+}
+
+.studio-header-chrome-browser .studio-header-project:not(:empty) {
+  grid-area: 2 / 1 / auto / -1;
+}
+
+.studio-header-chrome-browser .studio-header-filter-row,
+.studio-header-chrome-browser .studio-header-metrics-row {
+  gap: 8px;
+}
+
+.studio-browser-panel-presets .studio-browser-toolbar-main {
+  display: flex;
+}
+
+.studio-browser-panel-presets .studio-browser-filters {
+  width: 100%;
+}
+
+.studio-browser-panel-presets
+  .studio-browser-filters
+  > .studio-browser-search-shell {
+  flex: 1 1 220px;
+  max-width: 420px;
+}
+
+.studio-browser-panel-presets .studio-browser-filters > [data-studio-picker] {
+  min-width: 0;
+}
+
+.studio-browser-panel-presets .studio-browser-count {
+  @apply sr-only;
+}
+
+.studio-browser-panel-presets .studio-browser-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+
+.studio-browser-panel-presets .media-browser-item-preview {
+  aspect-ratio: 2.6;
+}
+
+.studio-browser-panel-presets .media-browser-item-body {
+  gap: 4px;
+  padding-block: 4px 12px;
+}
+
+:where(.studio-browser-panel-presets) .media-browser-item-heading h3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-browser-panel-presets .media-browser-item-metadata {
+  margin-block: 4px;
+}
+
+.studio-browser-panel-presets .media-browser-item-actions {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 12px;
+}
+
+@media (width >= 640px) {
+  .studio-browser-panel-presets .studio-browser-category-shortcuts {
+    display: flex;
+  }
+}
+
+@media (width < 850px) {
+  .studio-browser-panel-presets .studio-header-chrome-browser {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px;
+    margin-inline: 16px;
+  }
+
+  .studio-header-chrome-browser .studio-header-project:not(:empty) {
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .studio-header-chrome-browser .studio-header-metrics-row {
+    flex-wrap: wrap;
+  }
 }
 
 .studio-browser-section-title {

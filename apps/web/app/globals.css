@@ -2173,7 +2173,7 @@ textarea {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  min-height: var(--studio-header-size);
+  min-height: var(--studio-header-size, 50px);
   gap: 8px;
   padding: 6px 12px;
   border-bottom: 1px solid var(--border-soft);
@@ -2205,7 +2205,7 @@ textarea {
 
 .studio-header-chrome-root .studio-header-icon {
   width: 50px;
-  height: var(--studio-control-size);
+  height: var(--studio-control-size, 34px);
   border: 0;
   color: var(--text-primary);
   backdrop-filter: none;
@@ -2651,7 +2651,7 @@ textarea {
   }
 
   .studio-header-chrome-root .studio-header-icon {
-    width: var(--studio-control-size);
+    width: var(--studio-control-size, 34px);
   }
 
   .studio-header-menu-group,

@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type RefObject,
 } from "react";
 import { Check, ChevronDown, ChevronUp, type LucideIcon } from "lucide-react";
 
@@ -39,6 +40,9 @@ type PillSelectProps = {
   widthClassName?: string;
   appearance?: "admin" | "studio";
   icon?: LucideIcon;
+  iconOnly?: boolean;
+  menuAlign?: "start" | "end";
+  triggerRef?: RefObject<HTMLButtonElement | null>;
   choiceIcon?: (choice: PillSelectChoice) => LucideIcon | null | undefined;
   label: string;
   choices: PillSelectChoice[];
@@ -57,6 +61,9 @@ export function PillSelect({
   widthClassName,
   appearance = "studio",
   icon: Icon,
+  iconOnly = false,
+  menuAlign = "start",
+  triggerRef,
   choiceIcon,
   label,
   choices,
@@ -230,31 +237,28 @@ export function PillSelect({
       )}
     >
       <button
+        ref={triggerRef}
         type="button"
         data-testid={`studio-picker-${pickerId}`}
         aria-expanded={open}
+        aria-label={label}
+        title={label}
         onClick={onToggle}
         className={pillSelectButtonClassName(appearance)}
       >
-        {SelectedIcon ? (
-          <SelectedIcon className="size-4 shrink-0 text-[var(--studio-picker-icon-color,var(--accent-strong))]" />
-        ) : null}
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <ChevronDown
-          className={cn(
-            "size-4 shrink-0 transition",
-            appearance === "studio"
-              ? "studio-select-chevron size-3.5"
-              : "text-white/42",
-            open ? "rotate-180" : "",
-          )}
+        <PillSelectTriggerContent
+          Icon={SelectedIcon}
+          label={label}
+          iconOnly={iconOnly}
+          appearance={appearance}
+          open={open}
         />
       </button>
 
       {open ? (
         <div
           ref={menuRef}
-          style={{ maxHeight: `${menuMaxHeight}px` }}
+          style={pillSelectMenuStyle(menuMaxHeight, menuAlign, iconOnly)}
           onScroll={updateScrollIndicators}
           className={cn(
             pillSelectMenuClassName(appearance),
@@ -411,4 +415,58 @@ function PillSelectOption({
       ) : null}
     </button>
   );
+}
+
+function PillSelectTriggerContent({
+  Icon,
+  label,
+  iconOnly,
+  appearance,
+  open,
+}: {
+  Icon?: LucideIcon | null;
+  label: string;
+  iconOnly: boolean;
+  appearance: "admin" | "studio";
+  open: boolean;
+}) {
+  return (
+    <>
+      {Icon ? (
+        <Icon className="size-4 shrink-0 text-[var(--studio-picker-icon-color,var(--accent-strong))]" />
+      ) : null}
+      <span className={iconOnly ? "sr-only" : "min-w-0 flex-1 truncate"}>
+        {label}
+      </span>
+      {!(iconOnly && Icon) ? (
+        <ChevronDown
+          className={cn(
+            "size-4 shrink-0 transition",
+            appearance === "studio"
+              ? "studio-select-chevron size-3.5"
+              : "text-white/42",
+            open ? "rotate-180" : "",
+          )}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function pillSelectMenuStyle(
+  maxHeight: number,
+  align: "start" | "end",
+  iconOnly: boolean,
+) {
+  return {
+    maxHeight: `${maxHeight}px`,
+    ...(align === "end" ? { left: "auto", right: 0 } : {}),
+    ...(iconOnly
+      ? {
+          width: "max-content",
+          minWidth: "100%",
+          maxWidth: "min(28rem, calc(100vw - 64px))",
+        }
+      : {}),
+  };
 }

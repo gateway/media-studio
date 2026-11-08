@@ -64,6 +64,31 @@ it("leaves open pickers operable and reserves their first Escape", () => {
   fireEvent.keyDown(window, { key: "Escape" });
   expect(onClose).not.toHaveBeenCalled();
 });
+it("includes native disclosures in the focus loop and returns to a supplied navigation trigger", () => {
+  const trigger = document.createElement("button");
+  document.body.append(trigger);
+  const view = render(
+    <StudioBrowserOverlay
+      testId="browser"
+      zIndexClassName="z-[121]"
+      title="Media Presets"
+      onClose={vi.fn()}
+      returnFocusFallback={{ current: trigger }}
+    >
+      <details>
+        <summary tabIndex={0}>Compatible models</summary>
+        <p>GPT Image 2</p>
+      </details>
+      <button>Use preset</button>
+    </StudioBrowserOverlay>,
+  );
+  const summary = screen.getByText("Compatible models");
+  fireEvent.keyDown(window, { key: "Tab" });
+  expect(document.activeElement).toBe(summary);
+  view.unmount();
+  expect(document.activeElement).toBe(trigger);
+  trigger.remove();
+});
 it("suspends the parent while a child dialog owns keyboard interaction", () => {
   const onClose = vi.fn();
   render(

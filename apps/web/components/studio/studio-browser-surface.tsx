@@ -21,6 +21,7 @@ export function StudioBrowserOverlay({
   title,
   description,
   heading,
+  navigation,
   actions,
   toolbar,
   footer,
@@ -35,13 +36,14 @@ export function StudioBrowserOverlay({
   title: string;
   description?: ReactNode;
   heading?: ReactNode;
+  navigation?: ReactNode;
   actions?: ReactNode;
   toolbar?: ReactNode;
   footer?: ReactNode;
   returnFocusFallback?: RefObject<HTMLElement | null>;
   onClose: () => void;
   suspended?: boolean;
-  layout?: "grid" | "list";
+  layout?: "grid" | "list" | "presets";
 }) {
   const titleId = useId();
   const panelRef = useDialogFocus(onClose, suspended, returnFocusFallback);
@@ -56,6 +58,7 @@ export function StudioBrowserOverlay({
       panelClassName={cn(
         "studio-browser-panel",
         layout === "list" && "studio-browser-panel-list",
+        layout === "presets" && "studio-browser-panel-presets",
       )}
     >
       <div
@@ -68,21 +71,57 @@ export function StudioBrowserOverlay({
         className="studio-browser-shell"
         inert={suspended || undefined}
       >
-        <header className="studio-browser-header">
-          <div>
-            <h2 id={titleId} className={heading ? "sr-only" : undefined}>
-              {title}
-            </h2>
-            {heading}
-            {description ? <p>{description}</p> : null}
-          </div>
-          <div className="studio-browser-header-actions">{actions}</div>
-        </header>
+        <StudioBrowserHeader
+          titleId={titleId}
+          title={title}
+          heading={heading}
+          navigation={navigation}
+          description={description}
+          actions={actions}
+        />
         {toolbar}
         <div className="studio-browser-body scrollbar-none">{children}</div>
         {footer}
       </div>
     </OverlayShell>
+  );
+}
+
+function StudioBrowserHeader({
+  titleId,
+  title,
+  heading,
+  navigation,
+  description,
+  actions,
+}: {
+  titleId: string;
+  title: string;
+  heading?: ReactNode;
+  navigation?: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) {
+  if (navigation)
+    return (
+      <>
+        <h2 id={titleId} className="sr-only">
+          {title}
+        </h2>
+        {navigation}
+      </>
+    );
+  return (
+    <header className="studio-browser-header">
+      <div>
+        <h2 id={titleId} className={heading ? "sr-only" : undefined}>
+          {title}
+        </h2>
+        {heading}
+        {description ? <p>{description}</p> : null}
+      </div>
+      <div className="studio-browser-header-actions">{actions}</div>
+    </header>
   );
 }
 

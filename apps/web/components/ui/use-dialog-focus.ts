@@ -16,7 +16,7 @@ function isVisibleControl(element: HTMLElement, panel: HTMLElement) {
 function dialogControls(panel: HTMLElement) {
   return Array.from(
     panel.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"], video[controls], audio[controls]',
+      ':is(button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary, [tabindex="0"], video[controls], audio[controls])',
     ),
   ).filter(
     (element) =>
@@ -49,6 +49,13 @@ function containTabFocus(event: KeyboardEvent, panel: HTMLElement) {
 
 const noReturnFocusFallback = { current: null };
 
+function currentFocusTrigger() {
+  const active = document.activeElement;
+  return active instanceof HTMLElement && active !== document.body
+    ? active
+    : null;
+}
+
 /** Own keyboard focus only while this is the topmost dialog. */
 export function useDialogFocus(
   onClose: () => void,
@@ -66,10 +73,7 @@ export function useDialogFocus(
     if (suspended) return;
     const panel = panelRef.current;
     const fallback = returnFocusFallback.current;
-    const previousFocus =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
+    const previousFocus = currentFocusTrigger();
     returnFocus.current ??= previousFocus;
     const target = resumeFocus.current;
     if (target && panel?.contains(target)) target.focus();

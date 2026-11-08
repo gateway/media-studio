@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   useTransition,
+  type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -145,6 +146,7 @@ export function MediaStudio({
   >(remainingCredits ?? null);
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
   const [presetBrowserOpen, setPresetBrowserOpen] = useState(false);
+  const studioLibraryTriggerRef = useRef<HTMLButtonElement>(null);
   const [hydratedStudioPresets, setHydratedStudioPresets] = useState<
     MediaPreset[]
   >([]);
@@ -2311,33 +2313,53 @@ export function MediaStudio({
     />
   );
 
+  const renderStudioHeader = (actions?: ReactNode) => (
+    <StudioHeaderChrome
+      immersive={immersive}
+      placement={actions ? "browser" : "fixed"}
+      actions={actions}
+      libraryTriggerRef={actions ? undefined : studioLibraryTriggerRef}
+      apiHealthy={apiHealthy}
+      galleryModelFilter={galleryModelFilter}
+      models={models}
+      favoritesOnly={favoritesOnly}
+      galleryKindFilter={galleryKindFilter}
+      project={selectedProject}
+      remainingCredits={localRemainingCredits}
+      onOpenProjectWorkspace={(projectId) => {
+        setPresetBrowserOpen(false);
+        openProjectWorkspace(projectId);
+      }}
+      onOpenStudio={() => {
+        setPresetBrowserOpen(false);
+        clearGallerySelection();
+      }}
+      onOpenGraph={() => {
+        setPresetBrowserOpen(false);
+        openGraphStudio();
+      }}
+      onGalleryModelFilterChange={handleGalleryModelFilterChange}
+      onActivateGalleryKindFilter={handleGalleryKindFilterChange}
+      onToggleFavoritesFilter={handleFavoritesFilterToggle}
+      onOpenProjects={() => {
+        setPresetBrowserOpen(false);
+        setProjectBrowserOpen(true);
+      }}
+      onOpenPresets={() => setPresetBrowserOpen(true)}
+      onOpenLibrary={() => {
+        setPresetBrowserOpen(false);
+        openContextualReferenceLibrary();
+      }}
+      onOpenSettings={() =>
+        void router.push(buildStudioScopedHref("/settings", selectedProjectId))
+      }
+    />
+  );
+
   return (
     <div className={immersive ? "min-h-dvh" : "space-y-7"}>
       <StudioCreateStage immersive={immersive}>
-        <StudioHeaderChrome
-          immersive={immersive}
-          apiHealthy={apiHealthy}
-          galleryModelFilter={galleryModelFilter}
-          models={models}
-          favoritesOnly={favoritesOnly}
-          galleryKindFilter={galleryKindFilter}
-          project={selectedProject}
-          remainingCredits={localRemainingCredits}
-          onOpenProjectWorkspace={openProjectWorkspace}
-          onOpenStudio={clearGallerySelection}
-          onOpenGraph={openGraphStudio}
-          onGalleryModelFilterChange={handleGalleryModelFilterChange}
-          onActivateGalleryKindFilter={handleGalleryKindFilterChange}
-          onToggleFavoritesFilter={handleFavoritesFilterToggle}
-          onOpenProjects={() => setProjectBrowserOpen(true)}
-          onOpenPresets={() => setPresetBrowserOpen(true)}
-          onOpenLibrary={openContextualReferenceLibrary}
-          onOpenSettings={() =>
-            void router.push(
-              buildStudioScopedHref("/settings", selectedProjectId),
-            )
-          }
-        />
+        <div hidden={presetBrowserOpen}>{renderStudioHeader()}</div>
 
         <StudioGallery
           apiHealthy={apiHealthy}
@@ -2587,6 +2609,8 @@ export function MediaStudio({
           presets={availableStudioPresets}
           models={models}
           composerPresetPicker={immersive ? composerPresetPicker : null}
+          navigation={immersive ? renderStudioHeader : undefined}
+          returnFocusFallback={studioLibraryTriggerRef}
           returnToHref={
             typeof window === "undefined"
               ? pathname

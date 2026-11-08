@@ -13,7 +13,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 
 import { StatusPill } from "@/components/status-pill";
 import { IconButton } from "@/components/ui/icon-button";
@@ -54,6 +54,9 @@ type StudioHeaderChromeProps = {
   onOpenLibrary: () => void;
   showLibraryButton?: boolean;
   onOpenSettings: () => void;
+  placement?: "fixed" | "browser";
+  actions?: ReactNode;
+  libraryTriggerRef?: RefObject<HTMLButtonElement | null>;
 };
 
 function HeaderIcon({
@@ -106,6 +109,9 @@ export function StudioHeaderChrome({
   onOpenLibrary,
   showLibraryButton = true,
   onOpenSettings,
+  placement = "fixed",
+  actions,
+  libraryTriggerRef,
 }: StudioHeaderChromeProps) {
   const [openMenu, setOpenMenu] = useState<"media" | "library" | null>(null);
   const apiStatus = apiHealthy ? readyStatus() : connectingStatus();
@@ -135,7 +141,9 @@ export function StudioHeaderChrome({
     setOpenMenu(openMenu === menu ? null : menu);
   }
   return (
-    <header className="studio-header-chrome-root">
+    <header
+      className={`studio-header-chrome-root${placement === "browser" ? " studio-header-chrome-browser" : ""}`}
+    >
       <nav className="studio-header-filter-row" aria-label="Studio navigation">
         <div className="studio-header-view-switch">
           <HeaderIcon
@@ -170,6 +178,7 @@ export function StudioHeaderChrome({
       </div>
       <div className="studio-header-metrics-row">
         <StudioLibraryMenu
+          triggerRef={libraryTriggerRef}
           open={openMenu === "library"}
           onToggle={() => toggleMenu("library")}
           onClose={() => setOpenMenu(null)}
@@ -186,6 +195,7 @@ export function StudioHeaderChrome({
           remaining={remainingCredits}
           className="studio-header-balance"
         />
+        {actions}
       </div>
     </header>
   );
@@ -238,12 +248,14 @@ function StudioGalleryFilterMenu({
 }
 
 function StudioLibraryMenu({
+  triggerRef,
   open,
   onToggle,
   onClose,
   onOpenPresets,
   onOpenLibrary,
 }: {
+  triggerRef?: RefObject<HTMLButtonElement | null>;
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -253,6 +265,7 @@ function StudioLibraryMenu({
   return (
     <PillSelect
       pickerId="studio-library"
+      triggerRef={triggerRef}
       className="studio-header-menu studio-header-library"
       open={open}
       onToggle={onToggle}

@@ -102,6 +102,54 @@ describe("StudioPresetBrowser", () => {
     );
   });
 
+  it("keeps creation and model-specific presets reachable from the compact actions menu", () => {
+    render(
+      <StudioPresetBrowser
+        presets={presets}
+        models={models}
+        returnToHref="/studio?project=project-42"
+        composerPresetPicker={<button>Model preset picker</button>}
+        onClose={vi.fn()}
+        onSelectPreset={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Model preset picker" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Preset actions" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Presets for this model" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Model preset picker" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Preset actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "New preset" }));
+    expect(pushMock).toHaveBeenCalledWith(
+      "/presets/new?returnTo=%2Fstudio%3Fproject%3Dproject-42",
+    );
+  });
+
+  it("reveals full compatibility and input requirements without applying the preset", () => {
+    const onSelectPreset = vi.fn();
+    render(
+      <StudioPresetBrowser
+        presets={presets}
+        models={models}
+        onClose={vi.fn()}
+        onSelectPreset={onSelectPreset}
+      />,
+    );
+    const summary = screen.getByText("Compatible models");
+    const details = summary.closest("details")!;
+    expect(details.open).toBe(false);
+    fireEvent.click(summary);
+    expect(details.open).toBe(true);
+    expect(details.textContent).toContain("GPT Image 1");
+    expect(details.textContent).toContain("1 text field · 0 image slots");
+    expect(onSelectPreset).not.toHaveBeenCalled();
+  });
+
   it("renders a bounded initial preset page for large catalogs", () => {
     const manyPresets = Array.from({ length: 500 }, (_, index) => ({
       ...presets[0],
