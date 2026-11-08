@@ -12,7 +12,6 @@ import {
   displayChoiceLabel,
   filledStructuredPresetImageSlotCount,
   inferInputPattern,
-  isPresetSlotFilled,
   isSeedanceModel,
   isRecord,
   modelSupportsFirstLastFrames,
@@ -39,12 +38,26 @@ import {
   studioPresetSupportedModels,
   studioValidationReady,
 } from "@/lib/media-studio-helpers";
-import { deriveStudioPricingOptions, estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
-import { findMediaAssetById, isStructuredMediaPreset, presetRequirementMessage, selectedPromptObjects } from "@/lib/studio-gallery";
-import { readStudioComposerDraft, type StudioComposerDraft } from "@/lib/studio-composer-draft";
+import {
+  deriveStudioPricingOptions,
+  estimateFromPricingSnapshot,
+  resolveStudioPricingDisplay,
+} from "@/lib/studio-pricing";
+import {
+  findMediaAssetById,
+  isStructuredMediaPreset,
+  selectedPromptObjects,
+} from "@/lib/studio-gallery";
+import {
+  readStudioComposerDraft,
+  type StudioComposerDraft,
+} from "@/lib/studio-composer-draft";
 import { resolveImageMaxBytes } from "@/lib/studio-composer-file-utils";
 import { deriveStudioEnhancementState } from "@/lib/studio-enhancement-state";
-import { motionControlVideoInputError } from "@/lib/studio-motion-validation";
+import {
+  studioPresetRequirementError,
+  studioRequiredInputError,
+} from "@/lib/studio-composer-requirements";
 import { insertStudioPromptSnippet } from "@/lib/studio-prompt-snippets";
 import { useStudioAttachments } from "@/hooks/studio/use-studio-attachments";
 import { useStudioComposerDraftEffects } from "@/hooks/studio/use-studio-composer-draft-effects";
@@ -78,16 +91,24 @@ type UseStudioComposerParams = {
   favoriteAssets: MediaAsset[] | null;
   projectId: string | null;
   sourceAssetId: string | number | null;
-  setSourceAssetId: React.Dispatch<React.SetStateAction<string | number | null>>;
+  setSourceAssetId: React.Dispatch<
+    React.SetStateAction<string | number | null>
+  >;
   setOptimisticBatches: React.Dispatch<React.SetStateAction<MediaBatch[]>>;
   setLocalJobs: React.Dispatch<React.SetStateAction<MediaJob[]>>;
   upsertBatch: (batch: MediaBatch) => void;
   pollJob: (jobId: string) => Promise<void>;
   pollBatch: (batchId: string) => Promise<void>;
   formMessage: ComposerStatusMessage | null;
-  setFormMessage: React.Dispatch<React.SetStateAction<ComposerStatusMessage | null>>;
+  setFormMessage: React.Dispatch<
+    React.SetStateAction<ComposerStatusMessage | null>
+  >;
   showActivity: (
-    payload: { tone: "healthy" | "warning" | "danger"; message: string; spinning?: boolean },
+    payload: {
+      tone: "healthy" | "warning" | "danger";
+      message: string;
+      spinning?: boolean;
+    },
     options?: { autoHideMs?: number },
   ) => void;
   refreshCreditBalance: () => Promise<void>;
@@ -138,7 +159,10 @@ export function useStudioComposer({
     [models],
   );
   const enabledModels = useMemo(
-    () => studioReadyModels.filter((model) => queuePolicyByModelKey.get(model.key)?.enabled ?? true),
+    () =>
+      studioReadyModels.filter(
+        (model) => queuePolicyByModelKey.get(model.key)?.enabled ?? true,
+      ),
     [queuePolicyByModelKey, studioReadyModels],
   );
   const composerState = useStudioComposerState({
@@ -202,18 +226,21 @@ export function useStudioComposer({
     const draft = readStudioComposerDraft();
     initialDraftRef.current = draft;
     if (draft) {
-      setSourceAssetId(draft.sourceAssetId ?? null);
+      // The draft reader clones these collections and normalizes media nulls.
+      setSourceAssetId(draft.sourceAssetId);
       setModelKey(draft.modelKey);
       setSelectedPresetId(draft.selectedPresetId ?? "");
-      setSelectedPromptIds(draft.selectedPromptIds ?? []);
+      setSelectedPromptIds(draft.selectedPromptIds);
       setPrompt(draft.prompt ?? "");
-      setPresetInputValues(draft.presetInputValues ?? {});
-      setPresetSlotStates(draft.presetSlotStates ?? {});
-      setOptionValues(draft.optionValues ?? {});
-      setAttachments(draft.attachments ?? []);
-      setStagedSourceAssetSnapshot(draft.stagedSourceAssetSnapshot ?? null);
+      setPresetInputValues(draft.presetInputValues);
+      setPresetSlotStates(draft.presetSlotStates);
+      setOptionValues(draft.optionValues);
+      setAttachments(draft.attachments);
+      setStagedSourceAssetSnapshot(draft.stagedSourceAssetSnapshot);
       setOutputCount(draft.outputCount ?? 1);
-      setLastStructuredPresetModelKey(draft.lastNanoPresetModelKey ?? "nano-banana-2");
+      setLastStructuredPresetModelKey(
+        draft.lastNanoPresetModelKey ?? "nano-banana-2",
+      );
     }
     setDraftPersistenceEnabled(true);
   }, [
@@ -232,12 +259,20 @@ export function useStudioComposer({
   ]);
 
   const currentModel = models.find((model) => model.key === modelKey) ?? null;
-  const { currentPreset, presetDetailPending, presetDetailError, setPresetDetail } = useStudioPresetDetail(presets, selectedPresetId);
+  const {
+    currentPreset,
+    presetDetailPending,
+    presetDetailError,
+    setPresetDetail,
+  } = useStudioPresetDetail(presets, selectedPresetId);
   useEffect(() => {
-    if (presetDetailError) setFormMessage({ tone: "danger", text: presetDetailError });
+    if (presetDetailError)
+      setFormMessage({ tone: "danger", text: presetDetailError });
   }, [presetDetailError, setFormMessage]);
-  const currentPresetSelectionKey = currentPreset?.preset_id ?? currentPreset?.key ?? selectedPresetId;
-  const resolvedSourceAsset = findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null;
+  const currentPresetSelectionKey =
+    currentPreset?.preset_id ?? currentPreset?.key ?? selectedPresetId;
+  const resolvedSourceAsset =
+    findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null;
   const currentSourceAsset = resolveComposerSourceAsset(
     sourceAssetId,
     stagedSourceAssetSnapshot,
@@ -258,38 +293,66 @@ export function useStudioComposer({
     enhanceModeLabel,
     enhanceReadinessLabel,
     enhanceHelperText,
-  } = deriveStudioEnhancementState({ modelKey, enhancementConfigs, enhancePreview });
+  } = deriveStudioEnhancementState({
+    modelKey,
+    enhancementConfigs,
+    enhancePreview,
+  });
   const currentQueuePolicy = queuePolicyByModelKey.get(modelKey) ?? null;
   const currentModelEnabled = currentQueuePolicy?.enabled ?? true;
   const currentModelExposed = currentModel?.studio_exposed !== false;
   const currentModelSupportsStructuredPresets =
-    modelSupportsStructuredImagePreset(currentModel, false) || modelSupportsStructuredImagePreset(currentModel, true);
+    modelSupportsStructuredImagePreset(currentModel, false) ||
+    modelSupportsStructuredImagePreset(currentModel, true);
   const seedanceComposer = isSeedanceModel(modelKey);
-  const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
-  const modelMaxOutputs = Math.max(1, currentQueuePolicy?.max_outputs_per_run ?? 1);
+  const maxConcurrentJobs = Math.max(
+    1,
+    queueSettings?.max_concurrent_jobs ?? 10,
+  );
+  const modelMaxOutputs = Math.max(
+    1,
+    currentQueuePolicy?.max_outputs_per_run ?? 1,
+  );
   const rawMaxImageInputs = modelInputLimit(currentModel, "image_inputs");
   const maxVideoInputs = modelInputLimit(currentModel, "video_inputs");
   const maxAudioInputs = modelInputLimit(currentModel, "audio_inputs");
-  const imageAttachments = attachments.filter((attachment) => attachment.kind === "images");
-  const videoAttachments = attachments.filter((attachment) => attachment.kind === "videos");
-  const audioAttachments = attachments.filter((attachment) => attachment.kind === "audios");
+  const imageAttachments = attachments.filter(
+    (attachment) => attachment.kind === "images",
+  );
+  const videoAttachments = attachments.filter(
+    (attachment) => attachment.kind === "videos",
+  );
+  const audioAttachments = attachments.filter(
+    (attachment) => attachment.kind === "audios",
+  );
   const seedanceFirstFrameAttachment =
-    attachments.find((attachment) => attachment.kind === "images" && attachment.role === "first_frame") ?? null;
+    attachments.find(
+      (attachment) =>
+        attachment.kind === "images" && attachment.role === "first_frame",
+    ) ?? null;
   const seedanceLastFrameAttachment =
-    attachments.find((attachment) => attachment.kind === "images" && attachment.role === "last_frame") ?? null;
+    attachments.find(
+      (attachment) =>
+        attachment.kind === "images" && attachment.role === "last_frame",
+    ) ?? null;
   const seedanceReferenceImages = attachments.filter(
-    (attachment) => attachment.kind === "images" && attachment.role === "reference",
+    (attachment) =>
+      attachment.kind === "images" && attachment.role === "reference",
   );
   const seedanceReferenceVideos = attachments.filter(
-    (attachment) => attachment.kind === "videos" && attachment.role === "reference",
+    (attachment) =>
+      attachment.kind === "videos" && attachment.role === "reference",
   );
   const seedanceReferenceAudios = attachments.filter(
-    (attachment) => attachment.kind === "audios" && attachment.role === "reference",
+    (attachment) =>
+      attachment.kind === "audios" && attachment.role === "reference",
   );
   const sourceAssetIsImage = currentSourceAsset?.generation_kind === "image";
   const sourceAssetIsVideo = currentSourceAsset?.generation_kind === "video";
-  const stagedImageCount = imageAttachments.length + (sourceAssetIsImage ? 1 : 0);
-  const stagedVideoCount = videoAttachments.length + (sourceAssetIsVideo ? 1 : 0);
+  const stagedImageCount =
+    imageAttachments.length + (sourceAssetIsImage ? 1 : 0);
+  const stagedVideoCount =
+    videoAttachments.length + (sourceAssetIsVideo ? 1 : 0);
   const stagedAudioCount = audioAttachments.length;
   useStudioComposerDraftEffects({
     initialDraft: initialDraftRef.current,
@@ -320,8 +383,14 @@ export function useStudioComposer({
     setSourceAssetId(null);
   }
 
-  const structuredPresetTextFields = useMemo(() => normalizeStructuredPresetTextFields(currentPreset), [currentPreset]);
-  const structuredPresetImageSlots = useMemo(() => normalizeStructuredPresetImageSlots(currentPreset), [currentPreset]);
+  const structuredPresetTextFields = useMemo(
+    () => normalizeStructuredPresetTextFields(currentPreset),
+    [currentPreset],
+  );
+  const structuredPresetImageSlots = useMemo(
+    () => normalizeStructuredPresetImageSlots(currentPreset),
+    [currentPreset],
+  );
   const currentPresetSupportedModelKeys = useMemo(
     () => new Set(studioPresetSupportedModels(currentPreset, models)),
     [currentPreset, models],
@@ -329,22 +398,41 @@ export function useStudioComposer({
   const currentPresetCompatibleWithModel =
     Boolean(currentPreset) && currentPresetSupportedModelKeys.has(modelKey);
   const currentPresetDefaultOptions =
-    currentPresetCompatibleWithModel && isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null;
+    currentPresetCompatibleWithModel &&
+    isRecord(currentPreset?.default_options_json)
+      ? currentPreset.default_options_json
+      : null;
   const structuredPresetActive =
     currentModelSupportsStructuredPresets &&
     currentPresetCompatibleWithModel &&
     isStructuredMediaPreset(currentPreset);
   const structuredPresetImageInputCount = structuredPresetActive
-    ? filledStructuredPresetImageSlotCount(presetSlotStates, structuredPresetImageSlots)
+    ? filledStructuredPresetImageSlotCount(
+        presetSlotStates,
+        structuredPresetImageSlots,
+      )
     : 0;
-  const effectiveSeedanceMode = seedanceComposer ? inferInputPattern(currentModel, attachments, currentSourceAsset) : "prompt_only";
-  const inputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
-  const modelHasImageDrivenInputs = modelSupportsImageDrivenInputs(currentModel);
-  const modelHasFirstLastFrameInputs = modelSupportsFirstLastFrames(currentModel);
+  const effectiveSeedanceMode = seedanceComposer
+    ? inferInputPattern(currentModel, attachments, currentSourceAsset)
+    : "prompt_only";
+  const inputPattern = inferInputPattern(
+    currentModel,
+    attachments,
+    currentSourceAsset,
+  );
+  const modelHasImageDrivenInputs =
+    modelSupportsImageDrivenInputs(currentModel);
+  const modelHasFirstLastFrameInputs =
+    modelSupportsFirstLastFrames(currentModel);
   const modelHasMotionControlInputs = modelSupportsMotionControl(currentModel);
   const maxImageInputs = modelHasImageDrivenInputs ? rawMaxImageInputs : 0;
   const orderedImageInputs = useMemo(
-    () => buildOrderedImageInputs(currentSourceAsset, imageAttachments, sourceAssetIsImage),
+    () =>
+      buildOrderedImageInputs(
+        currentSourceAsset,
+        imageAttachments,
+        sourceAssetIsImage,
+      ),
     [currentSourceAsset, imageAttachments, sourceAssetIsImage],
   );
   const standardComposerLayout = useMemo(
@@ -362,85 +450,98 @@ export function useStudioComposer({
     standardComposerLayout.usesExplicitSlots &&
     standardComposerLayout.slots.length > 0 &&
     standardComposerLayout.slots.every((slot) => slot.kind === "image");
-  const explicitMotionControlSlots = standardComposerLayout.slots.some((slot) => slot.role === "driving_video");
-  const visibleExplicitVideoImageSlots = standardComposerLayout.slots.filter((slot) => slot.kind === "image" && slot.visible).length;
-  const multiShotsEnabled = MULTI_SHOT_MODEL_KEYS.has(modelKey) && optionBooleanValue(optionValues["multi_shots"]);
-  const multiShotScript = useMemo(() => parseMultiShotScript(prompt, optionValues["duration"]), [optionValues, prompt]);
-  const multiShotScriptError = multiShotsEnabled ? multiShotScript.errors[0] ?? null : null;
+  const explicitMotionControlSlots = standardComposerLayout.slots.some(
+    (slot) => slot.role === "driving_video",
+  );
+  const visibleExplicitVideoImageSlots = standardComposerLayout.slots.filter(
+    (slot) => slot.kind === "image" && slot.visible,
+  ).length;
+  const multiShotsEnabled =
+    MULTI_SHOT_MODEL_KEYS.has(modelKey) &&
+    optionBooleanValue(optionValues["multi_shots"]);
+  const multiShotScript = useMemo(
+    () => parseMultiShotScript(prompt, optionValues["duration"]),
+    [optionValues, prompt],
+  );
+  const multiShotScriptError = multiShotsEnabled
+    ? (multiShotScript.errors[0] ?? null)
+    : null;
   const selectedPromptList = selectedPromptObjects(selectedPromptIds, prompts);
   const availableStudioPresets = useMemo(
     () => presets.filter((preset) => isStudioPresetVisible(preset, models)),
     [models, presets],
   );
   const modelPresets = currentModelSupportsStructuredPresets
-    ? availableStudioPresets.filter((preset) => studioPresetSupportedModels(preset, models).includes(modelKey))
+    ? availableStudioPresets.filter((preset) =>
+        studioPresetSupportedModels(preset, models).includes(modelKey),
+      )
     : [];
   const structuredPresetPromptPreview = structuredPresetActive
-    ? renderStructuredPresetPrompt(currentPreset?.prompt_template ?? "", presetInputValues, presetSlotStates, structuredPresetImageSlots)
+    ? renderStructuredPresetPrompt(
+        currentPreset?.prompt_template ?? "",
+        presetInputValues,
+        presetSlotStates,
+        structuredPresetImageSlots,
+      )
     : "";
-  const presetRequirementError = presetDetailPending ? "Preset details are still loading." : structuredPresetActive
-    ? (() => {
-        for (const field of structuredPresetTextFields) {
-          const value = String(presetInputValues[field.key] ?? field.defaultValue ?? "").trim();
-          if (field.required && !value) {
-            return `The preset ${currentPreset?.label} requires the text field ${field.label}.`;
-          }
-        }
-        for (const slot of structuredPresetImageSlots) {
-          const slotState = presetSlotStates[slot.key];
-          const slotFilled = isPresetSlotFilled(slotState);
-          if (slot.required && !slotFilled) {
-            return `The preset ${currentPreset?.label} requires the image slot ${slot.label}.`;
-          }
-        }
-        return null;
-      })()
-    : currentPresetCompatibleWithModel
-      ? presetRequirementMessage(currentPreset, attachments, currentSourceAsset)
-      : null;
-  const missingRequiredInputError = useMemo(() => {
-    const missingRequiredSlot = standardComposerLayout.slots.find((slot) => slot.visible && slot.required && !slot.filled);
-    if (missingRequiredSlot) {
-      return `Add ${missingRequiredSlot.label.toLowerCase()} before generating with this model.`;
-    }
-    const motionInputError = motionControlVideoInputError({
-      model: currentModel,
+  const presetRequirementError = studioPresetRequirementError({
+    presetDetailPending,
+    structuredPresetActive,
+    currentPresetCompatibleWithModel,
+    currentPreset,
+    structuredPresetTextFields,
+    structuredPresetImageSlots,
+    presetInputValues,
+    presetSlotStates,
+    attachments,
+    sourceAsset: currentSourceAsset,
+  });
+  const missingRequiredInputError = useMemo(
+    () =>
+      studioRequiredInputError({
+        slots: standardComposerLayout.slots,
+        model: currentModel,
+        attachments,
+        sourceAsset: currentSourceAsset,
+        optionValues,
+        stagedImageCount,
+        structuredPresetImageInputCount,
+      }),
+    [
       attachments,
-      sourceAsset: currentSourceAsset,
+      currentModel,
+      currentSourceAsset,
       optionValues,
-    });
-    if (motionInputError) {
-      return motionInputError;
-    }
-    const imageInputSpec = isRecord(currentModel?.image_inputs) ? currentModel.image_inputs : null;
-    const rawRequiredMin = imageInputSpec?.required_min;
-    const requiredImageInputs =
-      typeof rawRequiredMin === "number" ? rawRequiredMin : Number(rawRequiredMin);
-    if (!Number.isFinite(requiredImageInputs) || requiredImageInputs <= 0) {
-      return null;
-    }
-    if (stagedImageCount + structuredPresetImageInputCount >= requiredImageInputs) {
-      return null;
-    }
-    return requiredImageInputs === 1
-      ? "Add a source image before generating with this image-to-image model."
-      : `Add ${requiredImageInputs} source images before generating with this image-to-image model.`;
-  }, [attachments, currentModel, currentSourceAsset, optionValues, stagedImageCount, structuredPresetImageInputCount, standardComposerLayout.slots]);
+      stagedImageCount,
+      structuredPresetImageInputCount,
+      standardComposerLayout.slots,
+    ],
+  );
   const firstPresetSlotPreview =
-    structuredPresetImageSlots.map((slot) => presetSlotStates[slot.key]?.previewUrl).find((value) => Boolean(value)) ?? null;
+    structuredPresetImageSlots
+      .map((slot) => presetSlotStates[slot.key]?.previewUrl)
+      .find((value) => Boolean(value)) ?? null;
   const enhancementPreviewVisual = resolveEnhancementPreviewVisual({
     structuredPresetActive,
     firstPresetSlotPreview,
     orderedImageInputs,
     currentSourceAsset,
-    imageAttachmentPreviewUrls: imageAttachments.map((attachment) => attachment.previewUrl),
+    imageAttachmentPreviewUrls: imageAttachments.map(
+      (attachment) => attachment.previewUrl,
+    ),
   });
-  const seedanceReferenceGuideTokens = useMemo(() => seedanceReferenceTokenGuide(attachments), [attachments]);
+  const seedanceReferenceGuideTokens = useMemo(
+    () => seedanceReferenceTokenGuide(attachments),
+    [attachments],
+  );
   const seedanceReferenceGuideText = seedanceReferenceGuideTokens.length
     ? `Reference staged assets in the prompt with ${seedanceReferenceGuideTokens.join(", ")}.`
     : "Reference uploads can be mentioned in the prompt with @image1, @video1, or @audio1 once staged.";
   const compactOptionEntries = optionEntries(currentModel);
-  const optionSignature = useMemo(() => JSON.stringify(optionValues), [optionValues]);
+  const optionSignature = useMemo(
+    () => JSON.stringify(optionValues),
+    [optionValues],
+  );
   const pricingOptions = useMemo(() => {
     const normalized = buildNormalizedStudioOptions(
       currentModel,
@@ -453,8 +554,18 @@ export function useStudioComposer({
       attachments,
       sourceAsset: currentSourceAsset,
     });
-  }, [attachments, currentModel, currentPresetDefaultOptions, currentSourceAsset, modelKey, optionValues]);
-  const selectedPromptSignature = useMemo(() => selectedPromptIds.join("|"), [selectedPromptIds]);
+  }, [
+    attachments,
+    currentModel,
+    currentPresetDefaultOptions,
+    currentSourceAsset,
+    modelKey,
+    optionValues,
+  ]);
+  const selectedPromptSignature = useMemo(
+    () => selectedPromptIds.join("|"),
+    [selectedPromptIds],
+  );
   const attachmentSignature = useMemo(
     () =>
       attachments
@@ -466,11 +577,22 @@ export function useStudioComposer({
     [attachments],
   );
   const localPricingEstimate = useMemo(
-    () => estimateFromPricingSnapshot(pricingSnapshot, modelKey, pricingOptions, outputCount),
+    () =>
+      estimateFromPricingSnapshot(
+        pricingSnapshot,
+        modelKey,
+        pricingOptions,
+        outputCount,
+      ),
     [modelKey, outputCount, pricingOptions, pricingSnapshot],
   );
   const { estimatedCredits, estimatedCostUsd, generatePriceLabel } = useMemo(
-    () => resolveStudioPricingDisplay(validation, localPricingEstimate, outputCount),
+    () =>
+      resolveStudioPricingDisplay(
+        validation,
+        localPricingEstimate,
+        outputCount,
+      ),
     [outputCount, validation, localPricingEstimate],
   );
   const formattedRemainingCredits =
@@ -478,36 +600,63 @@ export function useStudioComposer({
       ? `${remainingCredits.toFixed(remainingCredits % 1 === 0 ? 0 : 1)}`
       : null;
   const generateButtonLabel =
-    busyState === "submit" ? "Generating..." : generatePriceLabel ? `Generate · ${generatePriceLabel}` : "Generate";
+    busyState === "submit"
+      ? "Generating..."
+      : generatePriceLabel
+        ? `Generate · ${generatePriceLabel}`
+        : "Generate";
   const pricingHelperText = generatePriceLabel
     ? modelMaxOutputs > 1
       ? `Generate shows the total for ${outputCount} output${outputCount === 1 ? "" : "s"}.`
       : "Generate shows the total for this request."
     : null;
-  const currentImageMaxBytes = useMemo(() => resolveImageMaxBytes(currentModel), [currentModel]);
+  const currentImageMaxBytes = useMemo(
+    () => resolveImageMaxBytes(currentModel),
+    [currentModel],
+  );
   const validationReady = studioValidationReady(validation);
-  const inferredInputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
+  const inferredInputPattern = inferInputPattern(
+    currentModel,
+    attachments,
+    currentSourceAsset,
+  );
   const composerHasSubmittableInput = structuredPresetActive
     ? Boolean(structuredPresetPromptPreview)
     : multiShotsEnabled
       ? multiShotScript.shots.length > 0 && !multiShotScriptError
       : Boolean(prompt.trim());
-  const canSubmit = busyState === "idle" && !presetRequirementError && composerHasSubmittableInput;
+  const canSubmit =
+    busyState === "idle" &&
+    !presetRequirementError &&
+    composerHasSubmittableInput;
   const composerStatusMessage =
     busyState === "validate"
-      ? ({ tone: "warning", text: "Checking your request and refreshing the estimate." } as const)
+      ? ({
+          tone: "warning",
+          text: "Checking your request and refreshing the estimate.",
+        } as const)
       : busyState === "submit"
         ? ({ tone: "warning", text: "Sending your render to Studio." } as const)
         : formMessage;
-  const imageSlotLabels =
-    standardComposerLayout.slots.filter((slot) => slot.kind === "image").map((slot) => slot.label);
-  const canUseSourceAsset = !seedanceComposer && (maxImageInputs > 0 || maxVideoInputs > 0);
+  const imageSlotLabels = standardComposerLayout.slots
+    .filter((slot) => slot.kind === "image")
+    .map((slot) => slot.label);
+  const canUseSourceAsset =
+    !seedanceComposer && (maxImageInputs > 0 || maxVideoInputs > 0);
   const canOpenReferenceLibrary =
-    (structuredPresetActive && structuredPresetImageSlots.length > 0) || seedanceComposer || maxImageInputs > 0;
-  const imageLimitLabel = maxImageInputs > 0 ? `${stagedImageCount} / ${maxImageInputs} images` : null;
-  const canAddMoreImages = maxImageInputs > 0 && stagedImageCount < maxImageInputs;
-  const canAddMoreVideos = maxVideoInputs > 0 && stagedVideoCount < maxVideoInputs;
-  const canAddMoreAudios = maxAudioInputs > 0 && stagedAudioCount < maxAudioInputs;
+    (structuredPresetActive && structuredPresetImageSlots.length > 0) ||
+    seedanceComposer ||
+    maxImageInputs > 0;
+  const imageLimitLabel =
+    maxImageInputs > 0
+      ? `${stagedImageCount} / ${maxImageInputs} images`
+      : null;
+  const canAddMoreImages =
+    maxImageInputs > 0 && stagedImageCount < maxImageInputs;
+  const canAddMoreVideos =
+    maxVideoInputs > 0 && stagedVideoCount < maxVideoInputs;
+  const canAddMoreAudios =
+    maxAudioInputs > 0 && stagedAudioCount < maxAudioInputs;
 
   useStudioComposerGuardEffects({
     presetReady: draftPersistenceEnabled && !presetDetailPending,
@@ -552,7 +701,10 @@ export function useStudioComposer({
   useEffect(() => {
     function closePicker(event: MouseEvent) {
       const target = event.target;
-      if (target instanceof HTMLElement && target.closest("[data-studio-picker]")) {
+      if (
+        target instanceof HTMLElement &&
+        target.closest("[data-studio-picker]")
+      ) {
         return;
       }
       setOpenPicker(null);
@@ -587,12 +739,17 @@ export function useStudioComposer({
       return;
     }
     formMessageHideTimerRef.current = window.setTimeout(() => {
-      setFormMessage((current) => (current?.text === formMessage.text ? null : current));
+      setFormMessage((current) =>
+        current?.text === formMessage.text ? null : current,
+      );
       formMessageHideTimerRef.current = null;
     }, 4200);
   }, [busyState, formMessage, setFormMessage]);
 
-  function showFloatingComposerBanner(message: ComposerStatusMessage | null, autoHideMs = FLOATING_COMPOSER_STATUS_MS) {
+  function showFloatingComposerBanner(
+    message: ComposerStatusMessage | null,
+    autoHideMs = FLOATING_COMPOSER_STATUS_MS,
+  ) {
     if (floatingComposerHideTimerRef.current) {
       window.clearTimeout(floatingComposerHideTimerRef.current);
       floatingComposerHideTimerRef.current = null;
@@ -607,7 +764,9 @@ export function useStudioComposer({
     }
     setFloatingComposerStatus({ ...message, visible: true });
     floatingComposerHideTimerRef.current = window.setTimeout(() => {
-      setFloatingComposerStatus((current) => (current ? { ...current, visible: false } : null));
+      setFloatingComposerStatus((current) =>
+        current ? { ...current, visible: false } : null,
+      );
       floatingComposerClearTimerRef.current = window.setTimeout(() => {
         setFloatingComposerStatus(null);
       }, FLOATING_COMPOSER_STATUS_FADE_MS);
@@ -619,7 +778,12 @@ export function useStudioComposer({
   }
 
   function insertPromptSnippet(snippet: string) {
-    insertStudioPromptSnippet({ snippet, input: promptInputRef.current, prompt, setPrompt });
+    insertStudioPromptSnippet({
+      snippet,
+      input: promptInputRef.current,
+      prompt,
+      setPrompt,
+    });
   }
 
   const {
@@ -677,7 +841,13 @@ export function useStudioComposer({
 
   function selectModel(value: string) {
     setModelKey(value);
-    setOptionValues(buildNormalizedStudioOptions(models.find((model) => model.key === value) ?? null, {}, null));
+    setOptionValues(
+      buildNormalizedStudioOptions(
+        models.find((model) => model.key === value) ?? null,
+        {},
+        null,
+      ),
+    );
   }
 
   function applyPresetSelection(
@@ -698,16 +868,25 @@ export function useStudioComposer({
     }
 
     const targetPreset =
-      options.presetOverride && (options.presetOverride.preset_id === value || options.presetOverride.key === value)
+      options.presetOverride &&
+      (options.presetOverride.preset_id === value ||
+        options.presetOverride.key === value)
         ? options.presetOverride
-        : presets.find((preset) => preset.preset_id === value || preset.key === value) ?? null;
+        : (presets.find(
+            (preset) => preset.preset_id === value || preset.key === value,
+          ) ?? null);
     if (!targetPreset) {
       return;
     }
     if (targetPreset.input_schema_json) setPresetDetail(targetPreset);
 
     const nextModelKey =
-      resolveStudioPresetTargetModel(targetPreset, options.preferredModelKey ?? modelKey, lastStructuredPresetModelKey, models) ?? modelKey;
+      resolveStudioPresetTargetModel(
+        targetPreset,
+        options.preferredModelKey ?? modelKey,
+        lastStructuredPresetModelKey,
+        models,
+      ) ?? modelKey;
     if (nextModelKey !== modelKey) {
       setModelKey(nextModelKey);
     }
@@ -715,7 +894,14 @@ export function useStudioComposer({
     const structuredPreset = isStructuredMediaPreset(targetPreset);
 
     setSelectedPresetId(targetPreset.preset_id ?? targetPreset.key);
-    setPresetInputValues(Object.fromEntries(normalizeStructuredPresetTextFields(targetPreset).map((field) => [field.key, field.defaultValue])));
+    setPresetInputValues(
+      Object.fromEntries(
+        normalizeStructuredPresetTextFields(targetPreset).map((field) => [
+          field.key,
+          field.defaultValue,
+        ]),
+      ),
+    );
     clearPresetSlotStateValues();
 
     if (structuredPreset) {
@@ -730,16 +916,29 @@ export function useStudioComposer({
       setPrompt(targetPreset.prompt_template);
     }
 
-    setOptionValues(buildNormalizedStudioOptions(models.find((model) => model.key === nextModelKey) ?? null, {}, targetPreset.default_options_json));
+    setOptionValues(
+      buildNormalizedStudioOptions(
+        models.find((model) => model.key === nextModelKey) ?? null,
+        {},
+        targetPreset.default_options_json,
+      ),
+    );
   }
 
   function togglePrompt(promptId: string) {
     setSelectedPromptIds((current) =>
-      current.includes(promptId) ? current.filter((value) => value !== promptId) : [...current, promptId],
+      current.includes(promptId)
+        ? current.filter((value) => value !== promptId)
+        : [...current, promptId],
     );
   }
 
-  const { requestEnhancementPreview, openEnhanceDialog, requestValidation, submitMedia } = useStudioComposerSubmit({
+  const {
+    requestEnhancementPreview,
+    openEnhanceDialog,
+    requestValidation,
+    submitMedia,
+  } = useStudioComposerSubmit({
     autoValidateTimerRef,
     validationRequestIdRef,
     currentModelEnabled,
@@ -797,21 +996,44 @@ export function useStudioComposer({
     pollBatch,
   });
 
+  const presetInputSignature = JSON.stringify(presetInputValues);
+  const presetSlotSignature = JSON.stringify(
+    Object.fromEntries(
+      Object.entries(presetSlotStates).map(([key, value]) => [
+        key,
+        value.assetId ?? value.referenceId ?? value.file?.name ?? "",
+      ]),
+    ),
+  );
+  const validationEffectState = useRef({
+    busyState,
+    requestValidation,
+    setValidation,
+  });
   useEffect(() => {
-    if (busyState !== "idle") {
-      return;
-    }
-    setValidation(null);
-    if (autoValidateTimerRef.current) {
+    validationEffectState.current = {
+      busyState,
+      requestValidation,
+      setValidation,
+    };
+  }, [busyState, requestValidation, setValidation]);
+
+  useEffect(() => {
+    // Keep the existing input-only debounce triggers. Busy state and callback
+    // identities must not restart validation after each validation response.
+    const current = validationEffectState.current;
+    if (current.busyState !== "idle") return;
+    current.setValidation(null);
+    if (autoValidateTimerRef.current)
       window.clearTimeout(autoValidateTimerRef.current);
-    }
     autoValidateTimerRef.current = window.setTimeout(() => {
-      void requestValidation({ silent: true });
+      current
+        .requestValidation({ silent: true })
+        .catch(() => current.setValidation(null));
     }, 180);
     return () => {
-      if (autoValidateTimerRef.current) {
+      if (autoValidateTimerRef.current)
         window.clearTimeout(autoValidateTimerRef.current);
-      }
     };
   }, [
     modelKey,
@@ -823,12 +1045,8 @@ export function useStudioComposer({
     attachmentSignature,
     structuredPresetActive,
     structuredPresetPromptPreview,
-    JSON.stringify(presetInputValues),
-    JSON.stringify(
-      Object.fromEntries(
-        Object.entries(presetSlotStates).map(([key, value]) => [key, value.assetId ?? value.referenceId ?? value.file?.name ?? ""]),
-      ),
-    ),
+    presetInputSignature,
+    presetSlotSignature,
   ]);
 
   return {
