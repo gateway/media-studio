@@ -3339,7 +3339,8 @@ textarea {
     .studio-composer-rail[data-structured-preset-active="false"]
     [data-picker-id="model"]
     > button {
-    height: 44px;
+    --studio-model-picker-height: 44px;
+
     padding-inline: 16px;
     font-size: 0.9375rem;
   }
@@ -3348,7 +3349,7 @@ textarea {
     .studio-composer-rail[data-structured-preset-active="false"]
     .studio-model-picker-with-mode
     > button {
-    height: 58px;
+    --studio-model-picker-height: 58px;
   }
 
   :where(.studio-create-stage-immersive)
@@ -3502,10 +3503,9 @@ textarea {
   .studio-composer-mobile-expand > span {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
     text-align: start;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .studio-composer-mobile-expand > svg {
@@ -3592,9 +3592,16 @@ textarea {
 
   :where(.studio-create-stage-immersive)
     .studio-composer-rail
+    [data-picker-id="model"]
+    > button {
+    --studio-model-picker-height: 44px;
+  }
+
+  :where(.studio-create-stage-immersive)
+    .studio-composer-rail
     .studio-model-picker-with-mode
     > button {
-    height: 56px;
+    --studio-model-picker-height: 56px;
   }
 
   :where(.studio-create-stage-immersive)
@@ -3799,6 +3806,11 @@ textarea {
     > button {
     gap: 6px;
     padding-inline: 8px;
+
+    @media (width >= 768px) {
+      gap: 3px;
+      padding-inline: 4px;
+    }
   }
 }
 
@@ -4191,5 +4203,20 @@ textarea {
 @media (width < 480px) {
   .studio-structured-preset .studio-fixed-slot-rail {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Keep model mode suffixes readable in the trigger and scrollable menu. */
+.studio-create-stage-immersive .studio-composer-rail [data-picker-id="model"] {
+  > button {
+    height: auto;
+    min-height: var(--studio-model-picker-height, var(--studio-control-size));
+    padding-block: 4px;
+  }
+
+  > button > .truncate,
+  .studio-select-option > .truncate {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
   }
 }
