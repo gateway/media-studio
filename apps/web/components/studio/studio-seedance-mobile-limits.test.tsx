@@ -275,11 +275,17 @@ it("uses one manager for hidden slots and preserves the selected kind and drop r
   );
   expect(managerVideos.tabIndex).toBe(0);
   expect(manager.getByRole("tab", { name: "Images 0/30" }).tabIndex).toBe(-1);
-  expect(
-    manager.queryByRole("button", { name: "Choose from library" }),
-  ).toBeNull();
+  fireEvent.click(manager.getByRole("button", { name: "Choose from library" }));
+  expect(base.onOpenLibrary).toHaveBeenLastCalledWith("videos");
 
-  expect(manager.queryByLabelText("Replace video reference 7")).toBeNull();
+  const replace = manager.getByLabelText("Replace video reference 7");
+  const replacement = new File([], "replacement.mp4", { type: "video/mp4" });
+  fireEvent.change(replace, { target: { files: [replacement] } });
+  expect(base.onAddFiles).toHaveBeenLastCalledWith([replacement], {
+    role: "reference",
+    allowedKinds: ["videos"],
+    replaceAttachmentId: videos[6].id,
+  });
   fireEvent.click(
     manager.getByTestId("seedance-group-tile-videos-videos-6-remove"),
   );
@@ -287,7 +293,7 @@ it("uses one manager for hidden slots and preserves the selected kind and drop r
 
   fireEvent.click(manager.getByRole("tab", { name: "Images 0/30" }));
   fireEvent.click(manager.getByRole("button", { name: "Choose from library" }));
-  expect(base.onOpenLibrary).toHaveBeenCalledTimes(1);
+  expect(base.onOpenLibrary).toHaveBeenLastCalledWith("images");
 
   fireEvent.keyDown(dialog, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
@@ -354,7 +360,7 @@ it.each(groups)(
     rerender(
       <MobileReferenceHarness {...base} {...limits} {...{ [field]: full }} />,
     );
-    expect(manager.getByRole("status").textContent).toBe(
+    expect(manager.getByRole("status").textContent).toContain(
       "Reference limit reached",
     );
     expect(manager.queryByTestId(`seedance-group-input-${kind}`)).toBeNull();

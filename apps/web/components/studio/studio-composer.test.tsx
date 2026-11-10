@@ -22,7 +22,6 @@ function renderComposer(
           <button type="button">Nano Banana Pro</button>
         ) : null
       }
-      remainingCredits={1066.6}
       composerCollapsed={options.collapsed ?? false}
       mobileComposerCollapsed={!options.mobileExpanded}
       mobileComposerExpanded={options.mobileExpanded ?? false}
@@ -112,12 +111,12 @@ describe("StudioComposer", () => {
       screen.getByText("Seedance reference strip").parentElement?.className,
     ).toContain("studio-composer-body");
   });
-  it("shows one model picker and only the live balance in expanded mobile chrome", () => {
+  it("shows one model picker and leaves balance to the header in expanded mobile chrome", () => {
     const onToggleMobile = vi.fn();
     renderComposer({ immersive: true, mobileExpanded: true, onToggleMobile });
     expect(screen.getAllByText("Nano Banana Pro")).toHaveLength(1);
     expect(screen.queryByText("Prompt composer")).toBeNull();
-    expect(screen.getByText("1,066.6 credits")).toBeTruthy();
+    expect(screen.queryByText("1,066.6 credits")).toBeNull();
     expect(screen.queryByText("~6 cr")).toBeNull();
 
     const collapse = screen.getByRole("button", {

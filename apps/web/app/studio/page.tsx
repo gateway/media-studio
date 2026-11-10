@@ -1,6 +1,9 @@
+import type { Viewport } from "next";
 import { MediaStudio } from "@/components/media-studio";
 import { getStudioSnapshot } from "@/lib/control-api";
 import { INITIAL_ASSET_PAGE_SIZE } from "@/lib/media-studio-contract";
+
+export const viewport: Viewport = { interactiveWidget: "resizes-content" };
 
 export default async function MediaStudioPage({
   searchParams,
@@ -9,7 +12,9 @@ export default async function MediaStudioPage({
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const selectedProjectId =
-    typeof resolvedSearchParams?.project === "string" ? resolvedSearchParams.project : null;
+    typeof resolvedSearchParams?.project === "string"
+      ? resolvedSearchParams.project
+      : null;
   const snapshot = await getStudioSnapshot({ projectId: selectedProjectId });
   const balance = snapshot.credits.data?.balance;
   const availableCredits =
@@ -41,7 +46,9 @@ export default async function MediaStudioPage({
       remainingCredits={availableCredits}
       pricingSnapshot={snapshot.pricing.data?.snapshot ?? null}
       initialSelectedAssetId={
-        typeof resolvedSearchParams?.asset === "string" ? resolvedSearchParams.asset : null
+        typeof resolvedSearchParams?.asset === "string"
+          ? resolvedSearchParams.asset
+          : null
       }
       initialSelectedProjectId={selectedProjectId}
       immersive

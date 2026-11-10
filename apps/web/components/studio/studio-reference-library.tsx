@@ -9,7 +9,7 @@ import {
   ScanLine,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import {
@@ -30,6 +30,7 @@ type StudioReferenceLibraryProps = {
   title: string;
   actionLabel?: string;
   onClose: () => void;
+  returnFocusFallback?: RefObject<HTMLElement | null>;
   onSelect: (reference: MediaReference) => void;
 };
 
@@ -94,12 +95,19 @@ function referenceLibraryDescription(title: string, kind: string) {
   return `Choose ${kind === "image" ? "an image" : "media"} to reuse in Studio.`;
 }
 
+function emptyLibraryDescription(kind: StudioReferenceLibraryProps["kind"]) {
+  return kind === "image"
+    ? "Upload and run an image first, or scan your existing uploads to populate the library."
+    : "Scan your existing uploads to populate the library.";
+}
+
 export function StudioReferenceLibrary({
   kind = "image",
   title,
   actionLabel,
   onClose,
   onSelect,
+  returnFocusFallback,
 }: StudioReferenceLibraryProps) {
   const [items, setItems] = useState<MediaReference[]>([]);
   const [loading, setLoading] = useState(true);
@@ -296,6 +304,7 @@ export function StudioReferenceLibrary({
         testId="studio-reference-library"
         zIndexClassName="z-[119]"
         onClose={onClose}
+        returnFocusFallback={returnFocusFallback}
         suspended={previewItem != null}
         title="Reference library"
         description={referenceLibraryDescription(title, kind)}
@@ -396,7 +405,7 @@ export function StudioReferenceLibrary({
           <StudioStatusCallout
             tone="muted"
             title="No reference media is available yet."
-            description="Upload and run an image first, or scan your existing uploads to populate the library."
+            description={emptyLibraryDescription(kind)}
             action={
               <Button
                 data-testid="studio-reference-library-scan-empty"

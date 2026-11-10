@@ -48,11 +48,6 @@ function AttachmentHarness({
   const actions = useStudioAttachments({
     attachments,
     seedanceComposer: false,
-    seedanceFirstFrameAttachment: null,
-    seedanceLastFrameAttachment: null,
-    seedanceReferenceImages: [],
-    seedanceReferenceVideos: [],
-    seedanceReferenceAudios: [],
     maxImageInputs: 4,
     maxVideoInputs: 4,
     maxAudioInputs: 4,
@@ -151,30 +146,27 @@ function renderFileStaging(
   initial: AttachmentRecord[],
   sourceCount = 0,
   maxImageInputs = initial.length + sourceCount,
+  seedanceComposer = false,
 ) {
   URL.revokeObjectURL = vi.fn();
+  const reportStatus = vi.fn();
   const { result } = renderHook(() => {
     const [attachments, setAttachments] = useState(initial);
     const source = useStudioSourceAsset();
     const actions = useStudioAttachments({
       attachments,
-      seedanceComposer: false,
-      seedanceFirstFrameAttachment: null,
-      seedanceLastFrameAttachment: null,
-      seedanceReferenceImages: [],
-      seedanceReferenceVideos: [],
-      seedanceReferenceAudios: [],
+      seedanceComposer,
       maxImageInputs,
       maxVideoInputs: 0,
       maxAudioInputs: 0,
       stagedImageCount: attachments.length + sourceCount,
       stagedVideoCount: 0,
       stagedAudioCount: 0,
-      setFormMessage: vi.fn(),
+      setFormMessage: reportStatus,
       setAttachments,
       setPresetSlotStates: vi.fn(),
     });
-    return { actions, attachments, source };
+    return { actions, attachments, source, reportStatus };
   });
   return result;
 }
@@ -182,6 +174,84 @@ function renderFileStaging(
 const replacement = () =>
   new File([], "replacement.png", { type: "image/png" });
 const imageKinds: AttachmentRecord["kind"][] = ["images"];
+
+it("replaces the Seedance start frame without disturbing the end frame", async () => {
+  const start = imageAttachment("start", "first_frame");
+  const end = imageAttachment("end", "last_frame");
+  const staging = renderFileStaging([start, end], 0, 2, true);
+  const image = replacement();
+
+  await act(() =>
+    staging.current.actions.addFiles([image], {
+      role: "first_frame",
+      allowedKinds: imageKinds,
+      replaceAttachmentId: start.id,
+    }),
+  );
+
+  expect(staging.current.attachments).toEqual([
+    expect.objectContaining({ file: image, role: "first_frame" }),
+    end,
+  ]);
+});
+
+it("allows a Seedance reference replacement at capacity without appending", async () => {
+  const first = imageAttachment("reference-1", "reference");
+  const second = imageAttachment("reference-2", "reference");
+  const staging = renderFileStaging([first, second], 0, 2, true);
+  const image = replacement();
+
+  await act(() =>
+    staging.current.actions.addFiles([image], {
+      role: "reference",
+      allowedKinds: imageKinds,
+      replaceAttachmentId: first.id,
+    }),
+  );
+
+  expect(staging.current.attachments).toEqual([
+    expect.objectContaining({ file: image, role: "reference" }),
+    second,
+  ]);
+});
+
+it("does not exceed Seedance capacity when a library selection wins against a decoding upload", async () => {
+  const staging = renderFileStaging([], 0, 1, true);
+  const libraryImage: MediaReference = {
+    reference_id: "saved-reference",
+    kind: "image",
+    status: "ready",
+    stored_path: "references/saved.png",
+    stored_url: "/references/saved.png",
+    file_size_bytes: 12,
+    sha256: "fixture",
+    usage_count: 0,
+  };
+  let finishPreview!: (url: string) => void;
+  vi.mocked(buildAttachmentPreviewUrl).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finishPreview = resolve;
+    }),
+  );
+  const config = { role: "reference" as const, allowedKinds: imageKinds };
+  const upload = staging.current.actions.addFiles([replacement()], config);
+
+  act(() => {
+    staging.current.actions.addReferenceMediaAsAttachment(libraryImage, config);
+  });
+  await act(async () => {
+    finishPreview("blob:discarded-upload");
+    await upload;
+  });
+
+  expect(staging.current.attachments).toEqual([
+    expect.objectContaining({ referenceId: libraryImage.reference_id }),
+  ]);
+  expect(staging.current.reportStatus).toHaveBeenLastCalledWith(
+    expect.objectContaining({ tone: "warning" }),
+  );
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:discarded-upload");
+});
 
 it("replaces a gallery source at the image limit ahead of a following library reference", async () => {
   const following = imageAttachment("library", "reference");

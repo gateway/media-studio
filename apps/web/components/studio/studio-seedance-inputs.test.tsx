@@ -186,10 +186,11 @@ it("keeps frame upload/drop roles and guards end input until a start frame exist
   fireEvent.change(within(filled).getByLabelText("Replace start frame"), {
     target: { files },
   });
-  expect(props.onRemoveAttachment).toHaveBeenLastCalledWith("first");
+  expect(props.onRemoveAttachment).not.toHaveBeenCalled();
   expect(props.onAddFiles).toHaveBeenLastCalledWith(files, {
     role: "first_frame",
     allowedKinds: ["images"],
+    replaceAttachmentId: "first",
   });
   expect(props.onOpenPreview).not.toHaveBeenCalled();
 });

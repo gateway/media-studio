@@ -56,7 +56,10 @@ import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
 import { useStudioInspectorState } from "@/hooks/studio/use-studio-inspector-state";
 import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
 import { useStudioProjectWorkspace } from "@/hooks/studio/use-studio-project-workspace";
-import { useStudioReferenceLibrary } from "@/hooks/studio/use-studio-reference-library";
+import {
+  studioReferenceLibraryKind,
+  useStudioReferenceLibrary,
+} from "@/hooks/studio/use-studio-reference-library";
 import { useStudioRestoreCoordination } from "@/hooks/studio/use-studio-restore-coordination";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import {
@@ -746,12 +749,13 @@ export function MediaStudio({
   const {
     selectedReferencePreview,
     referenceLibraryTarget,
+    referenceLibraryReturnFocus,
     setSelectedReferencePreview,
     setReferenceLibraryTarget,
     openReferencePreview,
     openContextualReferenceLibrary,
-    openReferenceLibrary,
     handleReferenceLibrarySelect,
+    openComposerReferenceLibrary,
   } = useStudioReferenceLibrary({
     canOpenReferenceLibrary,
     structuredPresetActive,
@@ -1219,15 +1223,6 @@ export function MediaStudio({
     });
   }
 
-  function openImageReferenceLibrary() {
-    openReferenceLibrary({
-      type: "attachment",
-      title: "Pick a reusable image from your reference library.",
-      role: "reference",
-      allowedKinds: ["images"],
-    });
-  }
-
   const referenceManagerProps = {
     modelLabel: currentModel?.label ?? "Selected model",
     expanded: referencesExpanded,
@@ -1242,7 +1237,7 @@ export function MediaStudio({
     <StudioMultiImageReferenceStrip
       {...referenceManagerProps}
       imageLimit={maxImageInputs}
-      onOpenLibrary={openImageReferenceLibrary}
+      onOpenLibrary={() => openComposerReferenceLibrary("images")}
       orderedImageInputs={orderedImageInputs}
       buildOrderedImageInputPreview={orderedImageInputPreview}
       onClearOrderedImageInput={clearOrderedImageInput}
@@ -1375,6 +1370,9 @@ export function MediaStudio({
           void handleSourceTileDrop(event, slotIndex, slot)
         }
         onOpenPreview={openReferencePreview}
+        onOpenFrameLibrary={(role, returnFocusTo) =>
+          openComposerReferenceLibrary("images", role, returnFocusTo)
+        }
         onRemoveAttachment={removeAttachment}
         onClearStandardComposerSlot={clearStandardComposerSlot}
         onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
@@ -1396,7 +1394,7 @@ export function MediaStudio({
         maxAudioReferences={maxAudioInputs}
         buildAttachmentPreview={buildAttachmentPreview}
         onReferenceDrop={handleSeedanceReferenceDrop}
-        onOpenLibrary={openImageReferenceLibrary}
+        onOpenLibrary={openComposerReferenceLibrary}
         onRemoveAttachment={removeAttachment}
         onAddFiles={(files, options) => {
           addFiles(files, options).catch(reportActionError);
@@ -2398,7 +2396,6 @@ export function MediaStudio({
                 mobileComposerCollapsed={mobileComposerCollapsed}
                 mobileComposerExpanded={mobileComposerExpanded}
                 currentModelLabel={currentModel?.label ?? "Select a model"}
-                remainingCredits={localRemainingCredits}
                 formattedRemainingCredits={formattedRemainingCredits}
                 estimatedCredits={estimatedCredits}
                 structuredPresetActive={structuredPresetActive}
@@ -2645,11 +2642,10 @@ export function MediaStudio({
       {referenceLibraryTarget ? (
         <StudioReferenceLibrary
           title={referenceLibraryTarget.title}
-          kind="image"
+          kind={studioReferenceLibraryKind(referenceLibraryTarget)}
+          returnFocusFallback={referenceLibraryReturnFocus}
           onClose={() => setReferenceLibraryTarget(null)}
-          onSelect={(reference) => {
-            handleReferenceLibrarySelect(reference).catch(reportActionError);
-          }}
+          onSelect={handleReferenceLibrarySelect}
         />
       ) : null}
 

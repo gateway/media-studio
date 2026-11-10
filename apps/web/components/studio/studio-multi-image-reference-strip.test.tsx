@@ -155,7 +155,7 @@ it("keeps the ordered reference actions available when the mobile composer and r
   const dialog = screen.getByRole("dialog", { name: "References" });
   const expanded = within(dialog);
   expect(expanded.getByText("GPT Image Sunburst")).toBeTruthy();
-  expect(expanded.getByRole("status").textContent).toBe(
+  expect(expanded.getByRole("status").textContent).toContain(
     "14 image slots available",
   );
   expect(expanded.getByText("Add images")).toBeTruthy();

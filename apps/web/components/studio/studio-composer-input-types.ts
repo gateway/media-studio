@@ -1,4 +1,7 @@
-import type { MediaAttachmentKind, StudioReferencePreview } from "@/lib/media-studio-helpers";
+import type {
+  MediaAttachmentKind,
+  StudioReferencePreview,
+} from "@/lib/media-studio-helpers";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
 
 export type AttachmentPreviewBuilder = (
@@ -9,5 +12,9 @@ export type AttachmentPreviewBuilder = (
 
 export type StudioAddFilesHandler = (
   fileList: FileList | File[] | null,
-  options?: { role?: NonNullable<MediaAttachmentKind["role"]>; allowedKinds?: MediaAttachmentKind["kind"][] },
+  options?: {
+    role?: NonNullable<MediaAttachmentKind["role"]>;
+    allowedKinds?: MediaAttachmentKind["kind"][];
+    replaceAttachmentId?: string;
+  },
 ) => void;

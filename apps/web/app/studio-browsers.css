@@ -958,21 +958,174 @@ html:has(.studio-browser-backdrop) {
   }
 }
 
-@media (width < 420px) {
-  .studio-expanded-references .studio-reference-tabs svg {
+.studio-expanded-reference-footer .studio-expanded-reference-done,
+.studio-expanded-reference-usage {
+  display: none;
+}
+
+@media (768px <= width < 1024px) {
+  .studio-expanded-reference-grid.studio-browser-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 196px), 1fr));
+  }
+}
+
+@media (width < 768px) {
+  .studio-expanded-references .studio-browser-position {
+    box-sizing: border-box;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .studio-expanded-references .studio-browser-panel {
+    height: calc(
+      100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    );
+  }
+
+  .studio-expanded-references .studio-browser-header {
+    position: relative;
+    justify-content: center;
+    margin-inline: 12px;
+    padding: 10px 46px;
+    border-bottom: 0;
+  }
+
+  .studio-expanded-references .studio-browser-header-actions {
+    position: absolute;
+    inset-inline-end: 0;
+  }
+
+  .studio-expanded-references .studio-browser-header-actions > button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .studio-expanded-reference-title {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .studio-expanded-reference-title > [aria-hidden="true"],
+  .studio-expanded-reference-toolbar > .studio-expanded-reference-summary,
+  .studio-expanded-reference-availability {
     display: none;
   }
 
+  .studio-expanded-reference-toolbar {
+    padding: 8px 16px;
+  }
+
+  .studio-expanded-reference-toolbar .studio-reference-tabs {
+    width: 100%;
+  }
+
   .studio-expanded-references .studio-reference-tabs > [role="tab"] {
-    padding-inline: 5px;
-    font-size: 0.8125rem;
+    min-height: 44px;
+    padding-inline: 6px;
+  }
+
+  .studio-expanded-reference-toolbar .studio-reference-tab-label {
+    display: none;
+  }
+
+  .studio-expanded-references .studio-browser-body {
+    flex: 0 1 auto;
+    padding: 12px 16px;
+    overscroll-behavior: contain;
+  }
+
+  .studio-expanded-reference-grid.studio-browser-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .studio-expanded-reference-grid .studio-ordered-reference-tile,
+  .studio-reference-add-tile {
+    aspect-ratio: 1;
+  }
+
+  .studio-expanded-reference-grid .studio-ordered-reference-tile {
+    --studio-reference-control-size: 44px;
+  }
+
+  .studio-expanded-reference-grid
+    .surface-preview-frame
+    > :is(img, video, span:first-child) {
+    height: 100%;
+  }
+
+  .studio-reference-tile-caption {
+    height: auto;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+  }
+
+  .studio-reference-tile-caption,
+  .studio-reference-add-tile
+    :is(.studio-reference-add-title, .studio-reference-add-hint) {
+    @apply sr-only;
+  }
+
+  .studio-reference-add-tile .studio-slot-tile {
+    min-height: 0;
+  }
+
+  .studio-expanded-reference-footer {
+    display: contents;
+  }
+
+  .studio-expanded-reference-footer > .studio-expanded-reference-summary {
+    order: 1;
+    margin: 0 16px 8px;
+    text-align: center;
   }
 
   .studio-expanded-reference-actions {
-    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-shrink: 0;
+    gap: 8px;
+    margin: 0 16px 8px;
   }
 
-  .studio-expanded-reference-actions > * {
-    flex: 1;
+  .studio-expanded-reference-actions:empty {
+    display: none;
+  }
+
+  .studio-expanded-reference-actions :is(button, label) {
+    width: 100%;
+    min-height: 44px;
+    gap: 6px;
+    padding-inline: 6px;
+    font-size: 0.75rem;
+  }
+
+  .studio-expanded-reference-footer .studio-expanded-reference-done {
+    display: inline-flex;
+    flex-shrink: 0;
+    order: 2;
+    min-height: 44px;
+    margin: auto 16px 12px;
+  }
+
+  .studio-expanded-reference-usage {
+    display: inline;
+  }
+}
+
+@media (width < 350px) {
+  .studio-expanded-reference-grid.studio-browser-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width < 768px) and (height < 420px) {
+  .studio-expanded-reference-title {
+    flex-direction: row;
+    gap: 10px;
   }
 }

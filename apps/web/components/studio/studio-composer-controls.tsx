@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChevronDown,
   Clapperboard,
   Coins,
   Copy,
@@ -13,6 +14,8 @@ import {
   Shield,
   type LucideIcon,
 } from "lucide-react";
+
+import { useId, useState } from "react";
 
 import { AdminToggle } from "@/components/admin-controls";
 import { isSeedanceModel } from "@/lib/seedance-model";
@@ -198,6 +201,12 @@ export function StudioComposerControls({
   onClear,
   onSubmit,
 }: StudioComposerControlsProps) {
+  const secondaryOptions: Array<{
+    key: string;
+    label: string;
+    icon: LucideIcon;
+    checked: boolean;
+  }> = [];
   const optionControls = composerOptionEntries(
     modelKey,
     compactOptionEntries,
@@ -208,6 +217,15 @@ export function StudioComposerControls({
 
     const currentValue = optionValues[optionKey];
     const resolvedValue = currentValue ?? schema.default;
+    const toggle = seedanceToggleControl(modelKey, optionKey, schema);
+    if (toggle) {
+      secondaryOptions.push({
+        key: optionKey,
+        ...toggle,
+        checked: resolvedValue === true,
+      });
+      return [];
+    }
     const choices = buildChoiceList(optionKey, schema, currentValue);
     const [firstChoice = { label: "Select" }] = choices;
     const resolvedLabel =
@@ -284,19 +302,6 @@ export function StudioComposerControls({
             choices,
             hasChoices,
           }) => {
-            const toggle = seedanceToggleControl(modelKey, optionKey, schema);
-            if (toggle) {
-              return (
-                <StudioComposerOptionToggle
-                  key={optionKey}
-                  {...toggle}
-                  checked={resolvedValue === true}
-                  onToggle={() =>
-                    onOptionChange(optionKey, resolvedValue !== true)
-                  }
-                />
-              );
-            }
             if (!hasChoices && schema.type === "int_range") {
               return (
                 <StudioNumericOptionControl
@@ -340,6 +345,12 @@ export function StudioComposerControls({
             );
           },
         )}
+        {secondaryOptions.length > 0 && (
+          <StudioComposerMoreControls
+            options={secondaryOptions}
+            onOptionChange={onOptionChange}
+          />
+        )}
       </div>
       <div className="studio-composer-actions flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
         <StudioComposerEstimate
@@ -370,6 +381,51 @@ export function StudioComposerControls({
         </div>
       </div>
     </div>
+  );
+}
+
+function StudioComposerMoreControls({
+  options,
+  onOptionChange,
+}: {
+  options: Array<{
+    key: string;
+    label: string;
+    icon: LucideIcon;
+    checked: boolean;
+  }>;
+  onOptionChange: StudioComposerControlsProps["onOptionChange"];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const id = useId();
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-controls={id}
+        aria-expanded={expanded}
+        className="studio-composer-more-controls"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <ChevronDown aria-hidden="true" />
+        More controls
+      </button>
+      <div
+        id={id}
+        className="studio-composer-secondary-options"
+        data-expanded={expanded}
+      >
+        {options.map(({ key, checked, ...toggle }) => (
+          <StudioComposerOptionToggle
+            key={key}
+            {...toggle}
+            checked={checked}
+            onToggle={() => onOptionChange(key, !checked)}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 

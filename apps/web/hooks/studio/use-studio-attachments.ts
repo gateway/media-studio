@@ -39,14 +39,15 @@ type FileAddConfig = {
   claimSourceImage?: () => boolean;
 };
 
+type LibraryAddConfig = FileAddConfig & { successMessage?: string };
+
+function libraryStagingMessage(message?: string) {
+  return message ?? "Reference loaded from the library.";
+}
+
 type UseStudioAttachmentsOptions = {
   attachments: AttachmentRecord[];
   seedanceComposer: boolean;
-  seedanceFirstFrameAttachment: AttachmentRecord | null;
-  seedanceLastFrameAttachment: AttachmentRecord | null;
-  seedanceReferenceImages: AttachmentRecord[];
-  seedanceReferenceVideos: AttachmentRecord[];
-  seedanceReferenceAudios: AttachmentRecord[];
   maxImageInputs: number;
   maxVideoInputs: number;
   maxAudioInputs: number;
@@ -115,7 +116,15 @@ function releaseFilePreviews(attachments: AttachmentRecord[]) {
 }
 
 function useDecodedReplacementCleanup(attachments: AttachmentRecord[]) {
-  const pending = useRef(new Map<symbol, string[]>());
+  const pending = useRef(
+    new Map<
+      symbol,
+      {
+        decoded: AttachmentRecord[];
+        onComplete?: (committed: number) => void;
+      }
+    >(),
+  );
   const mounted = useRef(true);
   const [checks, setChecks] = useState<symbol[]>([]);
 
@@ -124,13 +133,17 @@ function useDecodedReplacementCleanup(attachments: AttachmentRecord[]) {
     const committedUrls = new Set(
       attachments.map(({ previewUrl }) => previewUrl),
     );
-    for (const check of checks) {
-      const urls = pending.current.get(check);
-      if (!urls) continue;
-      pending.current.delete(check);
-      for (const url of urls) {
+    const committedIds = new Set(attachments.map(({ id }) => id));
+    for (const key of checks) {
+      const check = pending.current.get(key);
+      if (!check) continue;
+      pending.current.delete(key);
+      for (const url of filePreviewObjectUrls(check.decoded)) {
         if (!committedUrls.has(url)) URL.revokeObjectURL(url);
       }
+      check.onComplete?.(
+        check.decoded.filter(({ id }) => committedIds.has(id)).length,
+      );
     }
   }, [attachments, checks]);
 
@@ -139,19 +152,21 @@ function useDecodedReplacementCleanup(attachments: AttachmentRecord[]) {
     const unresolved = pending.current;
     return () => {
       mounted.current = false;
-      for (const urls of unresolved.values()) {
-        urls.forEach((url) => URL.revokeObjectURL(url));
+      for (const check of unresolved.values()) {
+        releaseFilePreviews(check.decoded);
       }
       unresolved.clear();
     };
   }, []);
 
-  function checkAfterCommit(decoded: AttachmentRecord[]) {
-    const urls = filePreviewObjectUrls(decoded);
-    if (!urls.length) return;
+  function checkAfterCommit(
+    decoded: AttachmentRecord[],
+    onComplete?: (committed: number) => void,
+  ) {
+    if (!onComplete && !filePreviewObjectUrls(decoded).length) return;
     const unresolved = new Set(pending.current.keys());
     const check = Symbol();
-    pending.current.set(check, urls);
+    pending.current.set(check, { decoded, onComplete });
     // Check after commit even when the attachment update returns the same array.
     // Keep only lightweight keys in React state and release settled URLs from the map.
     setChecks((current) => [
@@ -166,11 +181,6 @@ function useDecodedReplacementCleanup(attachments: AttachmentRecord[]) {
 export function useStudioAttachments({
   attachments,
   seedanceComposer,
-  seedanceFirstFrameAttachment,
-  seedanceLastFrameAttachment,
-  seedanceReferenceImages,
-  seedanceReferenceVideos,
-  seedanceReferenceAudios,
   maxImageInputs,
   maxVideoInputs,
   maxAudioInputs,
@@ -203,6 +213,17 @@ export function useStudioAttachments({
       }
       return;
     }
+    if (seedanceComposer && !replaceAttachmentId) {
+      stageSeedanceAttachments(next, (committed) => {
+        if (committed < next.length) {
+          setFormMessage({
+            tone: "warning",
+            text: "Skipped files because the reference group or frame slot is full.",
+          });
+        }
+      });
+      return;
+    }
     setAttachments((current) =>
       applyAttachmentInsertOrReplace(current, next, {
         insertImageIndex,
@@ -216,20 +237,53 @@ export function useStudioAttachments({
   function remainingSeedanceCapacity(
     kind: AttachmentRecord["kind"],
     role: NonNullable<AttachmentRecord["role"]>,
+    current = attachments,
   ) {
-    if (role === "first_frame") {
-      return kind === "images" && !seedanceFirstFrameAttachment ? 1 : 0;
+    const count = current.filter(
+      (attachment) => attachment.kind === kind && attachment.role === role,
+    ).length;
+    if (role !== "reference") {
+      return Number(kind === "images" && count === 0);
     }
-    if (role === "last_frame") {
-      return kind === "images" && !seedanceLastFrameAttachment ? 1 : 0;
-    }
-    if (kind === "images") {
-      return Math.max(0, maxImageInputs - seedanceReferenceImages.length);
-    }
-    if (kind === "videos") {
-      return Math.max(0, maxVideoInputs - seedanceReferenceVideos.length);
-    }
-    return Math.max(0, maxAudioInputs - seedanceReferenceAudios.length);
+    const limit = {
+      images: maxImageInputs,
+      videos: maxVideoInputs,
+      audios: maxAudioInputs,
+    }[kind];
+    return Math.max(0, limit - count);
+  }
+
+  function appendSeedanceAttachments(
+    current: AttachmentRecord[],
+    next: AttachmentRecord[],
+  ) {
+    return next.reduce((staged, item) => {
+      if (
+        item.role &&
+        remainingSeedanceCapacity(item.kind, item.role, staged) === 0
+      )
+        return staged;
+      return [...staged, item];
+    }, current);
+  }
+
+  function stageSeedanceAttachments(
+    next: AttachmentRecord[],
+    onComplete: (committed: number) => void,
+  ) {
+    setAttachments((current) => appendSeedanceAttachments(current, next));
+    checkAfterCommit(next, onComplete);
+  }
+
+  function remainingSeedanceFileCapacity(
+    kind: AttachmentRecord["kind"],
+    role: NonNullable<AttachmentRecord["role"]>,
+    replacementId?: string,
+  ) {
+    if (!replacementId) return remainingSeedanceCapacity(kind, role);
+    // Replacing a staged item consumes only its place in the group or frame role.
+    const replacement = attachments.find(({ id }) => id === replacementId);
+    return Number(replacement?.kind === kind && replacement.role === role);
   }
 
   async function addFiles(
@@ -271,7 +325,11 @@ export function useStudioAttachments({
         continue;
       }
       if (seedanceComposer && explicitRole) {
-        const remaining = remainingSeedanceCapacity(kind, explicitRole);
+        const remaining = remainingSeedanceFileCapacity(
+          kind,
+          explicitRole,
+          config.replaceAttachmentId,
+        );
         const acceptedForRole = acceptedMetadata.filter(
           (item) => item.kind === kind && item.role === explicitRole,
         ).length;
@@ -487,7 +545,7 @@ export function useStudioAttachments({
 
   function addReferenceMediaAsAttachment(
     reference: MediaReference | null,
-    config: FileAddConfig = {},
+    config: LibraryAddConfig = {},
   ) {
     if (!reference) {
       return;
@@ -551,12 +609,38 @@ export function useStudioAttachments({
       },
     ]);
 
+    stageLibraryAttachment(nextAttachment, config);
+  }
+
+  function stageLibraryAttachment(
+    attachment: AttachmentRecord,
+    config: LibraryAddConfig,
+  ) {
+    const reportSuccess = () =>
+      setFormMessage({
+        tone: "healthy",
+        text: libraryStagingMessage(config.successMessage),
+      });
+    if (seedanceComposer) {
+      stageSeedanceAttachments([attachment], (committed) => {
+        if (committed) reportSuccess();
+        else
+          setFormMessage({
+            tone: "warning",
+            text: "This slot is already full.",
+          });
+      });
+      return;
+    }
     setAttachments((current) =>
-      applyAttachmentInsertOrReplace(current, [nextAttachment], {
-        insertImageIndex: kind === "images" ? config.insertImageIndex : null,
-        replaceImageIndex: kind === "images" ? config.replaceImageIndex : null,
+      applyAttachmentInsertOrReplace(current, [attachment], {
+        insertImageIndex:
+          attachment.kind === "images" ? config.insertImageIndex : null,
+        replaceImageIndex:
+          attachment.kind === "images" ? config.replaceImageIndex : null,
       }),
     );
+    reportSuccess();
   }
 
   function assignPresetSlotFile(slotKey: string, file: File | null) {

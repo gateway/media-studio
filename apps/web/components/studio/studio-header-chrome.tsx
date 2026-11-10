@@ -7,13 +7,14 @@ import {
   Image as ImageIcon,
   Layers,
   Monitor,
+  Ellipsis,
   Play,
   Settings2,
   Workflow,
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type ReactNode, type RefObject } from "react";
+import { useId, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import { StatusPill } from "@/components/status-pill";
 import { IconButton } from "@/components/ui/icon-button";
@@ -114,6 +115,9 @@ export function StudioHeaderChrome({
   libraryTriggerRef,
 }: StudioHeaderChromeProps) {
   const [openMenu, setOpenMenu] = useState<"media" | "library" | null>(null);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowRef = useRef<HTMLButtonElement>(null);
+  const overflowId = useId();
   const apiStatus = apiHealthy ? readyStatus() : connectingStatus();
   if (!immersive) {
     return (
@@ -142,6 +146,14 @@ export function StudioHeaderChrome({
   }
   return (
     <header
+      data-overflow-open={overflowOpen}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !overflowOpen || openMenu) return;
+        if (!overflowRef.current?.getClientRects().length) return;
+        event.preventDefault();
+        setOverflowOpen(false);
+        overflowRef.current.focus();
+      }}
       className={`studio-header-chrome-root${placement === "browser" ? " studio-header-chrome-browser" : ""}`}
     >
       <nav className="studio-header-filter-row" aria-label="Studio navigation">
@@ -162,6 +174,7 @@ export function StudioHeaderChrome({
           onClick={onOpenProjects}
         />
         <StudioGalleryFilterMenu
+          id={`${overflowId}-filter`}
           selected={favoritesOnly ? "favorites" : galleryKindFilter}
           open={openMenu === "media"}
           onToggle={() => toggleMenu("media")}
@@ -176,7 +189,21 @@ export function StudioHeaderChrome({
           onOpenProject={onOpenProjectWorkspace}
         />
       </div>
-      <div className="studio-header-metrics-row">
+      <IconButton
+        ref={overflowRef}
+        icon={Ellipsis}
+        aria-label="Studio actions"
+        aria-expanded={overflowOpen}
+        aria-controls={`${overflowId}-filter ${overflowId}-actions`}
+        tone="subtle"
+        shape="soft"
+        className="studio-header-overflow"
+        onClick={() => {
+          setOpenMenu(null);
+          setOverflowOpen(!overflowOpen);
+        }}
+      />
+      <div id={`${overflowId}-actions`} className="studio-header-metrics-row">
         <StudioLibraryMenu
           triggerRef={libraryTriggerRef}
           open={openMenu === "library"}
@@ -202,6 +229,7 @@ export function StudioHeaderChrome({
 }
 
 function StudioGalleryFilterMenu({
+  id,
   selected,
   open,
   onToggle,
@@ -209,6 +237,7 @@ function StudioGalleryFilterMenu({
   onActivate,
   onToggleFavorites,
 }: {
+  id: string;
   selected: GalleryKindFilter | "favorites";
   open: boolean;
   onToggle: () => void;
@@ -217,7 +246,7 @@ function StudioGalleryFilterMenu({
   onToggleFavorites: () => void;
 }) {
   return (
-    <div className="studio-header-menu-group">
+    <div id={id} className="studio-header-menu-group">
       <PillSelect
         pickerId="gallery-media"
         className="studio-header-menu"

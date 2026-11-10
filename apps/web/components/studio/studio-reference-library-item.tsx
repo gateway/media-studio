@@ -38,7 +38,10 @@ export function StudioReferenceLibraryItem({
   onSelect,
   onDelete,
 }: StudioReferenceLibraryItemProps) {
-  const previewUrl = item.thumb_url ?? item.stored_url ?? null;
+  const previewUrl =
+    item.thumb_url ??
+    item.poster_url ??
+    (item.kind === "image" ? item.stored_url : null);
   const label = item.original_filename ?? item.reference_id;
   const selectLabel = actionLabel ?? defaultActionLabel(kind);
   const lastUsedLabel = item.last_used_at

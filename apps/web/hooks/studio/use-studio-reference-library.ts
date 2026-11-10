@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
-import type { AttachmentRecord, ComposerStatusMessage } from "@/lib/media-studio-contract";
+import type {
+  AttachmentRecord,
+  ComposerStatusMessage,
+} from "@/lib/media-studio-contract";
 import type {
   PresetSlotState,
   StudioComposerSlot,
@@ -13,15 +16,113 @@ import type { MediaReference } from "@/lib/types";
 
 export type ReferenceLibraryTarget =
   | { type: "browse"; title: string }
-  | { type: "attachment"; title: string; role?: "first_frame" | "last_frame" | "reference" | null; allowedKinds?: AttachmentRecord["kind"][] }
-  | { type: "standard-slot"; title: string; slotIndex: number; label: string; allowedKinds?: AttachmentRecord["kind"][] }
+  | {
+      type: "attachment";
+      title: string;
+      role?: "first_frame" | "last_frame" | "reference" | null;
+      allowedKinds?: AttachmentRecord["kind"][];
+    }
+  | {
+      type: "standard-slot";
+      title: string;
+      slotIndex: number;
+      label: string;
+      allowedKinds?: AttachmentRecord["kind"][];
+    }
   | { type: "preset-slot"; title: string; slotKey: string };
+
+const libraryKindByAttachmentKind = {
+  images: "image",
+  videos: "video",
+  audios: "audio",
+} as const;
+
+export function studioReferenceLibraryKind(target: ReferenceLibraryTarget) {
+  const kind =
+    target.type === "attachment" ? target.allowedKinds?.[0] : undefined;
+  return kind ? libraryKindByAttachmentKind[kind] : "image";
+}
+
+function recordReferenceUse(referenceId: string) {
+  // Usage history is best effort; a failed request must not prevent staging.
+  return fetch(`/api/control/reference-media/${referenceId}/use`, {
+    method: "POST",
+    credentials: "same-origin",
+  });
+}
+
+function consumeTarget(
+  target: ReferenceLibraryTarget | null,
+  consumed: ReferenceLibraryTarget | null,
+) {
+  return target === consumed ? null : target;
+}
+
+function seedanceLibraryTarget(
+  start: AttachmentRecord | null,
+  end: AttachmentRecord | null,
+  mode: string,
+): ReferenceLibraryTarget {
+  if (!start) {
+    return {
+      type: "attachment",
+      title: "Pick a reusable image for the Seedance start frame.",
+      role: "first_frame",
+      allowedKinds: ["images"],
+    };
+  }
+  if (mode === "first_last_frames" && !end) {
+    return {
+      type: "attachment",
+      title: "Pick a reusable image for the Seedance end frame.",
+      role: "last_frame",
+      allowedKinds: ["images"],
+    };
+  }
+  return {
+    type: "attachment",
+    title: "Pick a reusable image for Seedance reference guidance.",
+    role: "reference",
+    allowedKinds: ["images"],
+  };
+}
+
+function standardImageSlotTarget(
+  enabled: boolean,
+  slots: StudioComposerSlot[],
+): ReferenceLibraryTarget | null {
+  if (!enabled) return null;
+  const slot =
+    slots.find(({ kind, filled }) => kind === "image" && !filled) ??
+    slots.find(({ kind }) => kind === "image");
+  if (!slot) return null;
+
+  return {
+    type: "standard-slot",
+    title:
+      slot.role === "end_frame"
+        ? "Pick a reusable image for the end frame."
+        : slot.role === "start_frame"
+          ? "Pick a reusable image for the start frame."
+          : "Pick a reusable image for this input.",
+    slotIndex: slot.slotIndex,
+    label: slot.label,
+    allowedKinds: ["images"],
+  };
+}
+
+function composerReferenceTitle(role: NonNullable<AttachmentRecord["role"]>) {
+  if (role === "reference")
+    return "Pick a reusable reference from your library.";
+  return `Pick a reusable image for the ${role === "first_frame" ? "start" : "end"} frame.`;
+}
 
 type AddReferenceMediaOptions = {
   role?: "first_frame" | "last_frame" | "reference";
   allowedKinds?: AttachmentRecord["kind"][];
   insertImageIndex?: number;
   replaceImageIndex?: number;
+  successMessage?: string;
 };
 
 type UseStudioReferenceLibraryOptions = {
@@ -39,10 +140,18 @@ type UseStudioReferenceLibraryOptions = {
   dedicatedImageReferenceRailActive: boolean;
   setOpenPicker: (value: null) => void;
   setFormMessage: (message: ComposerStatusMessage | null) => void;
-  assignPresetSlotReference: (slotKey: string, reference: MediaReference) => void;
+  assignPresetSlotReference: (
+    slotKey: string,
+    reference: MediaReference,
+  ) => void;
   clearSourceAsset: () => void;
-  addReferenceMediaAsAttachment: (reference: MediaReference, options?: AddReferenceMediaOptions) => void;
-  orderedImageInputSourceAt: (slotIndex: number) => "asset" | "attachment" | "reference" | null;
+  addReferenceMediaAsAttachment: (
+    reference: MediaReference,
+    options?: AddReferenceMediaOptions,
+  ) => void;
+  orderedImageInputSourceAt: (
+    slotIndex: number,
+  ) => "asset" | "attachment" | "reference" | null;
 };
 
 export function useStudioReferenceLibrary({
@@ -65,23 +174,50 @@ export function useStudioReferenceLibrary({
   addReferenceMediaAsAttachment,
   orderedImageInputSourceAt,
 }: UseStudioReferenceLibraryOptions) {
-  const [selectedReferencePreview, setSelectedReferencePreview] = useState<StudioReferencePreview | null>(null);
-  const [referenceLibraryTarget, setReferenceLibraryTarget] = useState<ReferenceLibraryTarget | null>(null);
+  const [selectedReferencePreview, setSelectedReferencePreview] =
+    useState<StudioReferencePreview | null>(null);
+  const referenceLibraryReturnFocus = useRef<HTMLElement | null>(null);
+  const consumedTarget = useRef<ReferenceLibraryTarget | null>(null);
+  const [referenceLibraryTarget, setReferenceLibraryTarget] =
+    useState<ReferenceLibraryTarget | null>(null);
 
-  const openReferencePreview = useCallback((preview: StudioReferencePreview | null) => {
-    if (!preview?.url) {
-      return;
-    }
-    setSelectedReferencePreview(preview);
-  }, []);
+  const openReferencePreview = useCallback(
+    (preview: StudioReferencePreview | null) => {
+      if (!preview?.url) {
+        return;
+      }
+      setSelectedReferencePreview(preview);
+    },
+    [],
+  );
 
   const openReferenceLibrary = useCallback(
-    (target: ReferenceLibraryTarget) => {
+    (
+      target: ReferenceLibraryTarget,
+      returnFocusTo: HTMLElement | null = null,
+    ) => {
+      referenceLibraryReturnFocus.current = returnFocusTo;
       setOpenPicker(null);
       setReferenceLibraryTarget(target);
     },
     [setOpenPicker],
   );
+
+  function openComposerReferenceLibrary(
+    kind: AttachmentRecord["kind"],
+    role: NonNullable<AttachmentRecord["role"]> = "reference",
+    returnFocusTo?: HTMLElement | null,
+  ) {
+    openReferenceLibrary(
+      {
+        type: "attachment",
+        title: composerReferenceTitle(role),
+        role,
+        allowedKinds: [kind],
+      },
+      returnFocusTo,
+    );
+  }
 
   const openContextualReferenceLibrary = useCallback(() => {
     if (!canOpenReferenceLibrary) {
@@ -95,7 +231,9 @@ export function useStudioReferenceLibrary({
       const targetSlot =
         structuredPresetImageSlots.find((slot) => {
           const slotState = presetSlotStates[slot.key];
-          return !slotState?.assetId && !slotState?.referenceId && !slotState?.file;
+          return (
+            !slotState?.assetId && !slotState?.referenceId && !slotState?.file
+          );
         }) ?? structuredPresetImageSlots[0];
       openReferenceLibrary({
         type: "preset-slot",
@@ -105,49 +243,21 @@ export function useStudioReferenceLibrary({
       return;
     }
     if (seedanceComposer) {
-      if (!seedanceFirstFrameAttachment) {
-        openReferenceLibrary({
-          type: "attachment",
-          title: "Pick a reusable image for the Seedance start frame.",
-          role: "first_frame",
-          allowedKinds: ["images"],
-        });
-        return;
-      }
-      if (effectiveSeedanceMode === "first_last_frames" && !seedanceLastFrameAttachment) {
-        openReferenceLibrary({
-          type: "attachment",
-          title: "Pick a reusable image for the Seedance end frame.",
-          role: "last_frame",
-          allowedKinds: ["images"],
-        });
-        return;
-      }
-      openReferenceLibrary({
-        type: "attachment",
-        title: "Pick a reusable image for Seedance reference guidance.",
-        role: "reference",
-        allowedKinds: ["images"],
-      });
+      openReferenceLibrary(
+        seedanceLibraryTarget(
+          seedanceFirstFrameAttachment,
+          seedanceLastFrameAttachment,
+          effectiveSeedanceMode,
+        ),
+      );
       return;
     }
-    const nextStandardImageSlot =
-      standardComposerSlots.find((slot) => slot.kind === "image" && !slot.filled) ??
-      standardComposerSlots.find((slot) => slot.kind === "image") ??
-      null;
-    if (standardComposerUsesExplicitSlots && nextStandardImageSlot) {
-      openReferenceLibrary({
-        type: "standard-slot",
-        title:
-          nextStandardImageSlot.role === "end_frame"
-            ? "Pick a reusable image for the end frame."
-            : nextStandardImageSlot.role === "start_frame"
-              ? "Pick a reusable image for the start frame."
-              : "Pick a reusable image for this input.",
-        slotIndex: nextStandardImageSlot.slotIndex,
-        label: nextStandardImageSlot.label,
-        allowedKinds: ["images"],
-      });
+    const standardTarget = standardImageSlotTarget(
+      standardComposerUsesExplicitSlots,
+      standardComposerSlots,
+    );
+    if (standardTarget) {
+      openReferenceLibrary(standardTarget);
       return;
     }
     openReferenceLibrary({
@@ -172,20 +282,15 @@ export function useStudioReferenceLibrary({
   ]);
 
   const handleReferenceLibrarySelect = useCallback(
-    async (reference: MediaReference) => {
-      try {
-        await fetch(`/api/control/reference-media/${reference.reference_id}/use`, {
-          method: "POST",
-          credentials: "same-origin",
-        });
-      } catch {
-        // Helpful, not required for staging.
-      }
-      const target = referenceLibraryTarget;
+    (reference: MediaReference) => {
+      const target = consumeTarget(
+        referenceLibraryTarget,
+        consumedTarget.current,
+      );
+      if (!target) return;
+      consumedTarget.current = target;
       setReferenceLibraryTarget(null);
-      if (!target) {
-        return;
-      }
+      recordReferenceUse(reference.reference_id).catch(() => {});
       if (target.type === "browse") {
         setFormMessage({
           tone: "warning",
@@ -195,12 +300,18 @@ export function useStudioReferenceLibrary({
       }
       if (target.type === "preset-slot") {
         assignPresetSlotReference(target.slotKey, reference);
-        setFormMessage({ tone: "healthy", text: "Reference image loaded into the preset slot." });
+        setFormMessage({
+          tone: "healthy",
+          text: "Reference image loaded into the preset slot.",
+        });
         return;
       }
       if (target.type === "standard-slot") {
         if (target.slotIndex > orderedImageInputCount) {
-          setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+          setFormMessage({
+            tone: "warning",
+            text: "Fill the earlier image slot first.",
+          });
           return;
         }
         if (orderedImageInputSourceAt(target.slotIndex) === "asset") {
@@ -210,15 +321,14 @@ export function useStudioReferenceLibrary({
           allowedKinds: target.allowedKinds,
           insertImageIndex: Math.min(target.slotIndex, orderedImageInputCount),
           replaceImageIndex: target.slotIndex,
+          successMessage: `Reference image loaded into ${target.label}.`,
         });
-        setFormMessage({ tone: "healthy", text: `Reference image loaded into ${target.label}.` });
         return;
       }
       addReferenceMediaAsAttachment(reference, {
         role: target.role ?? undefined,
         allowedKinds: target.allowedKinds,
       });
-      setFormMessage({ tone: "healthy", text: "Reference image loaded from the library." });
     },
     [
       addReferenceMediaAsAttachment,
@@ -234,11 +344,12 @@ export function useStudioReferenceLibrary({
   return {
     selectedReferencePreview,
     referenceLibraryTarget,
+    referenceLibraryReturnFocus,
     setSelectedReferencePreview,
     setReferenceLibraryTarget,
     openReferencePreview,
-    openReferenceLibrary,
     openContextualReferenceLibrary,
+    openComposerReferenceLibrary,
     handleReferenceLibrarySelect,
   };
 }

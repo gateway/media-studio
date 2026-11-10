@@ -1,7 +1,7 @@
 "use client";
 
 import type { DragEvent } from "react";
-import { Image as ImageIcon } from "lucide-react";
+import { FolderOpen, Image as ImageIcon } from "lucide-react";
 
 import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
 import {
@@ -13,6 +13,7 @@ import {
   type StudioReferenceGroup,
   type StudioReferenceManagerProps,
 } from "@/components/studio/studio-reference-manager";
+import { IconButton } from "@/components/ui/icon-button";
 import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
 import type {
   AttachmentPreviewBuilder,
@@ -44,7 +45,7 @@ type StudioSeedanceReferenceStripProps = StudioReferenceManagerProps & {
     event: DragEvent<HTMLElement>,
     kind: AttachmentRecord["kind"],
   ) => void;
-  onOpenLibrary: () => void;
+  onOpenLibrary: (kind: AttachmentRecord["kind"]) => void;
   onRemoveAttachment: (attachmentId: string) => void;
   onAddFiles: StudioAddFilesHandler;
   onResetFileInput: (input: HTMLInputElement | null) => void;
@@ -92,6 +93,14 @@ export function StudioSeedanceReferenceStrip({
               ),
               visualUrl: seedanceReferenceVisual(attachment),
               onRemove: () => onRemoveAttachment(attachment.id),
+              onReplace: (files, input) => {
+                onAddFiles(files, {
+                  role: "reference",
+                  allowedKinds: [kind],
+                  replaceAttachmentId: attachment.id,
+                });
+                onResetFileInput(input);
+              },
             })),
             uploadTestId: `seedance-group-input-${kind}`,
             onAdd: (files, input) => {
@@ -99,7 +108,7 @@ export function StudioSeedanceReferenceStrip({
               onResetFileInput(input);
             },
             onDrop: (event) => onReferenceDrop(event, kind),
-            onOpenLibrary: kind === "images" ? onOpenLibrary : undefined,
+            onOpenLibrary: () => onOpenLibrary(kind),
           };
         },
       )}
@@ -140,6 +149,10 @@ type StudioSourceAttachmentStripProps = {
   ) => void;
   onAddFiles: StudioAddFilesHandler;
   onResetFileInput: (input: HTMLInputElement | null) => void;
+  onOpenFrameLibrary?: (
+    role: "first_frame" | "last_frame",
+    returnFocusTo: HTMLElement | null,
+  ) => void;
 };
 
 export function StudioSourceAttachmentStrip({
@@ -158,6 +171,7 @@ export function StudioSourceAttachmentStrip({
   onSetFormWarning,
   onDropIntoSourceSlot,
   onOpenPreview,
+  onOpenFrameLibrary,
   onRemoveAttachment,
   onClearStandardComposerSlot,
   onPickStandardComposerSlotFiles,
@@ -193,11 +207,15 @@ export function StudioSourceAttachmentStrip({
             return (
               <div
                 key={`seedance-slot-${slot.role}`}
-                className="studio-fixed-slot"
+                className="studio-fixed-slot studio-seedance-frame"
               >
+                <span className="studio-seedance-frame-label">
+                  {slot.label}
+                </span>
                 <div
                   data-testid={`seedance-slot-${slot.role}`}
                   className="studio-fixed-slot-media"
+                  tabIndex={-1}
                 >
                   {attachment && attachmentPreview ? (
                     <div
@@ -236,10 +254,10 @@ export function StudioSourceAttachmentStrip({
                                 onResetFileInput(input);
                                 return;
                               }
-                              onRemoveAttachment(attachment.id);
                               onAddFiles(files, {
                                 role: slot.role,
                                 allowedKinds: ["images"],
+                                replaceAttachmentId: attachment.id,
                               });
                               onResetFileInput(input);
                             }}
@@ -250,42 +268,66 @@ export function StudioSourceAttachmentStrip({
                       />
                     </div>
                   ) : (
-                    <StudioMediaSlotAddTile
-                      accept="image/*"
-                      inputLabel={`Add ${slot.label.toLowerCase()}`}
-                      isDragActive={isDragActive}
-                      testId={`seedance-slot-input-${slot.role}`}
-                      required={slot.role === "first_frame"}
-                      wrapperClassName="h-full w-full"
-                      tileClassName="studio-fixed-slot-add h-full w-full"
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        onSetDragActive(true);
-                      }}
-                      onDragLeave={() => onSetDragActive(false)}
-                      onDrop={(event) => onDropIntoSourceSlot(event, slotIndex)}
-                      onPickFiles={(fileList, input) => {
-                        if (
-                          slot.role === "last_frame" &&
-                          !seedanceFirstFrameAttachment
-                        ) {
-                          onSetFormWarning(
-                            "Add a start frame before the end frame.",
-                          );
-                          onResetFileInput(input);
-                          return;
+                    <>
+                      <StudioMediaSlotAddTile
+                        accept="image/*"
+                        inputLabel={`Add ${slot.label.toLowerCase()}`}
+                        isDragActive={isDragActive}
+                        testId={`seedance-slot-input-${slot.role}`}
+                        required={slot.role === "first_frame"}
+                        wrapperClassName="h-full w-full"
+                        tileClassName="studio-fixed-slot-add h-full w-full"
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          onSetDragActive(true);
+                        }}
+                        onDragLeave={() => onSetDragActive(false)}
+                        onDrop={(event) =>
+                          onDropIntoSourceSlot(event, slotIndex)
                         }
-                        onAddFiles(fileList, {
-                          role: slot.role,
-                          allowedKinds: ["images"],
-                        });
-                        onResetFileInput(input);
-                      }}
-                    >
-                      <span className="studio-fixed-slot-empty-label">
-                        {slot.label}
-                      </span>
-                    </StudioMediaSlotAddTile>
+                        onPickFiles={(fileList, input) => {
+                          if (
+                            slot.role === "last_frame" &&
+                            !seedanceFirstFrameAttachment
+                          ) {
+                            onSetFormWarning(
+                              "Add a start frame before the end frame.",
+                            );
+                            onResetFileInput(input);
+                            return;
+                          }
+                          onAddFiles(fileList, {
+                            role: slot.role,
+                            allowedKinds: ["images"],
+                          });
+                          onResetFileInput(input);
+                        }}
+                      >
+                        <span className="studio-fixed-slot-empty-label">
+                          {slot.label}
+                        </span>
+                      </StudioMediaSlotAddTile>
+                      {onOpenFrameLibrary && (
+                        <IconButton
+                          className="studio-frame-library"
+                          icon={FolderOpen}
+                          shape="soft"
+                          aria-label={`Choose ${slot.label.toLowerCase()} from library`}
+                          title={`Choose ${slot.label.toLowerCase()} from library`}
+                          disabled={
+                            slot.role === "last_frame" &&
+                            !seedanceFirstFrameAttachment
+                          }
+                          onClick={(event) => {
+                            event.currentTarget.focus();
+                            onOpenFrameLibrary(
+                              slot.role,
+                              event.currentTarget.parentElement,
+                            );
+                          }}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </div>

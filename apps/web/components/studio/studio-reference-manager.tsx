@@ -151,7 +151,9 @@ function ReferenceTabs({
             }}
           >
             <Icon aria-hidden="true" />
-            {showLabels ? <span>{label}</span> : null}
+            {showLabels ? (
+              <span className="studio-reference-tab-label">{label}</span>
+            ) : null}
             <ReferenceCount group={group} />
           </Button>
         );
@@ -460,9 +462,16 @@ function ExpandedReferenceManager({
       footer={
         <footer className="studio-expanded-reference-footer">
           <span role="status" className="studio-expanded-reference-summary">
-            {available > 0
-              ? `${available} ${singular} slots available`
-              : "Reference limit reached"}
+            <span className="studio-expanded-reference-usage">
+              {available > 0
+                ? `${group.slots.length} of ${group.limit} ${label.toLowerCase()}`
+                : "Reference limit reached"}
+            </span>
+            <span className="studio-expanded-reference-availability">
+              {available > 0
+                ? `${available} ${singular} slots available`
+                : "Reference limit reached"}
+            </span>
           </span>
           <div className="studio-expanded-reference-actions">
             <ReferenceUpload {...uploadProps} mode="footer" />
@@ -470,12 +479,23 @@ function ExpandedReferenceManager({
               <Button
                 appearance="admin"
                 variant="subtle"
-                onClick={group.onOpenLibrary}
+                onClick={(event) => {
+                  event.currentTarget.focus();
+                  group.onOpenLibrary?.();
+                }}
               >
                 <FolderOpen aria-hidden="true" /> Choose from library
               </Button>
             )}
           </div>
+          <Button
+            appearance="admin"
+            variant="primary"
+            className="studio-expanded-reference-done"
+            onClick={onClose}
+          >
+            Done
+          </Button>
         </footer>
       }
     >

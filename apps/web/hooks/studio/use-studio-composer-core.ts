@@ -800,11 +800,6 @@ export function useStudioComposer({
   } = useStudioAttachments({
     attachments,
     seedanceComposer,
-    seedanceFirstFrameAttachment,
-    seedanceLastFrameAttachment,
-    seedanceReferenceImages,
-    seedanceReferenceVideos,
-    seedanceReferenceAudios,
     maxImageInputs,
     maxVideoInputs,
     maxAudioInputs,

@@ -1,14 +1,11 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { Image as ImageIcon, ChevronDown } from "lucide-react";
 
 import type { FloatingComposerStatus } from "@/lib/media-studio-contract";
 import { StudioComposerCollapsedBar } from "@/components/studio/studio-composer-collapsed-bar";
-import {
-  StudioCreditBalance,
-  StudioCreditMetrics,
-} from "@/components/studio/studio-metric-pill";
-import { IconButton } from "@/components/ui/icon-button";
+import { StudioCreditMetrics } from "@/components/studio/studio-metric-pill";
+import { Button } from "@/components/ui/button";
 import { ToastBanner } from "@/components/ui/toast-banner";
 import { overlayPanelClassName } from "@/components/ui/surfaces";
 import { cn } from "@/lib/utils";
@@ -19,7 +16,6 @@ type StudioComposerProps = {
   mobileComposerCollapsed: boolean;
   mobileComposerExpanded: boolean;
   currentModelLabel: string;
-  remainingCredits?: number | null;
   formattedRemainingCredits: string | null;
   estimatedCredits: string | null;
   structuredPresetActive: boolean;
@@ -40,7 +36,6 @@ export function StudioComposer({
   mobileComposerCollapsed,
   mobileComposerExpanded,
   currentModelLabel,
-  remainingCredits,
   formattedRemainingCredits,
   estimatedCredits,
   structuredPresetActive,
@@ -85,7 +80,7 @@ export function StudioComposer({
       {floatingComposerStatus ? (
         <div
           className={cn(
-            "pointer-events-none mb-3 w-full transition duration-300 ease-out",
+            "studio-composer-status pointer-events-none mb-3 w-full transition duration-300 ease-out",
             mobileComposerExpanded ? "hidden md:block md:mx-auto" : "mx-auto",
             immersive ? "max-w-[1480px]" : "max-w-[1240px]",
             floatingComposerStatus.visible
@@ -112,7 +107,16 @@ export function StudioComposer({
           presetLabel={presetLabel}
           structuredPresetActive={structuredPresetActive}
           hasReferenceInputs={hasReferenceInputs}
-          onExpand={onToggleComposerCollapsed}
+          onExpand={() => {
+            onToggleComposerCollapsed();
+            if (
+              immersive &&
+              mobileComposerCollapsed &&
+              window.matchMedia("(width < 768px)").matches
+            ) {
+              onToggleCollapsed();
+            }
+          }}
         />
       ) : (
         <div
@@ -146,7 +150,6 @@ export function StudioComposer({
             mobileComposerExpanded={mobileComposerExpanded}
             modelPicker={modelPicker}
             currentModelLabel={currentModelLabel}
-            remainingCredits={remainingCredits}
             formattedRemainingCredits={formattedRemainingCredits}
             estimatedCredits={estimatedCredits}
             structuredPresetActive={structuredPresetActive}
@@ -198,7 +201,6 @@ type StudioComposerTopProps = Pick<
   | "mobileComposerExpanded"
   | "modelPicker"
   | "currentModelLabel"
-  | "remainingCredits"
   | "formattedRemainingCredits"
   | "estimatedCredits"
   | "structuredPresetActive"
@@ -212,7 +214,6 @@ function StudioComposerTop({
   mobileComposerExpanded,
   modelPicker,
   currentModelLabel,
-  remainingCredits,
   formattedRemainingCredits,
   estimatedCredits,
   structuredPresetActive,
@@ -234,12 +235,12 @@ function StudioComposerTop({
         <div className="studio-composer-leading-picker">{modelPicker}</div>
       ) : null}
       <div className="studio-composer-mobile-header">
-        {inlinePicker ? null : (
+        {!immersive && (
           <StudioComposerMobileSummary
             currentModelLabel={currentModelLabel}
             formattedRemainingCredits={formattedRemainingCredits}
             estimatedCredits={estimatedCredits}
-            showMetrics={!immersive && mobileComposerExpanded}
+            showMetrics={mobileComposerExpanded}
             structuredPresetActive={structuredPresetActive}
             presetLabel={presetLabel}
             hasSidebar={hasSidebar}
@@ -248,14 +249,10 @@ function StudioComposerTop({
         <StudioComposerMobileToggle
           collapsed={mobileComposerCollapsed}
           onClick={onToggleCollapsed}
+          immersive={immersive}
+          modelLabel={currentModelLabel}
         />
       </div>
-      {compact ? (
-        <StudioCreditBalance
-          remaining={remainingCredits}
-          className="studio-composer-mobile-balance"
-        />
-      ) : null}
     </div>
   );
 }
@@ -263,21 +260,39 @@ function StudioComposerTop({
 function StudioComposerMobileToggle({
   collapsed,
   onClick,
+  immersive,
+  modelLabel,
 }: {
   collapsed: boolean;
   onClick: () => void;
+  immersive: boolean;
+  modelLabel: string;
 }) {
   return (
-    <IconButton
-      icon={ChevronDown}
+    <Button
+      variant="subtle"
       onClick={onClick}
-      className="studio-composer-mobile-toggle-button"
-      iconClassName={cn("transition-transform", !collapsed && "rotate-180")}
+      className={
+        immersive
+          ? "studio-composer-mobile-expand"
+          : "studio-composer-mobile-toggle-button size-10 rounded-full p-0"
+      }
       aria-label={
         collapsed ? "Expand prompt composer" : "Collapse prompt composer"
       }
       aria-expanded={!collapsed}
-    />
+    >
+      {immersive && collapsed && (
+        <>
+          <ImageIcon aria-hidden="true" />
+          <span>{modelLabel}</span>
+        </>
+      )}
+      <ChevronDown
+        aria-hidden="true"
+        className={cn("size-4", !immersive && !collapsed && "rotate-180")}
+      />
+    </Button>
   );
 }
 

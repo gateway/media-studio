@@ -107,7 +107,8 @@ export function useDialogFocus(
       if (active instanceof HTMLElement && panel?.contains(active))
         resumeFocus.current = active;
       const previous = returnFocus.current;
-      (previous?.isConnected ? previous : fallback)?.focus();
+      if (previous?.isConnected) previous.focus();
+      if (document.activeElement !== previous) fallback?.focus();
     };
   }, [suspended, returnFocusFallback]);
   return panelRef;
