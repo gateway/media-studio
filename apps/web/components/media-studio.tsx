@@ -1707,21 +1707,23 @@ export function MediaStudio({
     const galleryAssetId = event.dataTransfer.getData(
       "application/x-bumblebee-media-asset-id",
     );
+    const asset = findMediaAssetById(
+      galleryAssetId || null,
+      localAssets,
+      favoriteAssets,
+    );
+    if (galleryAssetId && !asset) {
+      setFormMessage({
+        tone: "danger",
+        text: "The dragged gallery asset could not be found.",
+      });
+      return;
+    }
     const filledReference = dedicatedImageReferenceRailActive
       ? orderedImageInputs[slotIndex]
       : undefined;
     if (standardSlot) {
-      if (galleryAssetId) {
-        const asset =
-          findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ??
-          null;
-        if (!asset) {
-          setFormMessage({
-            tone: "danger",
-            text: "The dragged gallery asset could not be found.",
-          });
-          return;
-        }
+      if (asset) {
         if (standardSlot.kind === "image") {
           if (asset.generation_kind !== "image") {
             setFormMessage({
@@ -1737,18 +1739,22 @@ export function MediaStudio({
             });
             return;
           }
+          const currentSlot = orderedImageInputs[slotIndex];
           if (slotIndex === 0) {
-            const currentSlot = orderedImageInputs[0] ?? null;
             if (currentSlot && currentSlot.source !== "asset") {
               clearOrderedImageInput(currentSlot);
             }
             stageAssetAsSource(asset, false);
             return;
           }
-          addGalleryAssetAsAttachment(asset, null, ["images"], {
-            insertImageIndex: Math.min(slotIndex, orderedImageInputs.length),
-            replaceImageIndex: slotIndex,
-          }).catch(reportActionError);
+          addGalleryAssetAsAttachment(
+            asset,
+            null,
+            ["images"],
+            currentSlot
+              ? orderedImageReplacement(currentSlot)
+              : { insertImageIndex: slotIndex },
+          ).catch(reportActionError);
           return;
         }
         if (asset.generation_kind !== "video") {
@@ -1758,46 +1764,37 @@ export function MediaStudio({
           });
           return;
         }
-        if (motionControlVideoAsset) {
-          clearSourceAsset();
-        } else if (motionControlVideoAttachment) {
-          removeAttachment(motionControlVideoAttachment.id);
-        }
-        void addGalleryAssetAsAttachment(asset, null, ["videos"]);
+        clearStandardComposerSlot(standardSlot);
+        addGalleryAssetAsAttachment(asset, null, ["videos"]).catch(
+          reportActionError,
+        );
         return;
       }
       if (standardSlot.kind === "image") {
-        if (slotIndex > orderedImageInputs.length) {
-          setFormMessage({
-            tone: "warning",
-            text: "Fill the earlier image slot first.",
-          });
-          return;
-        }
-        const currentSlot = orderedImageInputs[slotIndex] ?? null;
-        if (currentSlot?.source === "asset") {
-          clearSourceAsset();
-        }
-        addFiles(event.dataTransfer.files, {
-          allowedKinds: ["images"],
-          insertImageIndex: Math.min(slotIndex, orderedImageInputs.length),
-          replaceImageIndex: slotIndex,
-        });
+        addFilesToStandardComposerSlot(
+          standardSlot,
+          event.dataTransfer.files,
+          null,
+          true,
+        );
         return;
       }
       stageDroppedDrivingVideo(event.dataTransfer.files);
       return;
     }
-    if (galleryAssetId) {
-      const asset =
-        findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
-      if (!asset) {
-        setFormMessage({
-          tone: "danger",
-          text: "The dragged gallery asset could not be found.",
-        });
-        return;
-      }
+    if (seedanceComposer && slotIndex > 0 && !seedanceFirstFrameAttachment) {
+      setFormMessage({
+        tone: "warning",
+        text: "Add a start frame before the end frame.",
+      });
+      return;
+    }
+    const seedanceFrameRole = slotIndex === 0 ? "first_frame" : "last_frame";
+    const seedanceFrame =
+      slotIndex === 0
+        ? seedanceFirstFrameAttachment
+        : seedanceLastFrameAttachment;
+    if (asset) {
       if (explicitMotionControlSlots) {
         if (slotIndex === 0) {
           if (asset.generation_kind !== "image") {
@@ -1822,7 +1819,9 @@ export function MediaStudio({
         } else if (motionControlVideoAttachment) {
           removeAttachment(motionControlVideoAttachment.id);
         }
-        void addGalleryAssetAsAttachment(asset, null, ["videos"]);
+        addGalleryAssetAsAttachment(asset, null, ["videos"]).catch(
+          reportActionError,
+        );
         return;
       }
       if (asset.generation_kind !== "image") {
@@ -1840,8 +1839,9 @@ export function MediaStudio({
         return;
       }
       if (seedanceComposer) {
-        const role = slotIndex === 0 ? "first_frame" : "last_frame";
-        void addGalleryAssetAsAttachment(asset, role);
+        addGalleryAssetAsAttachment(asset, seedanceFrameRole, ["images"], {
+          replaceAttachmentId: seedanceFrame?.id,
+        }).catch(reportActionError);
         return;
       }
       if (filledReference) {
@@ -1861,16 +1861,10 @@ export function MediaStudio({
       return;
     }
     if (seedanceComposer) {
-      if (slotIndex > 0 && !seedanceFirstFrameAttachment) {
-        setFormMessage({
-          tone: "warning",
-          text: "Add a start frame before the end frame.",
-        });
-        return;
-      }
       addFiles(event.dataTransfer.files, {
-        role: slotIndex === 0 ? "first_frame" : "last_frame",
+        role: seedanceFrameRole,
         allowedKinds: ["images"],
+        replaceAttachmentId: seedanceFrame?.id,
       }).catch(reportActionError);
       return;
     }
