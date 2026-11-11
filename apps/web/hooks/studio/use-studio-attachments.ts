@@ -32,7 +32,7 @@ import { probeVideoMetadata } from "@/lib/video-metadata";
 
 export type StudioAttachmentReplacement = {
   replaceAttachmentId?: string;
-  claimSourceImage?: () => boolean;
+  claimSourceAsset?: () => boolean;
 };
 
 type FileAddConfig = StudioAttachmentReplacement & {
@@ -98,13 +98,13 @@ async function probeVideoAttachmentMetadata(
   );
 }
 
-function imageReplacementAllowance(
-  index: number | null,
+function replacementAllowance(
   config: FileAddConfig,
+  imageIndex?: number | null,
 ) {
   return Number(
-    index != null ||
-      Boolean(config.replaceAttachmentId || config.claimSourceImage),
+    imageIndex != null ||
+      Boolean(config.replaceAttachmentId || config.claimSourceAsset),
   );
 }
 
@@ -199,7 +199,7 @@ export function useStudioAttachments({
 
   function stagePickedAttachments(
     next: AttachmentRecord[],
-    { claimSourceImage, replaceAttachmentId }: FileAddConfig,
+    { claimSourceAsset, replaceAttachmentId }: FileAddConfig,
     insertImageIndex: number | null,
     replaceImageIndex: number | null,
     onComplete?: (committed: number) => void,
@@ -208,8 +208,8 @@ export function useStudioAttachments({
       releaseFilePreviews(next);
       return;
     }
-    if (claimSourceImage) {
-      if (claimSourceImage()) {
+    if (claimSourceAsset) {
+      if (claimSourceAsset()) {
         setAttachments((current) => [...next, ...current]);
         checkAfterCommit(next, onComplete);
       } else {
@@ -313,9 +313,12 @@ export function useStudioAttachments({
       0,
       maxImageInputs -
         stagedImageCount +
-        imageReplacementAllowance(replaceImageIndex, config),
+        replacementAllowance(config, replaceImageIndex),
     );
-    let remainingVideoCapacity = Math.max(0, maxVideoInputs - stagedVideoCount);
+    let remainingVideoCapacity = Math.max(
+      0,
+      maxVideoInputs - stagedVideoCount + replacementAllowance(config),
+    );
     let remainingAudioCapacity = Math.max(0, maxAudioInputs - stagedAudioCount);
     const acceptedFiles: File[] = [];
     const acceptedMetadata: Array<{
@@ -466,7 +469,7 @@ export function useStudioAttachments({
       | "insertImageIndex"
       | "replaceImageIndex"
       | "replaceAttachmentId"
-      | "claimSourceImage"
+      | "claimSourceAsset"
     > = {},
   ) {
     if (!asset) {
@@ -550,7 +553,7 @@ export function useStudioAttachments({
         ? null
         : "This slot is already full.";
     }
-    if (config.replaceAttachmentId || config.claimSourceImage) return null;
+    if (config.replaceAttachmentId || config.claimSourceAsset) return null;
     const atCapacity = {
       images:
         stagedImageCount >= maxImageInputs && config.replaceImageIndex == null,
@@ -620,7 +623,7 @@ export function useStudioAttachments({
         tone: "healthy",
         text: libraryStagingMessage(config.successMessage),
       });
-    if (config.replaceAttachmentId || config.claimSourceImage) {
+    if (config.replaceAttachmentId || config.claimSourceAsset) {
       stagePickedAttachments([attachment], config, null, null, (committed) => {
         if (committed) reportSuccess();
         else

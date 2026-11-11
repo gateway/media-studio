@@ -1268,6 +1268,18 @@ export function MediaStudio({
       motionControlVideoAttachment?.referenceRecord?.thumb_url ??
       motionControlVideoAttachment?.referenceRecord?.stored_url ??
       null);
+
+  function drivingVideoReplacement() {
+    return motionControlVideoAsset
+      ? {
+          claimSourceAsset: prepareSourceReplacement(
+            motionControlVideoAsset.asset_id,
+            clearSourceAsset,
+          ),
+        }
+      : { replaceAttachmentId: motionControlVideoAttachment?.id };
+  }
+
   function standardComposerSlotPreview(
     slot: StudioComposerSlot,
     previewKey: string,
@@ -1335,14 +1347,10 @@ export function MediaStudio({
       return;
     }
     if (slot.role === "driving_video") {
-      if (replaceFilled) {
-        if (motionControlVideoAsset) {
-          clearSourceAsset();
-        } else if (motionControlVideoAttachment) {
-          removeAttachment(motionControlVideoAttachment.id);
-        }
-      }
-      addFiles(fileList, { allowedKinds: ["videos"] });
+      addFiles(fileList, {
+        allowedKinds: ["videos"],
+        ...(replaceFilled ? drivingVideoReplacement() : {}),
+      }).catch(reportActionError);
       resetFileInputValue(input ?? null);
     }
   }
@@ -1359,7 +1367,15 @@ export function MediaStudio({
     onSlotDrop: (event, slot) =>
       handleSourceTileDrop(event, slot.slotIndex, slot),
     onOpenPreview: openReferencePreview,
-    onOpenSlotLibrary: openStandardSlotReferenceLibrary,
+    onOpenSlotLibrary: (slot, trigger) =>
+      slot.kind === "video"
+        ? openComposerReferenceLibrary(
+            "videos",
+            null,
+            trigger,
+            drivingVideoReplacement(),
+          )
+        : openStandardSlotReferenceLibrary(slot, trigger),
     onClearSlot: clearStandardComposerSlot,
     onPickFiles: addFilesToStandardComposerSlot,
   };
@@ -1764,22 +1780,20 @@ export function MediaStudio({
           });
           return;
         }
-        clearStandardComposerSlot(standardSlot);
-        addGalleryAssetAsAttachment(asset, null, ["videos"]).catch(
-          reportActionError,
-        );
-        return;
-      }
-      if (standardSlot.kind === "image") {
-        addFilesToStandardComposerSlot(
-          standardSlot,
-          event.dataTransfer.files,
+        addGalleryAssetAsAttachment(
+          asset,
           null,
-          true,
-        );
+          ["videos"],
+          drivingVideoReplacement(),
+        ).catch(reportActionError);
         return;
       }
-      stageDroppedDrivingVideo(event.dataTransfer.files);
+      addFilesToStandardComposerSlot(
+        standardSlot,
+        event.dataTransfer.files,
+        null,
+        true,
+      );
       return;
     }
     if (seedanceComposer && slotIndex > 0 && !seedanceFirstFrameAttachment) {
@@ -1795,35 +1809,6 @@ export function MediaStudio({
         ? seedanceFirstFrameAttachment
         : seedanceLastFrameAttachment;
     if (asset) {
-      if (explicitMotionControlSlots) {
-        if (slotIndex === 0) {
-          if (asset.generation_kind !== "image") {
-            setFormMessage({
-              tone: "danger",
-              text: "The motion image slot only accepts image assets.",
-            });
-            return;
-          }
-          stageAssetAsSource(asset, false);
-          return;
-        }
-        if (asset.generation_kind !== "video") {
-          setFormMessage({
-            tone: "danger",
-            text: "The motion video slot only accepts video assets.",
-          });
-          return;
-        }
-        if (motionControlVideoAsset) {
-          clearSourceAsset();
-        } else if (motionControlVideoAttachment) {
-          removeAttachment(motionControlVideoAttachment.id);
-        }
-        addGalleryAssetAsAttachment(asset, null, ["videos"]).catch(
-          reportActionError,
-        );
-        return;
-      }
       if (asset.generation_kind !== "image") {
         setFormMessage({
           tone: "danger",
@@ -1866,17 +1851,6 @@ export function MediaStudio({
         allowedKinds: ["images"],
         replaceAttachmentId: seedanceFrame?.id,
       }).catch(reportActionError);
-      return;
-    }
-    if (explicitMotionControlSlots) {
-      if (slotIndex === 0) {
-        addFiles(event.dataTransfer.files, {
-          allowedKinds: ["images"],
-          insertImageIndex: 0,
-        }).catch(reportActionError);
-        return;
-      }
-      stageDroppedDrivingVideo(event.dataTransfer.files);
       return;
     }
     if (
@@ -1967,13 +1941,6 @@ export function MediaStudio({
     assignPresetSlotFile(slotKey, droppedFile);
   }
 
-  function stageDroppedDrivingVideo(files: FileList) {
-    if (motionControlVideoAsset) clearSourceAsset();
-    else if (motionControlVideoAttachment)
-      removeAttachment(motionControlVideoAttachment.id);
-    addFiles(files, { allowedKinds: ["videos"] }).catch(reportActionError);
-  }
-
   function handleGalleryAssetDragStart(
     event: React.DragEvent<HTMLDivElement>,
     asset: MediaAsset | null,
@@ -2058,20 +2025,6 @@ export function MediaStudio({
       return;
     }
     if (explicitMotionControlSlots) {
-      if (asset.generation_kind === "video") {
-        if (motionControlVideoAsset) {
-          clearSourceAsset();
-        } else if (motionControlVideoAttachment) {
-          removeAttachment(motionControlVideoAttachment.id);
-        }
-        void addGalleryAssetAsAttachment(asset, null, ["videos"]);
-        closeAssetInspector();
-        setFormMessage({
-          tone: "warning",
-          text: "The selected asset is now staged as the driving video.",
-        });
-        return;
-      }
       stageSourceAsset(asset);
       closeAssetInspector();
       setMobileComposerCollapsed(!isCoarsePointerDevice());
@@ -2171,7 +2124,7 @@ export function MediaStudio({
   function orderedImageReplacement(slot: (typeof orderedImageInputs)[number]) {
     return slot.source === "asset"
       ? {
-          claimSourceImage: prepareSourceReplacement(
+          claimSourceAsset: prepareSourceReplacement(
             slot.asset.asset_id,
             clearSourceAsset,
           ),

@@ -3109,7 +3109,6 @@ textarea {
   background: var(--accent-soft);
 }
 
-.studio-staged-media-replace-input:has(> input:focus-visible),
 .studio-slot-tile:has(> input:focus-visible),
 .studio-ordered-reference-tile button:focus-visible,
 .studio-ordered-references
@@ -3941,11 +3940,6 @@ textarea {
   color: var(--text-muted);
 }
 
-.studio-standard-slot-tile
-  .studio-staged-media-replace:has(> .studio-staged-media-replace-input) {
-  inset: auto 27px 0 auto;
-}
-
 .studio-standard-slot-tile .studio-fixed-slot-caption {
   gap: 4px;
   padding-inline: 6px 52px;
@@ -4008,10 +4002,7 @@ textarea {
   color: var(--feedback-danger-text);
 }
 
-.studio-standard-slot-tile .studio-staged-media-remove,
-.studio-standard-slot-tile
-  .studio-staged-media-replace
-  .studio-staged-media-replace-input {
+.studio-standard-slot-tile .studio-staged-media-remove {
   width: 24px;
   height: 30px;
 }

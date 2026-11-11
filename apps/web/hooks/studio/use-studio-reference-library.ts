@@ -101,8 +101,8 @@ function contextualStandardImageSlot(
   );
 }
 
-function composerReferenceTitle(role: NonNullable<AttachmentRecord["role"]>) {
-  if (role === "reference")
+function composerReferenceTitle(role: AttachmentRecord["role"]) {
+  if (!role || role === "reference")
     return "Pick a reusable reference from your library.";
   return `Pick a reusable image for the ${role === "first_frame" ? "start" : "end"} frame.`;
 }
@@ -192,7 +192,7 @@ export function useStudioReferenceLibrary({
 
   function openComposerReferenceLibrary(
     kind: AttachmentRecord["kind"],
-    role: NonNullable<AttachmentRecord["role"]> = "reference",
+    role: AttachmentRecord["role"] = "reference",
     returnFocusTo?: HTMLElement | null,
     replacement?: StudioAttachmentReplacement,
   ) {

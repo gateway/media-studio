@@ -48,7 +48,6 @@ describe("studio reference previews", () => {
           duration_seconds: 20.083333,
           stored_url: "/reference.mp4",
           thumb_url: "/poster.webp",
-          poster_url: "/poster.webp",
           usage_count: 0,
           last_used_at: null,
           metadata: {},
@@ -59,6 +58,10 @@ describe("studio reference previews", () => {
       "Driving video",
     );
 
-    expect(preview?.metadataLabel).toBe("20.1s · 720x1280");
+    expect(preview).toMatchObject({
+      url: "/reference.mp4",
+      posterUrl: "/poster.webp",
+      metadataLabel: "20.1s · 720x1280",
+    });
   });
 });

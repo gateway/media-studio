@@ -34,33 +34,34 @@ export function buildAttachmentPreview(
   label: string,
   previewKey = label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
 ): StudioReferencePreview | null {
-  const url =
-    attachment?.previewUrl ?? attachment?.referenceRecord?.stored_url ?? null;
+  if (!attachment) return null;
+  const { kind, previewUrl, referenceRecord } = attachment;
+  const {
+    stored_url: storedUrl,
+    poster_url: posterUrl,
+    thumb_url: thumbUrl,
+    duration_seconds: durationSeconds,
+    width,
+    height,
+  } = referenceRecord ?? {};
+  const isVideo = kind === "videos";
+  const url = isVideo ? (storedUrl ?? previewUrl) : (previewUrl ?? storedUrl);
   if (!url) {
     return null;
   }
   return {
-    key: `attachment:${attachment?.id ?? previewKey}`,
+    key: `attachment:${attachment.id ?? previewKey}`,
     label,
     url,
-    kind: attachment?.kind ?? "images",
-    posterUrl:
-      attachment?.kind === "videos"
-        ? (attachment?.referenceRecord?.poster_url ?? null)
-        : undefined,
-    metadataLabel:
-      attachment?.kind === "videos"
-        ? compactVideoMetadataLabel({
-            durationSeconds:
-              attachment.durationSeconds ??
-              attachment.referenceRecord?.duration_seconds ??
-              null,
-            width:
-              attachment.width ?? attachment.referenceRecord?.width ?? null,
-            height:
-              attachment.height ?? attachment.referenceRecord?.height ?? null,
-          })
-        : null,
+    kind,
+    posterUrl: isVideo ? (posterUrl ?? thumbUrl ?? null) : undefined,
+    metadataLabel: isVideo
+      ? compactVideoMetadataLabel({
+          durationSeconds: attachment.durationSeconds ?? durationSeconds,
+          width: attachment.width ?? width,
+          height: attachment.height ?? height,
+        })
+      : null,
   };
 }
 

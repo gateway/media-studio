@@ -140,15 +140,23 @@ describe.each([
     expect(
       props.standardSlotRailProps.onOpenSlotLibrary,
     ).toHaveBeenCalledExactlyOnceWith(slots[0], replaceImage);
-    const replaceVideo = within(videoTile).getByLabelText(
-      "Replace Driving video",
+    const replaceVideo = within(videoTile).getByRole("button", {
+      name: "Replace Driving video",
+    });
+    fireEvent.click(replaceVideo);
+    fireEvent.click(screen.getByText("Choose from library"));
+    expect(
+      props.standardSlotRailProps.onOpenSlotLibrary,
+    ).toHaveBeenLastCalledWith(slots[1], replaceVideo);
+    const replaceVideoInput = within(videoTile).getByTestId(
+      `${prefix}-slot-driving-video-replace`,
     );
-    expect(replaceVideo.getAttribute("accept")).toBe("video/*");
+    expect(replaceVideoInput.getAttribute("accept")).toBe("video/*");
     const files = [new File([], "drive.mp4", { type: "video/mp4" })];
-    fireEvent.change(replaceVideo, { target: { files } });
+    fireEvent.change(replaceVideoInput, { target: { files } });
     expect(
       props.standardSlotRailProps.onPickFiles,
-    ).toHaveBeenCalledExactlyOnceWith(slots[1], files, replaceVideo, true);
+    ).toHaveBeenCalledExactlyOnceWith(slots[1], files, replaceVideoInput, true);
     expect(props.onOpenPreview).toHaveBeenCalledTimes(2);
   });
 

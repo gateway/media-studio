@@ -1,6 +1,6 @@
 "use client";
 
-import { Image as ImageIcon, ImagePlus, Play, Volume2, X } from "lucide-react";
+import { Image as ImageIcon, Play, Volume2, X } from "lucide-react";
 import type { HTMLAttributes } from "react";
 
 import {
@@ -152,37 +152,5 @@ export function StudioStagedMediaTile({
         </button>
       ) : null}
     </div>
-  );
-}
-
-export function StudioStagedMediaReplaceControl({
-  label,
-  accept,
-  testId,
-  onPickFiles,
-}: {
-  label: string;
-  accept: string;
-  testId?: string;
-  onPickFiles: (files: FileList, input: HTMLInputElement) => void;
-}) {
-  return (
-    <label
-      className="studio-staged-media-replace-input studio-slot-utility-button inline-flex h-8 w-8 cursor-pointer items-center justify-center"
-      title={label}
-    >
-      <ImagePlus aria-hidden="true" className="size-3.5" />
-      <input
-        type="file"
-        accept={accept}
-        data-testid={testId}
-        aria-label={label}
-        className="sr-only"
-        onChange={({ currentTarget }) => {
-          if (currentTarget.files?.length)
-            onPickFiles(currentTarget.files, currentTarget);
-        }}
-      />
-    </label>
   );
 }

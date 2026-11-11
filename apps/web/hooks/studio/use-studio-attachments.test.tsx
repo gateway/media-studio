@@ -285,16 +285,16 @@ it("does not exceed Seedance capacity when a library selection wins against a de
 it("replaces a gallery source at the image limit ahead of a following library reference", async () => {
   const following = imageAttachment("library", "reference");
   const staging = renderFileStaging([following], 1);
-  const claimSourceImage = vi.fn(() => true);
-  const config = { allowedKinds: imageKinds, claimSourceImage };
+  const claimSourceAsset = vi.fn(() => true);
+  const config = { allowedKinds: imageKinds, claimSourceAsset };
   const video = new File([], "video.mp4", { type: "video/mp4" });
   await act(() => staging.current.actions.addFiles([video], config));
-  expect(claimSourceImage).not.toHaveBeenCalled();
+  expect(claimSourceAsset).not.toHaveBeenCalled();
   expect(staging.current.attachments).toEqual([following]);
 
   const image = replacement();
   await act(() => staging.current.actions.addFiles([image], config));
-  expect(claimSourceImage).toHaveBeenCalledTimes(1);
+  expect(claimSourceAsset).toHaveBeenCalledTimes(1);
   expect(staging.current.attachments).toEqual([
     expect.objectContaining({ file: image }),
     following,
@@ -307,7 +307,7 @@ it("discards a decoded file if its gallery source is no longer staged", async ()
   await act(() =>
     staging.current.actions.addFiles([replacement()], {
       allowedKinds: imageKinds,
-      claimSourceImage: () => false,
+      claimSourceAsset: () => false,
     }),
   );
   expect(staging.current.attachments).toEqual([following]);
@@ -424,7 +424,7 @@ it("discards a decode when the real source owner clears and re-stages the same g
   );
   const pending = staging.current.actions.addFiles([replacement()], {
     allowedKinds: imageKinds,
-    claimSourceImage: staging.current.source.prepareSourceReplacement(
+    claimSourceAsset: staging.current.source.prepareSourceReplacement(
       "gallery-asset",
       () => setSourceAssetId(null),
     ),
@@ -617,7 +617,7 @@ it("uses the source claim for library replacement and preserves its first positi
   const following = imageAttachment("following");
   const staging = renderFileStaging([following], 1);
   act(() => staging.current.source.setSourceAssetId("gallery-source"));
-  const claimSourceImage = staging.current.source.prepareSourceReplacement(
+  const claimSourceAsset = staging.current.source.prepareSourceReplacement(
     "gallery-source",
     () => staging.current.source.setSourceAssetId(null),
   );
@@ -626,7 +626,7 @@ it("uses the source claim for library replacement and preserves its first positi
       replacementLibraryImage,
       {
         allowedKinds: imageKinds,
-        claimSourceImage,
+        claimSourceAsset,
       },
     ),
   );

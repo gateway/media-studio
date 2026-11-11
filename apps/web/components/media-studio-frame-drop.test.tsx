@@ -11,7 +11,11 @@ import {
 import { afterEach, expect, it, vi } from "vitest";
 
 import { MediaStudio } from "@/components/media-studio";
-import type { MediaAsset, MediaModelSummary } from "@/lib/types";
+import type {
+  MediaAsset,
+  MediaModelSummary,
+  MediaReference,
+} from "@/lib/types";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/studio",
@@ -23,6 +27,15 @@ vi.mock("@/lib/studio-composer-file-utils", async (importOriginal) => ({
     typeof import("@/lib/studio-composer-file-utils")
   >()),
   buildAttachmentPreviewUrl: async (file: File) => `/preview/${file.name}`,
+}));
+
+vi.mock("@/lib/video-metadata", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/video-metadata")>()),
+  probeVideoMetadata: async () => ({
+    durationSeconds: 5,
+    width: 1280,
+    height: 720,
+  }),
 }));
 
 afterEach(() => {
@@ -71,6 +84,32 @@ function galleryImage(id: string): MediaAsset {
   };
 }
 
+function renderStudio(model: MediaModelSummary, assets: MediaAsset[]) {
+  vi.stubGlobal("localStorage", window.sessionStorage);
+  vi.stubGlobal(
+    "URL",
+    class extends URL {
+      static revokeObjectURL = vi.fn();
+    },
+  );
+  render(
+    <MediaStudio
+      apiHealthy
+      models={[model]}
+      presets={[]}
+      prompts={[]}
+      enhancementConfigs={[]}
+      queueSettings={null}
+      queuePolicies={[]}
+      projects={[]}
+      batches={[]}
+      jobs={[]}
+      assets={assets}
+      latestAsset={null}
+    />,
+  );
+}
+
 function dropGalleryImage(id: string, target: HTMLElement) {
   const card = screen
     .getAllByTestId("studio-gallery-card")
@@ -96,34 +135,12 @@ it.each([
 ])(
   "replaces only the occupied $model.label End frame on $media drop",
   async ({ model, media }) => {
-    vi.stubGlobal("localStorage", window.sessionStorage);
-    vi.stubGlobal(
-      "URL",
-      class extends URL {
-        static revokeObjectURL = vi.fn();
-      },
-    );
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
       String(input).startsWith("/api/control/files/")
         ? new Response("fixture", { headers: { "Content-Type": "image/png" } })
         : new Response(null, { status: 404 }),
     );
-    render(
-      <MediaStudio
-        apiHealthy
-        models={[model]}
-        presets={[]}
-        prompts={[]}
-        enhancementConfigs={[]}
-        queueSettings={null}
-        queuePolicies={[]}
-        projects={[]}
-        batches={[]}
-        jobs={[]}
-        assets={["start", "end", "replacement"].map(galleryImage)}
-        latestAsset={null}
-      />,
-    );
+    renderStudio(model, ["start", "end", "replacement"].map(galleryImage));
 
     const isKling = model === kling;
     const startInput = isKling
@@ -182,3 +199,96 @@ it.each([
     );
   },
 );
+
+it("replaces only the full Driving video slot using the shared file and library menu", async () => {
+  vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  const reference: MediaReference = {
+    reference_id: "library-video",
+    kind: "video",
+    status: "ready",
+    stored_path: "references/replacement.mp4",
+    stored_url: "/references/replacement.mp4",
+    thumb_url: "/references/replacement.jpg",
+    file_size_bytes: 12,
+    sha256: "fixture",
+    usage_count: 0,
+  };
+  const fetchLibrary = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (input) => {
+      if (String(input).startsWith("/api/control/reference-media?")) {
+        return Response.json({ ok: true, items: [reference] });
+      }
+      return new Response(null, { status: 404 });
+    });
+  renderStudio(
+    {
+      ...kling,
+      key: "kling-3.0-motion",
+      label: "Kling 3.0 Motion Control",
+      task_modes: ["motion_control"],
+      input_patterns: ["motion_control"],
+      image_inputs: { required_min: 1, required_max: 1 },
+      video_inputs: { required_min: 1, required_max: 1 },
+    },
+    [galleryImage("source")],
+  );
+
+  const sourceId = "studio-standard-slot-slot-source-image";
+  const videoId = "studio-standard-slot-slot-driving-video";
+  const videoTile = () => screen.getByTestId(`${videoId}-filled`);
+  const replaceButton = () =>
+    within(videoTile()).getByRole("button", { name: "Replace Driving video" });
+  const pickFile = (id: string, file: File) =>
+    fireEvent.change(screen.getByTestId(id), { target: { files: [file] } });
+  const videoFile = (name: string) =>
+    new File(["fixture"], name, { type: "video/mp4" });
+
+  dropGalleryImage("source", screen.getByTestId(sourceId).closest("label")!);
+  pickFile(videoId, videoFile("original.mp4"));
+  const originalTile = await screen.findByTestId(`${videoId}-filled`);
+  expect(originalTile.querySelector("video")?.getAttribute("src")).toBe(
+    "/preview/original.mp4",
+  );
+
+  fireEvent.click(replaceButton());
+  fireEvent.click(screen.getByText("Upload file"));
+  pickFile(
+    `${videoId}-replace`,
+    new File([], "wrong.png", { type: "image/png" }),
+  );
+  expect(videoTile().querySelector("video")?.getAttribute("src")).toBe(
+    "/preview/original.mp4",
+  );
+
+  fireEvent.click(replaceButton());
+  fireEvent.click(screen.getByText("Upload file"));
+  pickFile(`${videoId}-replace`, videoFile("local-replacement.mp4"));
+  await waitFor(() =>
+    expect(videoTile().querySelector("video")?.getAttribute("src")).toBe(
+      "/preview/local-replacement.mp4",
+    ),
+  );
+
+  fireEvent.click(replaceButton());
+  fireEvent.click(screen.getByText("Choose from library"));
+  fireEvent.click(await screen.findByRole("button", { name: "Use video" }));
+  expect(fetchLibrary).toHaveBeenCalledWith(
+    expect.stringMatching(/reference-media\?.*kind=video/),
+    expect.anything(),
+  );
+  expect(within(videoTile()).getByRole("img").getAttribute("src")).toBe(
+    reference.thumb_url,
+  );
+  expect(screen.queryByTestId("studio-reference-library")).toBeNull();
+
+  fireEvent.click(
+    within(videoTile()).getByRole("button", { name: "Remove Driving video" }),
+  );
+  expect(screen.queryByTestId(`${videoId}-filled`)).toBeNull();
+  expect(
+    within(screen.getByTestId(`${sourceId}-filled`))
+      .getByRole("img")
+      .getAttribute("src"),
+  ).toBe("/api/control/files/source.png");
+});
