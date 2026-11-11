@@ -3160,8 +3160,7 @@ textarea {
 @media (width >= 768px) {
   /* The gallery remains on document scroll; only the tall composer rail has its own overflow. */
   :where(.studio-create-stage-immersive):has(
-    .studio-composer-rail[data-structured-preset-active="false"]
-      > .studio-composer-panel
+    .studio-composer-rail > .studio-composer-panel
   ) {
     .studio-gallery-grid-shell {
       margin-inline-start: var(--studio-rail-size);
@@ -3181,10 +3180,7 @@ textarea {
   }
 
   :where(.studio-create-stage-immersive)
-    div:has(
-      > .studio-composer-rail[data-structured-preset-active="false"]
-        > .studio-composer-panel
-    ) {
+    div:has(> .studio-composer-rail > .studio-composer-panel) {
     position: fixed;
     inset: var(--studio-header-end) auto 0 0;
     z-index: 70;
@@ -3197,9 +3193,7 @@ textarea {
   }
 
   :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]:has(
-      > .studio-composer-panel
-    ) {
+    .studio-composer-rail:has(> .studio-composer-panel) {
     position: relative;
     inset: auto;
     display: flex;
@@ -3212,9 +3206,7 @@ textarea {
     backdrop-filter: none;
   }
 
-  :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
-    .studio-composer-panel {
+  :where(.studio-create-stage-immersive) .studio-composer-panel {
     display: flex;
     min-height: 0;
     height: auto;
@@ -3229,7 +3221,6 @@ textarea {
   }
 
   :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
     :is(
       .studio-composer-body,
       .studio-composer-layout,
@@ -3244,9 +3235,7 @@ textarea {
     gap: 12px;
   }
 
-  :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
-    .studio-composer-body {
+  :where(.studio-create-stage-immersive) .studio-composer-body {
     overflow: visible;
   }
 
@@ -3273,18 +3262,13 @@ textarea {
     margin-block-start: 6px;
   }
 
-  :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
-    .studio-composer-collapse-button {
+  :where(.studio-create-stage-immersive) .studio-composer-collapse-button {
     inset: auto 0 0 auto;
     width: 30px;
     height: 30px;
   }
 
-  :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
-    .studio-composer-collapse-button
-    svg {
+  :where(.studio-create-stage-immersive) .studio-composer-collapse-button svg {
     rotate: 90deg;
   }
 
@@ -3300,9 +3284,7 @@ textarea {
     }
   }
 
-  :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
-    .studio-composer-options {
+  :where(.studio-create-stage-immersive) .studio-composer-options {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
@@ -3316,7 +3298,12 @@ textarea {
   }
 
   :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
+    .studio-composer-rail[data-structured-preset-active="true"]
+    .studio-composer-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.studio-create-stage-immersive)
     :is(
       [data-picker-id="model"],
       .studio-composer-options
@@ -3327,7 +3314,6 @@ textarea {
   }
 
   :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
     :is(
       [data-picker-id="preset"],
       [data-studio-picker]:has(> button[aria-expanded="true"])
@@ -3361,7 +3347,7 @@ textarea {
   }
 
   :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
+    .studio-composer-rail
     [data-studio-picker]
     > .scrollbar-none {
     /* Menus stay in the rail flow, so viewport-based placement cannot clip them. */
@@ -3371,9 +3357,7 @@ textarea {
     margin-block-start: 4px;
   }
 
-  :where(.studio-create-stage-immersive)
-    .studio-composer-rail[data-structured-preset-active="false"]
-    .studio-composer-actions {
+  :where(.studio-create-stage-immersive) .studio-composer-actions {
     min-height: 54px;
     justify-content: flex-end;
     width: calc(100% + 6px);
@@ -4082,8 +4066,9 @@ textarea {
 }
 
 .studio-structured-preset-media {
+  max-width: 108px;
   aspect-ratio: 3 / 2;
-  min-height: 120px;
+  min-height: 0;
 }
 
 .studio-structured-preset-tile {
@@ -4144,60 +4129,6 @@ textarea {
 .studio-structured-preset-tile button:focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
-}
-
-@media (width >= 768px) {
-  .studio-composer-content:has(> .studio-structured-preset) {
-    display: grid;
-    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
-    grid-template-rows: min-content 1fr min-content;
-    align-items: start;
-    gap: 12px 24px;
-  }
-
-  .studio-composer-content > .studio-structured-preset,
-  .studio-composer-content:has(> .studio-structured-preset)
-    > .studio-composer-controls-bar {
-    display: contents;
-  }
-
-  .studio-structured-preset-summary {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .studio-structured-preset-inputs {
-    grid-column: 2;
-    grid-row: 1 / 3;
-    padding-block-start: 12px;
-    border-block-start: 1px solid var(--border-soft);
-  }
-
-  .studio-composer-content:has(> .studio-structured-preset)
-    .studio-composer-options {
-    display: grid;
-    grid-column: 1;
-    grid-row: 2;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .studio-composer-content:has(> .studio-structured-preset)
-    .studio-composer-options
-    > [data-picker-id] {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .studio-composer-content:has(> .studio-structured-preset)
-    .studio-composer-actions {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    width: 100%;
-    margin-inline: 0;
-    padding-block-start: 8px;
-    border-block-start: 1px solid var(--border-soft);
-  }
 }
 
 @media (width < 480px) {
