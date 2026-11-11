@@ -14,6 +14,7 @@ export function StudioReferenceSourceMenu({
   action,
   label,
   accept,
+  multiple = action === "Add",
   testId,
   onPickFiles,
   onOpenLibrary,
@@ -21,6 +22,7 @@ export function StudioReferenceSourceMenu({
   action: "Add" | "Replace";
   label: string;
   accept: string;
+  multiple?: boolean;
   testId: string;
   onPickFiles: (files: FileList | null, input: HTMLInputElement) => void;
   onOpenLibrary: (trigger: HTMLButtonElement) => void;
@@ -64,7 +66,7 @@ export function StudioReferenceSourceMenu({
         type="file"
         hidden
         accept={accept}
-        multiple={action === "Add"}
+        multiple={multiple}
         aria-label={label}
         data-testid={testId}
         onChange={({ currentTarget }) =>

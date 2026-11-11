@@ -107,20 +107,27 @@ it("keeps named schema defaults, explicit values and requiredness while updating
   expect(onOpenPresets).toHaveBeenCalledOnce();
 });
 
-it("routes upload and drops to the original ordered slot identities and resets the file input", () => {
+it("opens a single-image file picker from Add and routes uploads and drops to their named slots", () => {
   const { onAssignSlotFile, onResetFileInput, onDropSlot } = renderPreset();
-  const uploads = screen.getAllByLabelText(/^Upload .* image$/);
-  expect(uploads.map((input) => input.getAttribute("data-testid"))).toEqual([
-    "studio-preset-slot-input-character",
+  const upload = screen.getByTestId<HTMLInputElement>(
     "studio-preset-slot-input-scene",
-  ]);
+  );
+  expect(upload.multiple).toBe(false);
+  expect(upload.accept).toBe("image/*");
+  const openFilePicker = vi.spyOn(upload, "click");
+  fireEvent.click(screen.getByRole("button", { name: "Add Scene image" }));
+  fireEvent.click(screen.getByText("Upload file"));
+  expect(openFilePicker).toHaveBeenCalledOnce();
+  expect(onAssignSlotFile).not.toHaveBeenCalled();
   const file = new File(["image"], "scene.png", { type: "image/png" });
-  fireEvent.change(uploads[1], { target: { files: [file] } });
+  fireEvent.change(upload, { target: { files: [file] } });
+  expect(onAssignSlotFile).toHaveBeenCalledOnce();
   expect(onAssignSlotFile).toHaveBeenCalledWith("scene", file);
-  expect(onResetFileInput).toHaveBeenCalledWith(uploads[1]);
-  fireEvent.drop(uploads[0].closest(".studio-fixed-slot-media")!, {
-    dataTransfer: { files: [file] },
-  });
+  expect(onResetFileInput).toHaveBeenCalledWith(upload);
+  fireEvent.drop(
+    screen.getByRole("button", { name: "Add Character image (required)" }),
+    { dataTransfer: { files: [file] } },
+  );
   expect(onDropSlot.mock.calls[0][1]).toBe("character");
 });
 
@@ -164,7 +171,7 @@ it("opens the library for the clicked named slot without clearing an existing im
     name: "Replace Scene image",
   });
   const empty = screen.getByRole("button", {
-    name: "Choose from library for Character image",
+    name: "Add Character image (required)",
   });
   fireEvent.click(filled);
   fireEvent.click(
@@ -173,17 +180,18 @@ it("opens the library for the clicked named slot without clearing an existing im
     ),
   );
   fireEvent.click(empty);
+  fireEvent.click(
+    within(screen.getByTestId("studio-preset-slot-character")).getByText(
+      "Choose from library",
+    ),
+  );
   expect(onOpenSlotLibrary.mock.calls).toEqual([
     [imageSlots[1], filled],
     [imageSlots[0], empty],
   ]);
   expect(onClearSlot).not.toHaveBeenCalled();
   expect(screen.getByTestId("studio-preset-slot-filled-scene")).toBeTruthy();
-  expect(
-    screen.queryByRole("button", {
-      name: "Choose from library for Scene image",
-    }),
-  ).toBeNull();
+  expect(screen.queryByText("Choose from library")).toBeNull();
 });
 
 it("keeps fixed prompts free of editable text while retaining their named image inputs", () => {
@@ -195,10 +203,8 @@ it("keeps fixed prompts free of editable text while retaining their named image 
   ).toBeTruthy();
   expect(screen.queryByRole("textbox")).toBeNull();
   expect(
-    screen
-      .getByLabelText("Upload Character image")
-      .getAttribute("aria-required"),
-  ).toBe("true");
+    screen.getByRole("button", { name: "Add Character image (required)" }),
+  ).toBeTruthy();
 });
 
 it("keeps default admin consumers unthemed and preserves navigation when a preset editor opts into Studio appearance", () => {

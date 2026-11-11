@@ -28,6 +28,7 @@ Media Studio shortcuts are ignored while you are typing in a field or when a blo
 | Click a favorite icon | Favorite or unfavorite the asset without opening it |
 | Click Projects, Presets, Reference library, or Settings | Open the matching Studio panel |
 | Click Add in References | Choose **Upload file** or **Choose from library** to append a reference if the model has room |
+| Click Add in an empty preset image slot | Choose **Upload file** or **Choose from library** to fill that named slot |
 | Click the dropdown in the bottom-right corner of a reference | Choose **Upload file** or **Choose from library** to replace that reference in place |
 | Drag the desktop composer divider | Resize the composer without changing the draft |
 | Drag a gallery image onto a staged image reference | Replace that reference in place |

@@ -4163,15 +4163,6 @@ textarea {
   font-size: 0.8125rem;
 }
 
-.studio-structured-preset-slot > .studio-structured-preset-library {
-  max-width: 100%;
-  gap: 5px;
-  margin-block-start: 6px;
-  padding-inline: 6px;
-  font-size: 0.75rem;
-  white-space: normal;
-}
-
 .studio-structured-preset-tile {
   height: 100%;
   width: 100%;

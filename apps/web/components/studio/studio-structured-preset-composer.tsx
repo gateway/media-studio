@@ -2,13 +2,7 @@
 
 import type { DragEvent } from "react";
 
-import {
-  Image as ImageIcon,
-  FolderOpen,
-  ImagePlus,
-  Layers,
-  ChevronDown,
-} from "lucide-react";
+import { Image as ImageIcon, Layers, ChevronDown } from "lucide-react";
 
 import { StudioReferenceSourceMenu } from "@/components/studio/studio-reference-source-menu";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
@@ -22,6 +16,7 @@ import {
   type StructuredPresetTextField,
 } from "@/lib/media-studio-helpers";
 import type { MediaAsset, MediaPreset } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type StudioStructuredPresetComposerProps = {
   preset: MediaPreset | null;
@@ -148,6 +143,26 @@ export function StudioStructuredPresetComposer({
                 localAssets,
                 favoriteAssets,
               );
+              const action = presetSlotPreview ? "Replace" : "Add";
+              const slotLabel =
+                !presetSlotPreview && slot.required
+                  ? `${slot.label} (required)`
+                  : slot.label;
+              const sourceMenu = (
+                <StudioReferenceSourceMenu
+                  action={action}
+                  label={`${action} ${slotLabel}`}
+                  accept="image/*"
+                  multiple={false}
+                  testId={`studio-preset-slot-input-${slot.key}`}
+                  onPickFiles={(files, input) => {
+                    if (!files?.length) return;
+                    onAssignSlotFile(slot.key, files[0]);
+                    onResetFileInput(input);
+                  }}
+                  onOpenLibrary={(trigger) => onOpenSlotLibrary(slot, trigger)}
+                />
+              );
               return (
                 <div
                   key={slot.key}
@@ -162,7 +177,10 @@ export function StudioStructuredPresetComposer({
                     <span>{slot.label}</span>
                   </div>
                   <div
-                    className="studio-fixed-slot-media"
+                    className={cn(
+                      "studio-fixed-slot-media",
+                      !presetSlotPreview && "studio-reference-add-overview",
+                    )}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => onDropSlot(event, slot.key)}
                   >
@@ -172,68 +190,14 @@ export function StudioStructuredPresetComposer({
                         visualUrl={slotPreview}
                         onOpenPreview={onOpenPreview}
                         onRemove={() => onClearSlot(slot.key)}
-                        replaceControl={
-                          <StudioReferenceSourceMenu
-                            action="Replace"
-                            label={`Replace ${slot.label}`}
-                            accept="image/*"
-                            testId={`studio-preset-slot-input-${slot.key}`}
-                            onPickFiles={(files, input) => {
-                              if (!files?.length) return;
-                              onAssignSlotFile(slot.key, files[0]);
-                              onResetFileInput(input);
-                            }}
-                            onOpenLibrary={(trigger) =>
-                              onOpenSlotLibrary(slot, trigger)
-                            }
-                          />
-                        }
+                        replaceControl={sourceMenu}
                         className="studio-structured-preset-tile"
                         testId={`studio-preset-slot-filled-${slot.key}`}
                       />
                     ) : (
-                      <label className="studio-slot-tile studio-fixed-slot-add">
-                        <ImagePlus aria-hidden="true" className="size-5" />
-                        <span className="studio-fixed-slot-empty-label">
-                          Upload image
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          aria-label={`Upload ${slot.label}`}
-                          aria-required={slot.required}
-                          data-testid={`studio-preset-slot-input-${slot.key}`}
-                          className="sr-only"
-                          onChange={(event) => {
-                            onAssignSlotFile(
-                              slot.key,
-                              event.target.files?.[0] ?? null,
-                            );
-                            onResetFileInput(event.currentTarget);
-                          }}
-                        />
-                      </label>
+                      sourceMenu
                     )}
                   </div>
-                  {!presetSlotPreview && (
-                    <Button
-                      appearance="admin"
-                      variant="subtle"
-                      size="compact"
-                      className="studio-structured-preset-library"
-                      aria-label={`Choose from library for ${slot.label}`}
-                      aria-haspopup="dialog"
-                      onClick={(event) =>
-                        onOpenSlotLibrary(slot, event.currentTarget)
-                      }
-                    >
-                      <FolderOpen
-                        aria-hidden="true"
-                        className="studio-structured-preset-icon"
-                      />
-                      <span>Choose from library</span>
-                    </Button>
-                  )}
                   {slot.helpText ? (
                     <p className="studio-structured-preset-help">
                       {slot.helpText}
