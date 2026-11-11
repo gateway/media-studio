@@ -45,6 +45,7 @@ type PillSelectProps = {
   iconOnly?: boolean;
   menuAlign?: "start" | "end";
   viewportOverlay?: boolean;
+  viewportMenuMinWidth?: number;
   triggerRef?: RefObject<HTMLButtonElement | null>;
   triggerClassName?: string;
   choiceIcon?: (choice: PillSelectChoice) => LucideIcon | null | undefined;
@@ -69,6 +70,7 @@ export function PillSelect({
   iconOnly = false,
   menuAlign = "start",
   viewportOverlay = false,
+  viewportMenuMinWidth,
   triggerRef,
   triggerClassName,
   choiceIcon,
@@ -92,6 +94,7 @@ export function PillSelect({
     menuAlign,
     iconOnly,
     viewportOverlay,
+    viewportMenuMinWidth,
   });
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
@@ -344,6 +347,7 @@ type PickerPlacementOptions = Pick<PillSelectProps, "pickerId" | "open"> & {
   menuAlign: "start" | "end";
   iconOnly: boolean;
   viewportOverlay: boolean;
+  viewportMenuMinWidth?: number;
 };
 
 function usePillSelectPlacement({
@@ -355,6 +359,7 @@ function usePillSelectPlacement({
   menuAlign,
   iconOnly,
   viewportOverlay,
+  viewportMenuMinWidth,
 }: PickerPlacementOptions) {
   const [menuPlacement, setMenuPlacement] = useState<"up" | "down">("down");
   const [menuMaxHeight, setMenuMaxHeight] = useState(280);
@@ -379,7 +384,14 @@ function usePillSelectPlacement({
       setMenuMaxHeight(maxHeight);
       if (viewportOverlay)
         setViewportMenuStyle(
-          fixedMenuStyle(rect, menuAlign, appearance, anchor, viewport),
+          fixedMenuStyle(
+            rect,
+            menuAlign,
+            appearance,
+            anchor,
+            viewport,
+            viewportMenuMinWidth,
+          ),
         );
     }
 
@@ -403,6 +415,7 @@ function usePillSelectPlacement({
     open,
     pickerId,
     viewportOverlay,
+    viewportMenuMinWidth,
   ]);
 
   useLayoutEffect(() => {
@@ -472,11 +485,12 @@ function fixedMenuStyle(
   appearance: "admin" | "studio",
   verticalAnchor: Pick<CSSProperties, "top" | "bottom">,
   viewport: PickerViewportBounds,
+  minimumWidth = 0,
 ): CSSProperties {
   const viewportLeft = viewport.left + 8;
   const viewportRight = viewport.right - 8;
   const minWidth = Math.min(
-    rect.width,
+    Math.max(rect.width, minimumWidth),
     Math.max(0, viewportRight - viewportLeft),
   );
   const left = Math.min(

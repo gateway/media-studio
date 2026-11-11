@@ -2898,8 +2898,8 @@ textarea {
 .studio-ordered-references[data-reference-density="compact"] {
   /* Four previews and one overflow tile, or reserve a cell for Add. */
   --studio-ordered-reference-size: min(82px, calc((100cqw - 32px) / 5));
-  --studio-ordered-reference-height: min(
-    85px,
+  --studio-ordered-reference-height: max(
+    54px,
     calc(var(--studio-ordered-reference-size) + 3px)
   );
   --studio-ordered-reference-gap: 8px;
@@ -2987,6 +2987,14 @@ textarea {
   min-height: 0;
 }
 
+@container (width < 270px) {
+  [data-reference-density="compact"] > .studio-ordered-reference-strip {
+    --studio-ordered-reference-size: calc((100cqw - 24px) / 4);
+
+    flex-wrap: wrap;
+  }
+}
+
 .studio-ordered-reference-strip
   > :is(.studio-ordered-reference-tile, .studio-reference-add-overview) {
   width: var(--studio-ordered-reference-size);
@@ -3027,6 +3035,8 @@ textarea {
 
 .studio-ordered-reference-tile {
   --studio-reference-control-size: 30px;
+  --studio-reference-replace-size: var(--studio-reference-control-size);
+  --studio-reference-control-inset: 4px;
 }
 
 .studio-ordered-reference-strip[data-drag-active="true"] {
@@ -3061,19 +3071,26 @@ textarea {
 }
 
 .studio-ordered-reference-tile > .studio-staged-media-replace {
-  position: static;
-  margin-block-start: 4px;
+  inset: auto var(--studio-reference-control-inset)
+    var(--studio-reference-control-inset) auto;
 }
 
-.studio-ordered-reference-tile .studio-reference-source-trigger {
-  --studio-control-size: 28px;
+.studio-reference-replace-trigger {
+  --studio-control-size: var(--studio-reference-replace-size);
+  --studio-picker-background: var(--surface-overlay-backdrop);
+  --studio-picker-border: var(--border-soft);
+  --studio-picker-icon-color: var(--text-primary);
 
+  width: var(--studio-control-size);
   height: var(--studio-control-size);
-  padding-inline: 4px;
+  justify-content: center;
+  padding: 0;
+  background: var(--studio-picker-background);
 }
 
 .studio-ordered-reference-tile .studio-staged-media-remove {
-  inset: 4px 4px auto auto;
+  inset: var(--studio-reference-control-inset)
+    var(--studio-reference-control-inset) auto auto;
   opacity: 1;
 }
 
@@ -3098,21 +3115,13 @@ textarea {
 }
 
 [data-reference-density="compact"] .studio-ordered-reference-tile {
-  --studio-reference-control-size: min(
-    24px,
-    calc(var(--studio-ordered-reference-height) - 20px)
-  );
-}
-
-[data-reference-density="compact"] .studio-staged-media-remove {
-  inset-block-start: calc(
-    var(--studio-ordered-reference-height) -
-      var(--studio-reference-control-size) - 1px
-  );
+  --studio-reference-control-size: 24px;
+  --studio-reference-control-inset: 2px;
 }
 
 [data-reference-density="compact"] .studio-staged-media-position {
   inset-block-start: 1px;
+  inset-inline-start: 2px;
   width: 18px;
   height: 18px;
   font-size: 0.6875rem;
@@ -3662,7 +3671,7 @@ textarea {
   :where(.studio-create-stage-immersive)
     .studio-composer-rail
     [data-studio-picker]
-    > button {
+    > button:where(:not(.studio-reference-replace-trigger)) {
     height: 44px;
   }
 
@@ -3703,7 +3712,10 @@ textarea {
 
   .studio-ordered-references[data-reference-density="compact"] {
     --studio-ordered-reference-size: calc((100cqw - 24px) / 4);
-    --studio-ordered-reference-height: var(--studio-ordered-reference-size);
+    --studio-ordered-reference-height: max(
+      64px,
+      var(--studio-ordered-reference-size)
+    );
   }
 
   .studio-ordered-reference-strip {

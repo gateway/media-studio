@@ -893,6 +893,7 @@ html:has(.studio-browser-backdrop) {
   gap: 12px;
   height: 36px;
   padding-inline: 12px;
+  padding-inline-end: calc(var(--studio-reference-replace-size) + 12px);
   border-top: 1px solid var(--border-soft);
   background: var(--ms-surface-secondary);
   color: var(--text-primary);
@@ -1050,6 +1051,7 @@ html:has(.studio-browser-backdrop) {
 
   .studio-expanded-reference-grid .studio-ordered-reference-tile {
     --studio-reference-control-size: 44px;
+    --studio-reference-replace-size: 32px;
   }
 
   .studio-expanded-reference-grid

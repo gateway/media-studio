@@ -356,8 +356,7 @@ function subscribeToViewportResize(callback: () => void) {
 
 function referenceRows() {
   if (window.innerWidth < 768) return 1;
-  // Reserve room for the header, model, prompt and options. Each extra row
-  // reserves the largest thumbnail, its action, and the row gap.
+  // Reserve room for the header, model, prompt and options as the rail grows.
   return Math.max(1, Math.floor((window.innerHeight - 550) / 210));
 }
 

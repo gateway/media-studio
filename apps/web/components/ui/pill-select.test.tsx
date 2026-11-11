@@ -187,6 +187,42 @@ it("closes when the SVG caret is clicked again or focus leaves the picker", () =
   expect(trigger.getAttribute("aria-expanded")).toBe("false");
 });
 
+it("keeps action labels visible when a narrow trigger is near the viewport edge", () => {
+  const edge = window.innerWidth;
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    x: edge - 50,
+    y: 100,
+    left: edge - 50,
+    right: edge - 20,
+    top: 100,
+    bottom: 130,
+    width: 30,
+    height: 30,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  render(
+    <PillSelect
+      pickerId="reference-source"
+      viewportOverlay
+      viewportMenuMinWidth={220}
+      open
+      onToggle={vi.fn()}
+      onClose={vi.fn()}
+      label="Replace image reference 1"
+      choices={[{ value: "library", label: "Choose from library" }]}
+      onSelect={vi.fn()}
+    />,
+  );
+
+  const menu = screen
+    .getByText("Choose from library")
+    .closest("[popover]") as HTMLElement;
+  expect(menu.style.left).toBe(`${edge - 228}px`);
+  expect(menu.style.minWidth).toBe("220px");
+  expect(menu.style.maxWidth).toBe("220px");
+});
+
 it.each([
   { top: 100, bottom: 134, height: 72, placement: "top-[calc(100%+0.65rem)]" },
   {

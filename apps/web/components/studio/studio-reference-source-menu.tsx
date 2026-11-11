@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderOpen, Plus, Upload } from "lucide-react";
+import { ChevronDown, FolderOpen, Plus, Upload } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import { PillSelect } from "@/components/ui/pill-select";
@@ -28,19 +28,26 @@ export function StudioReferenceSourceMenu({
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
+  const replacing = action === "Replace";
 
   return (
     <>
       <PillSelect
         pickerId={`reference-source-${id}`}
-        triggerClassName="studio-reference-source-trigger"
+        triggerClassName={
+          replacing
+            ? "studio-reference-replace-trigger"
+            : "studio-reference-source-trigger"
+        }
         viewportOverlay
+        viewportMenuMinWidth={220}
         open={open}
         onToggle={() => setOpen((current) => !current)}
         onClose={() => setOpen(false)}
         label={label}
         triggerLabel={action}
-        icon={action === "Add" ? Plus : undefined}
+        icon={replacing ? ChevronDown : Plus}
+        iconOnly={replacing}
         choices={sourceChoices}
         menuTitle={label}
         choiceIcon={({ value }) => (value === "upload" ? Upload : FolderOpen)}
