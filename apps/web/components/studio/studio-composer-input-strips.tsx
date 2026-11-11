@@ -81,7 +81,7 @@ export function StudioSeedanceReferenceStrip({
   return (
     <StudioReferenceManager
       {...managerProps}
-      compact
+      dropOnStrip
       groups={groups.map(
         ({ kind, limit, attachments }): StudioReferenceGroup => {
           const tokens = seedanceReferenceTokenGuide(attachments);
@@ -191,8 +191,11 @@ export function StudioSourceAttachmentStrip({
 }: StudioSourceAttachmentStripProps) {
   return (
     <div
-      className={inputRail === "seedance" ? "studio-fixed-slot-rail" : "w-full"}
-      data-frame-rail={inputRail === "seedance"}
+      className={
+        inputRail === "seedance"
+          ? "studio-fixed-slot-rail studio-media-slot-grid"
+          : "w-full"
+      }
     >
       {inputRail === "seedance" ? (
         <>

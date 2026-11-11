@@ -8,14 +8,18 @@ import {
   within,
 } from "@testing-library/react";
 import { useState, type ComponentProps } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioSeedanceReferenceStrip } from "@/components/studio/studio-composer-input-strips";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
 import { buildAttachmentPreview } from "@/lib/studio-reference-previews";
 
-afterEach(cleanup);
+beforeEach(() => vi.stubGlobal("innerWidth", 390));
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function props() {
   return {
@@ -78,7 +82,7 @@ const groups = [
     tab: "Images",
     limit: 30,
     oldLimit: 9,
-    visible: 4,
+    visible: 2,
     mime: "image/png",
   },
   {
@@ -87,7 +91,7 @@ const groups = [
     tab: "Videos",
     limit: 10,
     oldLimit: 3,
-    visible: 4,
+    visible: 2,
     mime: "video/mp4",
   },
   {
@@ -259,7 +263,7 @@ it("uses one manager for hidden slots and preserves the selected kind and drop r
   );
 
   const overflow = screen.getByRole("button", {
-    name: "Show 4 more video references",
+    name: "Show 6 more video references",
   });
   fireEvent.click(overflow);
   const dialog = screen.getByRole("dialog", { name: "References" });

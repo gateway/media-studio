@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  useEffect,
   useId,
   useRef,
   useState,
@@ -35,6 +36,15 @@ const referenceKinds = {
   videos: { label: "Videos", singular: "video", icon: Clapperboard },
   audios: { label: "Audio", singular: "audio", icon: AudioLines },
 } as const;
+
+const audioOverview = {
+  density: "compact",
+  stripClassName: "studio-ordered-reference-strip",
+};
+const visualOverview = {
+  density: undefined,
+  stripClassName: "studio-ordered-reference-strip studio-media-slot-grid",
+};
 
 export type StudioReferenceKind = keyof typeof referenceKinds;
 
@@ -234,11 +244,11 @@ function ReferenceOverview({
   onOpenPreview,
   uploadProps,
   expandRef,
-  density,
+  dropOnStrip,
   expanded,
   onOpen,
 }: ReferenceViewProps & {
-  density: "compact" | "large";
+  dropOnStrip: boolean;
   expanded: boolean;
   onOpen: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
@@ -247,13 +257,16 @@ function ReferenceOverview({
   const { singular, icon: KindIcon } = referenceKinds[group.kind];
   const used = group.slots.length;
   const showTabs = groups.length > 1;
-  const compact = density === "compact";
+  const compact = group.kind === "audios";
+  const { density, stripClassName } = compact ? audioOverview : visualOverview;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const columns = useReferenceGridColumns(gridRef, compact);
   const rows = useSyncExternalStore(
     subscribeToViewportResize,
     referenceRows,
     () => 1,
   );
-  const visibleCount = overviewThumbnailCount(group, compact, rows);
+  const visibleCount = overviewThumbnailCount(group, compact, rows * columns);
   const overflow = (
     <ReferenceOverflowButton
       overflow={used - visibleCount}
@@ -302,8 +315,9 @@ function ReferenceOverview({
         />
       </div>
       <div
-        {...overviewPanelProps(overviewId, showTabs, compact, uploadProps)}
-        className="studio-ordered-reference-strip"
+        {...overviewPanelProps(overviewId, showTabs, dropOnStrip, uploadProps)}
+        ref={gridRef}
+        className={stripClassName}
       >
         {expanded ? null : (
           <ReferenceTiles
@@ -331,7 +345,7 @@ function ReferenceOverview({
 function overviewPanelProps(
   id: string,
   showTabs: boolean,
-  compact: boolean,
+  dropOnStrip: boolean,
   { group, onDragOver, onDragLeave, isDragActive }: ReferenceUploadProps,
 ) {
   return {
@@ -340,13 +354,37 @@ function overviewPanelProps(
       role: "tabpanel",
       "aria-labelledby": `${id}-${group.kind}`,
     }),
-    ...(compact && {
+    ...(dropOnStrip && {
       onDragOver,
       onDragLeave,
       onDrop: group.onDrop,
       "data-drag-active": isDragActive,
     }),
   };
+}
+
+function useReferenceGridColumns(
+  gridRef: RefObject<HTMLDivElement | null>,
+  compact: boolean,
+) {
+  const [columns, setColumns] = useState(2);
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (compact || !grid) return;
+
+    const measure = () => {
+      const tracks =
+        getComputedStyle(grid).gridTemplateColumns.match(/[\d.]+px/g);
+      if (tracks?.length) setColumns(tracks.length);
+    };
+
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [compact, gridRef]);
+  return columns;
 }
 
 function subscribeToViewportResize(callback: () => void) {
@@ -387,11 +425,11 @@ function ReferenceOverflowButton({
 function overviewThumbnailCount(
   { slots, limit }: StudioReferenceGroup,
   compact: boolean,
-  rows: number,
+  cells: number,
 ) {
   const used = slots.length;
   const canAdd = used < limit;
-  if (!compact) return Math.min(used, rows * 2 - Number(canAdd));
+  if (!compact) return Math.min(used, Math.max(1, cells - Number(canAdd)));
   return used > 4 && canAdd ? 3 : Math.min(used, 4);
 }
 
@@ -573,7 +611,7 @@ function ExpandedReferenceManager({
 export function StudioReferenceManager({
   modelLabel,
   groups,
-  compact,
+  dropOnStrip = false,
   expanded,
   suspended,
   onExpandedChange,
@@ -583,7 +621,7 @@ export function StudioReferenceManager({
   feedback,
 }: StudioReferenceManagerProps & {
   groups: StudioReferenceGroup[];
-  compact: boolean;
+  dropOnStrip?: boolean;
 }) {
   const [selectedKind, setSelectedKind] =
     useState<StudioReferenceKind>("images");
@@ -615,7 +653,7 @@ export function StudioReferenceManager({
     <>
       <ReferenceOverview
         {...viewProps}
-        density={compact ? "compact" : "large"}
+        dropOnStrip={dropOnStrip}
         expanded={expanded}
         onOpen={(event) => {
           event.currentTarget.focus();

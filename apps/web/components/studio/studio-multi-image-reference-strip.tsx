@@ -53,7 +53,6 @@ export function StudioMultiImageReferenceStrip({
   return (
     <StudioReferenceManager
       {...managerProps}
-      compact={false}
       groups={[
         {
           kind: "images",

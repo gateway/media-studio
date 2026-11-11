@@ -21,8 +21,6 @@ import {
 } from "@/lib/media-studio-helpers";
 import type { StudioComposerInputRail } from "@/lib/studio-model-support";
 
-const MOBILE_INPUT_TILE_CLASS = "h-[72px] w-[72px]";
-
 type StudioMobileInputsContentProps = {
   inputRail: StudioComposerInputRail;
   effectiveSeedanceMode: string;
@@ -100,10 +98,7 @@ export function StudioMobileInputsContent({
                   : "0/1"
             }
           >
-            <div
-              className="scrollbar-none studio-mobile-input-rail"
-              data-frame-rail="true"
-            >
+            <div className="studio-media-slot-grid">
               {[
                 {
                   label: "Start frame",
@@ -130,7 +125,7 @@ export function StudioMobileInputsContent({
                 return (
                   <div
                     key={`mobile-seedance-${slot.role}`}
-                    className="shrink-0"
+                    className="studio-fixed-slot-media"
                   >
                     {slot.attachment && attachmentPreview ? (
                       <div
@@ -142,7 +137,7 @@ export function StudioMobileInputsContent({
                         onDrop={(event) =>
                           onDropIntoSourceSlot(event, slotIndex)
                         }
-                        className={MOBILE_INPUT_TILE_CLASS}
+                        className="h-full w-full"
                       >
                         <StudioStagedMediaTile
                           preview={attachmentPreview}
@@ -151,7 +146,7 @@ export function StudioMobileInputsContent({
                           onRemove={() =>
                             onRemoveAttachment(slot.attachment?.id ?? "")
                           }
-                          className={MOBILE_INPUT_TILE_CLASS}
+                          className="h-full w-full"
                           testId={`studio-mobile-seedance-slot-${slot.role}`}
                         />
                       </div>
@@ -161,8 +156,8 @@ export function StudioMobileInputsContent({
                         isDragActive={isDragActive}
                         testId={`studio-mobile-seedance-slot-input-${slot.role}`}
                         required={slot.role === "first_frame"}
-                        wrapperClassName="shrink-0"
-                        tileClassName={mobileAddTileClassName}
+                        wrapperClassName="h-full w-full"
+                        tileClassName="studio-fixed-slot-add"
                         plusIconClassName={mobileAddTilePlusIconClassName}
                         onDragOver={(event) => {
                           event.preventDefault();

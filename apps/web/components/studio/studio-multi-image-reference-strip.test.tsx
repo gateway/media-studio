@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -70,6 +71,7 @@ function ReferenceStripHarness(
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -170,6 +172,61 @@ it("reveals more reference rows at tall desktop heights and falls back to one ro
   expect(
     screen.getByRole("button", { name: "Show 9 more image references" }),
   ).toBeTruthy();
+});
+
+it("keeps the Add tile in the visible row budget as a tall composer widens", () => {
+  vi.stubGlobal("innerWidth", 1265);
+  vi.stubGlobal("innerHeight", 1292);
+  let gridColumns = "325px";
+  let remeasure = () => {};
+  const readStyle = window.getComputedStyle;
+  vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
+    const style = readStyle(element);
+    if (element.classList.contains("studio-media-slot-grid")) {
+      Object.defineProperty(style, "gridTemplateColumns", {
+        value: gridColumns,
+      });
+    }
+    return style;
+  });
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(measure: () => void) {
+        remeasure = measure;
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
+
+  render(
+    <ReferenceStripHarness
+      {...referenceStripProps()}
+      orderedImageInputs={Array.from({ length: 5 }, (_, index) =>
+        imageInput(index),
+      )}
+    />,
+  );
+  const add = screen.getByRole("button", { name: "Add image references" });
+  expect(screen.getAllByTestId(/^studio-multi-image-slot-\d+$/)).toHaveLength(
+    2,
+  );
+  expect(
+    screen.getByRole("button", { name: "Show 3 more image references" }),
+  ).toBeTruthy();
+
+  gridColumns = "230px 230px";
+  act(() => remeasure());
+  expect(screen.getAllByTestId(/^studio-multi-image-slot-\d+$/)).toHaveLength(
+    5,
+  );
+  expect(
+    screen.queryByRole("button", { name: /^Show .* more image references$/ }),
+  ).toBeNull();
+  expect(screen.getByRole("button", { name: "Add image references" })).toBe(
+    add,
+  );
 });
 
 it("routes a gallery drop on the surviving image to its current position after deletion", () => {

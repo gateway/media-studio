@@ -142,7 +142,7 @@ export function StudioStructuredPresetComposer({
 
       <div className="studio-structured-preset-inputs">
         {imageSlots.length ? (
-          <div className="studio-fixed-slot-rail">
+          <div className="studio-media-slot-grid">
             {imageSlots.map((slot) => {
               const { slotPreview, presetSlotPreview } = buildSlotPreview(
                 slot,
@@ -164,7 +164,7 @@ export function StudioStructuredPresetComposer({
                     <span>{slot.label}</span>
                   </div>
                   <div
-                    className="studio-fixed-slot-media studio-structured-preset-media"
+                    className="studio-fixed-slot-media"
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => onDropSlot(event, slot.key)}
                   >
