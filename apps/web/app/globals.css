@@ -2868,8 +2868,11 @@ textarea {
 }
 
 .studio-ordered-references[data-reference-density="compact"] {
-  /* Four previews and one overflow tile, or reserve a cell for Add. */
-  --studio-ordered-reference-size: min(82px, calc((100cqw - 32px) / 5));
+  --studio-ordered-reference-scale: 1.15;
+  --studio-ordered-reference-size: min(
+    94px,
+    calc((100cqw - 32px) / 5 * var(--studio-ordered-reference-scale))
+  );
   --studio-ordered-reference-height: max(
     54px,
     calc(var(--studio-ordered-reference-size) + 3px)
@@ -2877,6 +2880,11 @@ textarea {
   --studio-ordered-reference-gap: 8px;
 
   container-type: inline-size;
+
+  /* Keep every preview, overflow and Add control in a full desktop row. */
+  &:has(> .studio-ordered-reference-strip > :nth-child(5)) {
+    --studio-ordered-reference-scale: 1;
+  }
 }
 
 .studio-ordered-reference-heading {
