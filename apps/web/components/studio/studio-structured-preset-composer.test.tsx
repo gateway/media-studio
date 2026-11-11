@@ -58,6 +58,7 @@ function renderPreset(
     ),
     onAssignSlotFile: vi.fn(),
     onClearSlot: vi.fn(),
+    onOpenSlotLibrary: vi.fn(),
     onDropSlot: vi.fn(),
     onOpenPreview: vi.fn(),
     onResetFileInput: vi.fn(),
@@ -143,6 +144,26 @@ it("preserves preview identity, replacement and individual removal for filled na
   );
   expect(onClearSlot).toHaveBeenCalledWith("character");
   expect(onClearSlot).toHaveBeenCalledOnce();
+});
+
+it("opens the library for the clicked named slot without clearing an existing image", () => {
+  const { onOpenSlotLibrary, onClearSlot } = renderPreset({
+    scene: { assetId: null, file: null, previewUrl: "/scene.png" },
+  });
+  const filled = screen.getByRole("button", {
+    name: "Choose from library for Scene image",
+  });
+  const empty = screen.getByRole("button", {
+    name: "Choose from library for Character image",
+  });
+  fireEvent.click(filled);
+  fireEvent.click(empty);
+  expect(onOpenSlotLibrary.mock.calls).toEqual([
+    [imageSlots[1], filled],
+    [imageSlots[0], empty],
+  ]);
+  expect(onClearSlot).not.toHaveBeenCalled();
+  expect(screen.getByTestId("studio-preset-slot-filled-scene")).toBeTruthy();
 });
 
 it("keeps fixed prompts free of editable text while retaining their named image inputs", () => {

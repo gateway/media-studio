@@ -336,6 +336,18 @@ html:has(.studio-browser-backdrop) {
 }
 
 /* Approved visual preset gallery: bounded image-led composition. */
+.studio-browser-panel-presets {
+  --action-primary-fill: var(--ms-action-primary-fill-strong);
+  --action-primary-fill-strong: var(--ms-action-primary-fill-highlight);
+  --action-subtle-text: var(--text-primary);
+
+  border-color: var(--border-strong);
+  background: linear-gradient(
+    var(--ms-surface-secondary),
+    var(--admin-canvas) 160px
+  );
+}
+
 .studio-browser-panel-presets .studio-header-chrome-browser {
   position: static;
   z-index: auto;
@@ -371,6 +383,11 @@ html:has(.studio-browser-backdrop) {
   > .studio-browser-search-shell {
   flex: 1 1 220px;
   max-width: 480px;
+  border-color: var(--border-strong);
+}
+
+.studio-browser-panel-presets .studio-browser-search-shell:focus-within {
+  border-color: var(--accent-border);
 }
 
 .studio-browser-panel-presets .studio-browser-filters > [data-studio-picker] {
@@ -407,6 +424,10 @@ html:has(.studio-browser-backdrop) {
   gap: 8px;
 }
 
+.studio-preset-category-controls [aria-pressed="true"] {
+  border-color: var(--accent-border);
+}
+
 .media-browser-item-editorial {
   border: 0;
   border-radius: 0;
@@ -415,7 +436,14 @@ html:has(.studio-browser-backdrop) {
 
 .media-browser-item-editorial .media-browser-item-preview {
   aspect-ratio: 1.92;
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-card);
+  background: var(--ms-surface-secondary);
+}
+
+.media-browser-item-editorial
+  .media-browser-item-preview:where(:not(:disabled):hover) {
+  border-color: var(--accent-border);
 }
 
 .media-browser-item-editorial .media-browser-item-visual {

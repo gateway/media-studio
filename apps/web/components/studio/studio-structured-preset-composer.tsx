@@ -4,6 +4,7 @@ import type { DragEvent } from "react";
 
 import {
   Image as ImageIcon,
+  FolderOpen,
   ImagePlus,
   Layers,
   ChevronDown,
@@ -38,6 +39,10 @@ type StudioStructuredPresetComposerProps = {
   ) => void;
   onAssignSlotFile: (slotKey: string, file: File | null) => void;
   onClearSlot: (slotKey: string) => void;
+  onOpenSlotLibrary: (
+    slot: StructuredPresetImageSlot,
+    returnFocusTo: HTMLButtonElement,
+  ) => void;
   onDropSlot: (
     event: DragEvent<HTMLDivElement | HTMLLabelElement>,
     slotKey: string,
@@ -122,6 +127,7 @@ export function StudioStructuredPresetComposer({
   onPresetInputValuesChange,
   onAssignSlotFile,
   onClearSlot,
+  onOpenSlotLibrary,
   onDropSlot,
   onOpenPreview,
   onResetFileInput,
@@ -206,6 +212,23 @@ export function StudioStructuredPresetComposer({
                       </label>
                     )}
                   </div>
+                  <Button
+                    appearance="admin"
+                    variant="subtle"
+                    size="compact"
+                    className="studio-structured-preset-library"
+                    aria-label={`Choose from library for ${slot.label}`}
+                    aria-haspopup="dialog"
+                    onClick={(event) =>
+                      onOpenSlotLibrary(slot, event.currentTarget)
+                    }
+                  >
+                    <FolderOpen
+                      aria-hidden="true"
+                      className="studio-structured-preset-icon"
+                    />
+                    <span>Choose from library</span>
+                  </Button>
                   {slot.helpText ? (
                     <p className="studio-structured-preset-help">
                       {slot.helpText}

@@ -756,6 +756,7 @@ export function MediaStudio({
     openContextualReferenceLibrary,
     handleReferenceLibrarySelect,
     openComposerReferenceLibrary,
+    openPresetSlotReferenceLibrary,
   } = useStudioReferenceLibrary({
     canOpenReferenceLibrary,
     structuredPresetActive,
@@ -2432,6 +2433,7 @@ export function MediaStudio({
                       expandStudioComposer();
                       clearPresetSlot(slotKey);
                     }}
+                    onOpenSlotLibrary={openPresetSlotReferenceLibrary}
                     onDropSlot={handlePresetSlotDrop}
                     onOpenPreview={openReferencePreview}
                     onResetFileInput={resetFileInputValue}

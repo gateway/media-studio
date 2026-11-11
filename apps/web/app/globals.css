@@ -486,6 +486,11 @@ textarea {
   --ms-radius-control-md: 8px;
   --ms-action-primary-fill: #414d22;
   --ms-action-primary-fill-strong: #4d5b2a;
+  --ms-action-primary-fill-highlight: color-mix(
+    in srgb,
+    var(--ms-action-primary-fill-strong),
+    var(--ms-accent) 22%
+  );
   --ms-action-primary-text: #eef1df;
   --ms-action-primary-border: var(--ms-accent);
   --ms-action-subtle-surface: var(--ms-surface-tertiary);
@@ -4065,10 +4070,24 @@ textarea {
   font-size: 0.8125rem;
 }
 
+.studio-structured-preset
+  .studio-fixed-slot-rail:has(> .studio-structured-preset-slot:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .studio-structured-preset-media {
-  max-width: 108px;
+  max-width: 144px;
   aspect-ratio: 3 / 2;
   min-height: 0;
+}
+
+.studio-structured-preset-slot > .studio-structured-preset-library {
+  max-width: 100%;
+  gap: 5px;
+  margin-block-start: 6px;
+  padding-inline: 6px;
+  font-size: 0.75rem;
+  white-space: normal;
 }
 
 .studio-structured-preset-tile {

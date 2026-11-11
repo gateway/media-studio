@@ -451,7 +451,7 @@ function StudioComposerEstimate({
   return (
     <div className="studio-composer-estimate">
       <Info aria-hidden="true" />
-      <span>Estimate pending</span>
+      <span>Estimate unavailable</span>
     </div>
   );
 }

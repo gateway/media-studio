@@ -219,6 +219,19 @@ export function useStudioReferenceLibrary({
     );
   }
 
+  const openPresetSlotReferenceLibrary = useCallback(
+    (slot: StructuredPresetImageSlot, returnFocusTo?: HTMLElement) =>
+      openReferenceLibrary(
+        {
+          type: "preset-slot",
+          title: `Pick a reusable image for ${slot.label}.`,
+          slotKey: slot.key,
+        },
+        returnFocusTo,
+      ),
+    [openReferenceLibrary],
+  );
+
   const openContextualReferenceLibrary = useCallback(() => {
     if (!canOpenReferenceLibrary) {
       openReferenceLibrary({
@@ -235,11 +248,7 @@ export function useStudioReferenceLibrary({
             !slotState?.assetId && !slotState?.referenceId && !slotState?.file
           );
         }) ?? structuredPresetImageSlots[0];
-      openReferenceLibrary({
-        type: "preset-slot",
-        title: `Pick a reusable image for ${targetSlot.label}.`,
-        slotKey: targetSlot.key,
-      });
+      openPresetSlotReferenceLibrary(targetSlot);
       return;
     }
     if (seedanceComposer) {
@@ -270,6 +279,7 @@ export function useStudioReferenceLibrary({
     canOpenReferenceLibrary,
     dedicatedImageReferenceRailActive,
     effectiveSeedanceMode,
+    openPresetSlotReferenceLibrary,
     openReferenceLibrary,
     presetSlotStates,
     seedanceComposer,
@@ -350,6 +360,7 @@ export function useStudioReferenceLibrary({
     openReferencePreview,
     openContextualReferenceLibrary,
     openComposerReferenceLibrary,
+    openPresetSlotReferenceLibrary,
     handleReferenceLibrarySelect,
   };
 }

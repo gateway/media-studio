@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useStudioAttachments } from "@/hooks/studio/use-studio-attachments";
+import { useStudioReferenceLibrary } from "@/hooks/studio/use-studio-reference-library";
 import { useStudioSourceAsset } from "@/hooks/studio/use-studio-source-asset";
 import { buildAttachmentPreviewUrl } from "@/lib/studio-composer-file-utils";
 import type {
@@ -413,4 +414,102 @@ it("appends a library reference after a gallery source and an uploaded image", (
     });
   });
   expect(staging.current.attachments).toHaveLength(2);
+});
+
+it("replaces the requested filled preset slot while an earlier slot is empty", () => {
+  const fetchUsage = vi
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(new Response());
+  const previousScene = {
+    assetId: "scene-asset",
+    file: null,
+    previewUrl: "/scene.png",
+  };
+  const portrait = {
+    key: "portrait",
+    label: "Portrait",
+    helpText: "",
+    maxFiles: 1,
+    required: true,
+  };
+  const scene = {
+    key: "scene",
+    label: "Scene",
+    helpText: "",
+    maxFiles: 1,
+    required: true,
+  };
+  const reference: MediaReference = {
+    reference_id: "library-image",
+    kind: "image",
+    status: "ready",
+    stored_path: "references/library.png",
+    stored_url: "/references/library.png",
+    file_size_bytes: 12,
+    sha256: "fixture",
+    usage_count: 0,
+  };
+  const opener = document.createElement("button");
+  const { result } = renderHook(() => {
+    const [presetSlotStates, setPresetSlotStates] = useState<
+      Record<string, PresetSlotState>
+    >({
+      scene: previousScene,
+    });
+    const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
+    const [, setFormMessage] = useState<ComposerStatusMessage | null>(null);
+    const actions = useStudioAttachments({
+      attachments,
+      seedanceComposer: false,
+      maxImageInputs: 2,
+      maxVideoInputs: 0,
+      maxAudioInputs: 0,
+      stagedImageCount: 0,
+      stagedVideoCount: 0,
+      stagedAudioCount: 0,
+      setFormMessage,
+      setAttachments,
+      setPresetSlotStates,
+    });
+    const library = useStudioReferenceLibrary({
+      canOpenReferenceLibrary: true,
+      structuredPresetActive: true,
+      structuredPresetImageSlots: [portrait, scene],
+      presetSlotStates,
+      seedanceComposer: false,
+      seedanceFirstFrameAttachment: null,
+      seedanceLastFrameAttachment: null,
+      effectiveSeedanceMode: "prompt_only",
+      standardComposerUsesExplicitSlots: false,
+      standardComposerSlots: [],
+      orderedImageInputCount: 0,
+      dedicatedImageReferenceRailActive: false,
+      setOpenPicker: () => {},
+      setFormMessage,
+      assignPresetSlotReference: actions.assignPresetSlotReference,
+      clearSourceAsset: () => {},
+      addReferenceMediaAsAttachment: actions.addReferenceMediaAsAttachment,
+      orderedImageInputSourceAt: () => null,
+    });
+    return { library, presetSlotStates, attachments };
+  });
+
+  act(() =>
+    result.current.library.openPresetSlotReferenceLibrary(scene, opener),
+  );
+  expect(result.current.library.referenceLibraryReturnFocus.current).toBe(
+    opener,
+  );
+  expect(result.current.presetSlotStates).toEqual({ scene: previousScene });
+  act(() => result.current.library.handleReferenceLibrarySelect(reference));
+  expect(result.current.presetSlotStates).toEqual({
+    scene: expect.objectContaining({
+      assetId: null,
+      referenceId: "library-image",
+      previewUrl: "/references/library.png",
+    }),
+  });
+  expect(result.current.attachments).toEqual([]);
+  expect(result.current.library.referenceLibraryTarget).toBeNull();
+  expect(fetchUsage).toHaveBeenCalledOnce();
 });
