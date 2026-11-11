@@ -1,86 +1,43 @@
 "use client";
 
-import type { DragEvent } from "react";
-
 import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
 import {
   StudioMobileInputsGroup,
   StudioMobileInputsSection,
 } from "@/components/studio/studio-mobile-inputs-section";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
-import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
-import type {
-  AttachmentPreviewBuilder,
-  StudioAddFilesHandler,
-} from "@/components/studio/studio-composer-input-types";
-import type { AttachmentRecord } from "@/lib/media-studio-contract";
 import {
-  type OrderedImageInput,
-  type StudioComposerSlot,
-  type StudioReferencePreview,
-} from "@/lib/media-studio-helpers";
+  StudioStandardSlotRail,
+  type StudioStandardSlotRailProps,
+} from "@/components/studio/studio-standard-slot-rail";
+import type { StudioFrameInputProps } from "@/components/studio/studio-composer-input-types";
 import type { StudioComposerInputRail } from "@/lib/studio-model-support";
 
-type StudioMobileInputsContentProps = {
+type StudioMobileInputsContentProps = StudioFrameInputProps & {
   inputRail: StudioComposerInputRail;
   effectiveSeedanceMode: string;
-  orderedImageInputs: OrderedImageInput[];
-  isDragActive: boolean;
-  seedanceFirstFrameAttachment: AttachmentRecord | null;
-  seedanceLastFrameAttachment: AttachmentRecord | null;
   standardComposerSectionTitle: string;
   standardComposerSummaryLabel: string | null;
-  standardComposerSlots: StudioComposerSlot[];
-  mobileAddTileClassName: string;
+  standardSlotRailProps: StudioStandardSlotRailProps;
   mobileAddTilePlusIconClassName: string;
-  buildAttachmentPreview: AttachmentPreviewBuilder;
-  standardComposerSlotPreview: (
-    slot: StudioComposerSlot,
-    previewKey: string,
-  ) => StudioReferencePreview | null;
-  standardComposerSlotVisual: (slot: StudioComposerSlot) => string | null;
-  onSetDragActive: (value: boolean) => void;
-  onSetFormWarning: (text: string) => void;
-  onDropIntoSourceSlot: (
-    event: DragEvent<HTMLDivElement | HTMLLabelElement>,
-    slotIndex?: number,
-    slot?: StudioComposerSlot,
-  ) => void;
-  onOpenPreview: (preview: StudioReferencePreview | null) => void;
-  onRemoveAttachment: (attachmentId: string) => void;
-  onClearStandardComposerSlot: (slot: StudioComposerSlot) => void;
-  onPickStandardComposerSlotFiles: (
-    slot: StudioComposerSlot,
-    fileList: FileList | File[] | null,
-    input?: HTMLInputElement | null,
-    replaceFilled?: boolean,
-  ) => void;
-  onAddFiles: StudioAddFilesHandler;
-  onResetFileInput: (input: HTMLInputElement | null) => void;
 };
 
 export function StudioMobileInputsContent({
   inputRail,
   effectiveSeedanceMode,
-  orderedImageInputs,
   isDragActive,
   seedanceFirstFrameAttachment,
   seedanceLastFrameAttachment,
   standardComposerSectionTitle,
   standardComposerSummaryLabel,
-  standardComposerSlots,
-  mobileAddTileClassName,
+  standardSlotRailProps,
   mobileAddTilePlusIconClassName,
   buildAttachmentPreview,
-  standardComposerSlotPreview,
-  standardComposerSlotVisual,
   onSetDragActive,
   onSetFormWarning,
   onDropIntoSourceSlot,
   onOpenPreview,
   onRemoveAttachment,
-  onClearStandardComposerSlot,
-  onPickStandardComposerSlotFiles,
   onAddFiles,
   onResetFileInput,
 }: StudioMobileInputsContentProps) {
@@ -203,26 +160,7 @@ export function StudioMobileInputsContent({
         summary={standardComposerSummaryLabel}
       >
         <div>
-          <StudioStandardSlotRail
-            slots={standardComposerSlots}
-            mobile
-            isDragActive={isDragActive}
-            mobileAddTileClassName={mobileAddTileClassName}
-            mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
-            buildPreview={standardComposerSlotPreview}
-            resolveVisualUrl={standardComposerSlotVisual}
-            isAssetBackedImageSlot={(slot) =>
-              slot.kind === "image" &&
-              orderedImageInputs[slot.slotIndex]?.source === "asset"
-            }
-            onSetDragActive={onSetDragActive}
-            onSlotDrop={(event, slot) =>
-              onDropIntoSourceSlot(event, slot.slotIndex, slot)
-            }
-            onOpenPreview={onOpenPreview}
-            onClearSlot={onClearStandardComposerSlot}
-            onPickFiles={onPickStandardComposerSlotFiles}
-          />
+          <StudioStandardSlotRail {...standardSlotRailProps} mobile />
         </div>
       </StudioMobileInputsSection>
     );

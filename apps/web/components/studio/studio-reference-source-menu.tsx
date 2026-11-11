@@ -23,10 +23,11 @@ export function StudioReferenceSourceMenu({
   accept: string;
   testId: string;
   onPickFiles: (files: FileList | null, input: HTMLInputElement) => void;
-  onOpenLibrary: () => void;
+  onOpenLibrary: (trigger: HTMLButtonElement) => void;
 }) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const replacing = action === "Replace";
 
@@ -34,6 +35,7 @@ export function StudioReferenceSourceMenu({
     <>
       <PillSelect
         pickerId={`reference-source-${id}`}
+        triggerRef={trigger}
         triggerClassName={
           replacing
             ? "studio-reference-replace-trigger"
@@ -53,7 +55,8 @@ export function StudioReferenceSourceMenu({
         choiceIcon={({ value }) => (value === "upload" ? Upload : FolderOpen)}
         onSelect={(value) => {
           if (value === "upload") input.current?.click();
-          if (value === "library") onOpenLibrary();
+          if (value === "library" && trigger.current)
+            onOpenLibrary(trigger.current);
         }}
       />
       <input

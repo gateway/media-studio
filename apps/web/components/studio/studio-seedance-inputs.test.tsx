@@ -121,20 +121,26 @@ function frameProps() {
     isDragActive: false,
     seedanceFirstFrameAttachment: null,
     seedanceLastFrameAttachment: null,
-    standardComposerSlots: [],
-    orderedImageInputs: [],
-    mobileAddTileClassName: "",
-    mobileAddTilePlusIconClassName: "",
     buildAttachmentPreview,
-    standardComposerSlotPreview: () => null,
-    standardComposerSlotVisual: () => null,
+    standardSlotRailProps: {
+      slots: [],
+      isDragActive: false,
+      buildPreview: () => null,
+      resolveVisualUrl: () => null,
+      isAssetBackedImageSlot: () => false,
+      onSetDragActive: vi.fn(),
+      onSlotDrop: vi.fn(),
+      onOpenPreview: vi.fn(),
+      onOpenSlotLibrary: vi.fn(),
+      onClearSlot: vi.fn(),
+      onPickFiles: vi.fn(),
+    },
     onSetDragActive: vi.fn(),
     onSetFormWarning: vi.fn(),
     onDropIntoSourceSlot: vi.fn(),
     onOpenPreview: vi.fn(),
+    onOpenFrameLibrary: vi.fn(),
     onRemoveAttachment: vi.fn(),
-    onClearStandardComposerSlot: vi.fn(),
-    onPickStandardComposerSlotFiles: vi.fn(),
     onAddFiles: vi.fn(),
     onResetFileInput: vi.fn(),
   } satisfies ComponentProps<typeof StudioSourceAttachmentStrip>;
@@ -183,9 +189,12 @@ it("keeps frame upload/drop roles and guards end input until a start frame exist
     1,
   );
   const filled = screen.getByTestId("seedance-slot-filled-first_frame");
-  fireEvent.change(within(filled).getByLabelText("Replace start frame"), {
-    target: { files },
-  });
+  fireEvent.change(
+    within(filled).getByTestId("seedance-slot-input-first_frame"),
+    {
+      target: { files },
+    },
+  );
   expect(props.onRemoveAttachment).not.toHaveBeenCalled();
   expect(props.onAddFiles).toHaveBeenLastCalledWith(files, {
     role: "first_frame",
@@ -193,6 +202,51 @@ it("keeps frame upload/drop roles and guards end input until a start frame exist
     replaceAttachmentId: "first",
   });
   expect(props.onOpenPreview).not.toHaveBeenCalled();
+});
+
+it("targets a filled Seedance end frame by role and ID, and guards it without a start frame", () => {
+  const props = frameProps();
+  const first: AttachmentRecord = {
+    id: "first",
+    kind: "images",
+    role: "first_frame",
+    file: null,
+    previewUrl: "/first.png",
+  };
+  const last: AttachmentRecord = {
+    ...first,
+    id: "last",
+    role: "last_frame",
+    previewUrl: "/last.png",
+  };
+  const { rerender } = render(
+    <StudioSourceAttachmentStrip
+      {...props}
+      seedanceFirstFrameAttachment={first}
+      seedanceLastFrameAttachment={last}
+    />,
+  );
+  const end = screen.getByRole("button", { name: "Replace end frame" });
+  fireEvent.click(end);
+  fireEvent.click(screen.getByText("Choose from library"));
+  expect(props.onOpenFrameLibrary).toHaveBeenCalledExactlyOnceWith(
+    "last_frame",
+    end,
+    { replaceAttachmentId: "last" },
+  );
+  rerender(
+    <StudioSourceAttachmentStrip
+      {...props}
+      seedanceLastFrameAttachment={last}
+    />,
+  );
+  fireEvent.click(end);
+  fireEvent.click(screen.getByText("Choose from library"));
+  expect(props.onOpenFrameLibrary).toHaveBeenCalledOnce();
+  expect(props.onSetFormWarning).toHaveBeenCalledWith(
+    "Add a start frame before the end frame.",
+  );
+  expect(props.onRemoveAttachment).not.toHaveBeenCalled();
 });
 
 it.each([

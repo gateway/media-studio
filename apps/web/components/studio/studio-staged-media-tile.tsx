@@ -131,7 +131,7 @@ export function StudioStagedMediaTile({
       </button>
       {positionBadge}
       {replaceControl ? (
-        <div className="studio-staged-media-replace absolute bottom-1.5 left-1.5 z-10">
+        <div className="studio-staged-media-replace absolute z-10">
           {replaceControl}
         </div>
       ) : null}
@@ -159,23 +159,16 @@ export function StudioStagedMediaReplaceControl({
   label,
   accept,
   testId,
-  appearance = "slot",
   onPickFiles,
 }: {
   label: string;
   accept: string;
   testId?: string;
-  appearance?: "slot" | "seedance-frame";
   onPickFiles: (files: FileList, input: HTMLInputElement) => void;
 }) {
   return (
     <label
-      className={cn(
-        "studio-staged-media-replace-input inline-flex h-8 w-8 cursor-pointer items-center justify-center",
-        appearance === "seedance-frame"
-          ? "studio-composer-replace-control rounded-full transition"
-          : "studio-slot-utility-button",
-      )}
+      className="studio-staged-media-replace-input studio-slot-utility-button inline-flex h-8 w-8 cursor-pointer items-center justify-center"
       title={label}
     >
       <ImagePlus aria-hidden="true" className="size-3.5" />

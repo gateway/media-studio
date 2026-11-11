@@ -22,28 +22,36 @@ import type { AttachmentRecord } from "@/lib/media-studio-contract";
 import { buildAttachmentPreview } from "@/lib/studio-reference-previews";
 
 function inputProps() {
+  const onOpenPreview = vi.fn();
   return {
     inputRail: "standard" as const,
     effectiveSeedanceMode: "",
-    orderedImageInputs: [],
     isDragActive: false,
     seedanceFirstFrameAttachment: null,
     seedanceLastFrameAttachment: null,
     standardComposerSectionTitle: "Inputs",
     standardComposerSummaryLabel: null,
-    standardComposerSlots: [],
-    mobileAddTileClassName: "",
     mobileAddTilePlusIconClassName: "",
     buildAttachmentPreview,
-    standardComposerSlotPreview: () => null,
-    standardComposerSlotVisual: () => null,
+    standardSlotRailProps: {
+      slots: [],
+      isDragActive: false,
+      buildPreview: () => null,
+      resolveVisualUrl: () => null,
+      isAssetBackedImageSlot: () => false,
+      onSetDragActive: vi.fn(),
+      onSlotDrop: vi.fn(),
+      onOpenPreview,
+      onOpenSlotLibrary: vi.fn(),
+      onClearSlot: vi.fn(),
+      onPickFiles: vi.fn(),
+    },
     onSetDragActive: vi.fn(),
     onSetFormWarning: vi.fn(),
     onDropIntoSourceSlot: vi.fn(),
-    onOpenPreview: vi.fn(),
+    onOpenPreview,
+    onOpenFrameLibrary: vi.fn(),
     onRemoveAttachment: vi.fn(),
-    onClearStandardComposerSlot: vi.fn(),
-    onPickStandardComposerSlotFiles: vi.fn(),
     onAddFiles: vi.fn(),
     onResetFileInput: vi.fn(),
   } satisfies ComponentProps<typeof StudioSourceAttachmentStrip> &
@@ -93,13 +101,13 @@ describe.each([
     render(
       <Component
         {...props}
-        standardComposerSlots={slots}
-        standardComposerSlotPreview={(slot) =>
-          slot.kind === "image" ? image : video
-        }
-        standardComposerSlotVisual={(slot) =>
-          slot.kind === "image" ? "/thumb.png" : "/poster.png"
-        }
+        standardSlotRailProps={{
+          ...props.standardSlotRailProps,
+          slots,
+          buildPreview: (slot) => (slot.kind === "image" ? image : video),
+          resolveVisualUrl: (slot) =>
+            slot.kind === "image" ? "/thumb.png" : "/poster.png",
+        }}
       />,
     );
     const imageTile = screen.getByTestId(`${prefix}-slot-source-image-filled`);
@@ -119,11 +127,19 @@ describe.each([
     fireEvent.click(
       within(videoTile).getByRole("button", { name: "Remove Driving video" }),
     );
-    expect(props.onClearStandardComposerSlot).toHaveBeenCalledExactlyOnceWith(
-      slots[1],
-    );
+    expect(
+      props.standardSlotRailProps.onClearSlot,
+    ).toHaveBeenCalledExactlyOnceWith(slots[1]);
     expect(props.onOpenPreview).toHaveBeenCalledTimes(2);
     expect(props.onRemoveAttachment).not.toHaveBeenCalled();
+    const replaceImage = within(imageTile).getByRole("button", {
+      name: "Replace Source image",
+    });
+    fireEvent.click(replaceImage);
+    fireEvent.click(screen.getByText("Choose from library"));
+    expect(
+      props.standardSlotRailProps.onOpenSlotLibrary,
+    ).toHaveBeenCalledExactlyOnceWith(slots[0], replaceImage);
     const replaceVideo = within(videoTile).getByLabelText(
       "Replace Driving video",
     );
@@ -131,7 +147,7 @@ describe.each([
     const files = [new File([], "drive.mp4", { type: "video/mp4" })];
     fireEvent.change(replaceVideo, { target: { files } });
     expect(
-      props.onPickStandardComposerSlotFiles,
+      props.standardSlotRailProps.onPickFiles,
     ).toHaveBeenCalledExactlyOnceWith(slots[1], files, replaceVideo, true);
     expect(props.onOpenPreview).toHaveBeenCalledTimes(2);
   });
@@ -146,7 +162,12 @@ describe.each([
       attachments: [],
       sourceAsset: null,
     }).slots;
-    render(<Component {...props} standardComposerSlots={slots} />);
+    render(
+      <Component
+        {...props}
+        standardSlotRailProps={{ ...props.standardSlotRailProps, slots }}
+      />,
+    );
     const start = screen.getByTestId(`${prefix}-slot-start-frame`);
     const end = screen.getByTestId(`${prefix}-slot-end-frame`);
     expect(start.getAttribute("accept")).toBe("image/*");
@@ -154,13 +175,52 @@ describe.each([
     const files = [new File([], "frame.png", { type: "image/png" })];
     fireEvent.change(end, { target: { files } });
     expect(
-      props.onPickStandardComposerSlotFiles,
+      props.standardSlotRailProps.onPickFiles,
     ).toHaveBeenCalledExactlyOnceWith(slots[1], files, end);
     fireEvent.drop(start.closest("label")!);
-    expect(props.onDropIntoSourceSlot.mock.calls[0][1]).toBe(
-      slots[0].slotIndex,
+    expect(
+      props.standardSlotRailProps.onSlotDrop,
+    ).toHaveBeenCalledExactlyOnceWith(expect.anything(), slots[0]);
+  });
+
+  it("opens the library for the chosen filled frame without changing the other", () => {
+    const props = inputProps();
+    const slots = resolveStandardComposerSlots({
+      model: {
+        input_patterns: ["first_last_frames"],
+        image_inputs: { required_max: 2 },
+      } as never,
+      attachments: [],
+      sourceAsset: null,
+    }).slots;
+    render(
+      <Component
+        {...props}
+        standardSlotRailProps={{
+          ...props.standardSlotRailProps,
+          slots,
+          buildPreview: (slot) => ({
+            ...image,
+            label: slot.label,
+            url: `/${slot.id}.png`,
+          }),
+        }}
+      />,
     );
-    expect(props.onDropIntoSourceSlot.mock.calls[0][2]).toBe(slots[0]);
+    const end = within(
+      screen.getByTestId(`${prefix}-slot-end-frame-filled`),
+    ).getByRole("button", { name: `Replace ${slots[1].label}` });
+    fireEvent.click(end);
+    fireEvent.click(screen.getByText("Choose from library"));
+    expect(
+      props.standardSlotRailProps.onOpenSlotLibrary,
+    ).toHaveBeenCalledExactlyOnceWith(slots[1], end);
+    expect(props.standardSlotRailProps.onClearSlot).not.toHaveBeenCalled();
+    expect(
+      within(screen.getByTestId(`${prefix}-slot-start-frame-filled`))
+        .getByRole("img")
+        .getAttribute("src"),
+    ).toBe("/slot-start-frame.png");
   });
 
   it("keeps Seedance frame preview labels, open and removal", () => {

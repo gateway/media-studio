@@ -21,6 +21,7 @@ import type {
 } from "@/lib/media-studio-contract";
 import {
   buildOrderedImageInputs,
+  resolveStandardComposerSlots,
   type PresetSlotState,
 } from "@/lib/media-studio-helpers";
 import type { MediaAsset, MediaReference } from "@/lib/types";
@@ -148,6 +149,7 @@ function renderFileStaging(
   sourceCount = 0,
   maxImageInputs = initial.length + sourceCount,
   seedanceComposer = false,
+  gallerySource: MediaAsset | null = null,
 ) {
   URL.revokeObjectURL = vi.fn();
   const reportStatus = vi.fn();
@@ -178,14 +180,20 @@ function renderFileStaging(
       effectiveSeedanceMode: "prompt_only",
       standardComposerUsesExplicitSlots: false,
       standardComposerSlots: [],
-      orderedImageInputCount: attachments.length + sourceCount,
+      orderedImageInputs: buildOrderedImageInputs(
+        gallerySource,
+        attachments,
+        Boolean(gallerySource),
+      ),
       dedicatedImageReferenceRailActive: !seedanceComposer,
       setOpenPicker: vi.fn(),
       setFormMessage: reportStatus,
       assignPresetSlotReference: actions.assignPresetSlotReference,
-      clearSourceAsset: () => source.setSourceAssetId(null),
       addReferenceMediaAsAttachment: actions.addReferenceMediaAsAttachment,
-      orderedImageInputSourceAt: () => null,
+      orderedImageReplacement: (input) => ({
+        replaceAttachmentId:
+          input.source === "attachment" ? input.attachment.id : undefined,
+      }),
     });
     return { actions, attachments, source, reportStatus, library };
   });
@@ -490,6 +498,73 @@ const replacementLibraryImage: MediaReference = {
   usage_count: 0,
 };
 
+it("replaces a standard end frame after a gallery start frame without appending", () => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response());
+  const start: MediaAsset = {
+    asset_id: "gallery-start",
+    generation_kind: "image",
+    created_at: "2026-11-07T00:00:00Z",
+  };
+  const end = imageAttachment("attached-end");
+  const staging = renderFileStaging([end], 1, 2, false, start);
+  const { slots } = resolveStandardComposerSlots({
+    model: {
+      input_patterns: ["first_last_frames"],
+      image_inputs: { required_max: 2 },
+    } as never,
+    attachments: [end],
+    sourceAsset: start,
+  });
+  const opener = document.createElement("button");
+  act(() =>
+    staging.current.library.openStandardSlotReferenceLibrary(slots[1], opener),
+  );
+  expect(staging.current.library.referenceLibraryReturnFocus.current).toBe(
+    opener,
+  );
+  act(() =>
+    staging.current.library.handleReferenceLibrarySelect(
+      replacementLibraryImage,
+    ),
+  );
+  expect(
+    buildOrderedImageInputs(start, staging.current.attachments, true),
+  ).toEqual([
+    { source: "asset", asset: start },
+    expect.objectContaining({
+      source: "reference",
+      reference: replacementLibraryImage,
+    }),
+  ]);
+});
+
+it("replaces a Seedance library end frame while keeping the original start", () => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response());
+  const start = imageAttachment("start", "first_frame");
+  const end = imageAttachment("end", "last_frame");
+  const staging = renderFileStaging([start, end], 0, 2, true);
+  act(() =>
+    staging.current.library.openComposerReferenceLibrary(
+      "images",
+      "last_frame",
+      null,
+      { replaceAttachmentId: end.id },
+    ),
+  );
+  act(() =>
+    staging.current.library.handleReferenceLibrarySelect(
+      replacementLibraryImage,
+    ),
+  );
+  expect(staging.current.attachments).toEqual([
+    start,
+    expect.objectContaining({
+      role: "last_frame",
+      referenceRecord: replacementLibraryImage,
+    }),
+  ]);
+});
+
 it.each([false, true])(
   "replaces exactly the chosen reference through the library at capacity (Seedance: %s)",
   (seedance) => {
@@ -630,14 +705,13 @@ it("replaces the requested filled preset slot while an earlier slot is empty", (
       effectiveSeedanceMode: "prompt_only",
       standardComposerUsesExplicitSlots: false,
       standardComposerSlots: [],
-      orderedImageInputCount: 0,
+      orderedImageInputs: [],
       dedicatedImageReferenceRailActive: false,
       setOpenPicker: () => {},
       setFormMessage,
       assignPresetSlotReference: actions.assignPresetSlotReference,
-      clearSourceAsset: () => {},
       addReferenceMediaAsAttachment: actions.addReferenceMediaAsAttachment,
-      orderedImageInputSourceAt: () => null,
+      orderedImageReplacement: () => ({}),
     });
     return { library, presetSlotStates, attachments };
   });

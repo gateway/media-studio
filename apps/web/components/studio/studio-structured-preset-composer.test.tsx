@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { StudioStructuredPresetComposer } from "./studio-structured-preset-composer";
@@ -134,7 +140,11 @@ it("preserves preview identity, replacement and individual removal for filled na
       url: "/character.png",
     }),
   );
-  const replacement = screen.getByLabelText("Replace Scene image");
+  const replacement = screen.getByTestId("studio-preset-slot-input-scene");
+  const openFilePicker = vi.spyOn(replacement, "click");
+  fireEvent.click(screen.getByRole("button", { name: "Replace Scene image" }));
+  fireEvent.click(screen.getByText("Upload file"));
+  expect(openFilePicker).toHaveBeenCalledOnce();
   const file = new File(["replacement"], "new.png", { type: "image/png" });
   fireEvent.change(replacement, { target: { files: [file] } });
   expect(onAssignSlotFile).toHaveBeenCalledWith("scene", file);
@@ -151,12 +161,17 @@ it("opens the library for the clicked named slot without clearing an existing im
     scene: { assetId: null, file: null, previewUrl: "/scene.png" },
   });
   const filled = screen.getByRole("button", {
-    name: "Choose from library for Scene image",
+    name: "Replace Scene image",
   });
   const empty = screen.getByRole("button", {
     name: "Choose from library for Character image",
   });
   fireEvent.click(filled);
+  fireEvent.click(
+    within(screen.getByTestId("studio-preset-slot-filled-scene")).getByText(
+      "Choose from library",
+    ),
+  );
   fireEvent.click(empty);
   expect(onOpenSlotLibrary.mock.calls).toEqual([
     [imageSlots[1], filled],
@@ -164,6 +179,11 @@ it("opens the library for the clicked named slot without clearing an existing im
   ]);
   expect(onClearSlot).not.toHaveBeenCalled();
   expect(screen.getByTestId("studio-preset-slot-filled-scene")).toBeTruthy();
+  expect(
+    screen.queryByRole("button", {
+      name: "Choose from library for Scene image",
+    }),
+  ).toBeNull();
 });
 
 it("keeps fixed prompts free of editable text while retaining their named image inputs", () => {

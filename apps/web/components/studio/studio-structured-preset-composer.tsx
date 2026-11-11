@@ -10,10 +10,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import {
-  StudioStagedMediaReplaceControl,
-  StudioStagedMediaTile,
-} from "@/components/studio/studio-staged-media-tile";
+import { StudioReferenceSourceMenu } from "@/components/studio/studio-reference-source-menu";
+import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
 import { Button } from "@/components/ui/button";
 import { findMediaAssetById } from "@/lib/studio-gallery";
 import {
@@ -175,14 +173,19 @@ export function StudioStructuredPresetComposer({
                         onOpenPreview={onOpenPreview}
                         onRemove={() => onClearSlot(slot.key)}
                         replaceControl={
-                          <StudioStagedMediaReplaceControl
+                          <StudioReferenceSourceMenu
+                            action="Replace"
                             label={`Replace ${slot.label}`}
                             accept="image/*"
                             testId={`studio-preset-slot-input-${slot.key}`}
                             onPickFiles={(files, input) => {
-                              onAssignSlotFile(slot.key, files[0] ?? null);
+                              if (!files?.length) return;
+                              onAssignSlotFile(slot.key, files[0]);
                               onResetFileInput(input);
                             }}
+                            onOpenLibrary={(trigger) =>
+                              onOpenSlotLibrary(slot, trigger)
+                            }
                           />
                         }
                         className="studio-structured-preset-tile"
@@ -212,23 +215,25 @@ export function StudioStructuredPresetComposer({
                       </label>
                     )}
                   </div>
-                  <Button
-                    appearance="admin"
-                    variant="subtle"
-                    size="compact"
-                    className="studio-structured-preset-library"
-                    aria-label={`Choose from library for ${slot.label}`}
-                    aria-haspopup="dialog"
-                    onClick={(event) =>
-                      onOpenSlotLibrary(slot, event.currentTarget)
-                    }
-                  >
-                    <FolderOpen
-                      aria-hidden="true"
-                      className="studio-structured-preset-icon"
-                    />
-                    <span>Choose from library</span>
-                  </Button>
+                  {!presetSlotPreview && (
+                    <Button
+                      appearance="admin"
+                      variant="subtle"
+                      size="compact"
+                      className="studio-structured-preset-library"
+                      aria-label={`Choose from library for ${slot.label}`}
+                      aria-haspopup="dialog"
+                      onClick={(event) =>
+                        onOpenSlotLibrary(slot, event.currentTarget)
+                      }
+                    >
+                      <FolderOpen
+                        aria-hidden="true"
+                        className="studio-structured-preset-icon"
+                      />
+                      <span>Choose from library</span>
+                    </Button>
+                  )}
                   {slot.helpText ? (
                     <p className="studio-structured-preset-help">
                       {slot.helpText}

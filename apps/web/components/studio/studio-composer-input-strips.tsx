@@ -4,29 +4,26 @@ import type { DragEvent } from "react";
 import { FolderOpen, Image as ImageIcon } from "lucide-react";
 
 import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
-import {
-  StudioStagedMediaReplaceControl,
-  StudioStagedMediaTile,
-} from "@/components/studio/studio-staged-media-tile";
+import { StudioReferenceSourceMenu } from "@/components/studio/studio-reference-source-menu";
+import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
 import {
   StudioReferenceManager,
   type StudioReferenceGroup,
   type StudioReferenceManagerProps,
 } from "@/components/studio/studio-reference-manager";
 import { IconButton } from "@/components/ui/icon-button";
-import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
+import {
+  StudioStandardSlotRail,
+  type StudioStandardSlotRailProps,
+} from "@/components/studio/studio-standard-slot-rail";
 import type { StudioAttachmentReplacement } from "@/hooks/studio/use-studio-attachments";
 import type {
   AttachmentPreviewBuilder,
   StudioAddFilesHandler,
+  StudioFrameInputProps,
 } from "@/components/studio/studio-composer-input-types";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
 import { seedanceReferenceTokenGuide } from "@/lib/media-studio-helpers";
-import type {
-  OrderedImageInput,
-  StudioComposerSlot,
-  StudioReferencePreview,
-} from "@/lib/media-studio-helpers";
 import {
   seedanceReferencePreview,
   seedanceReferenceVisual,
@@ -127,42 +124,13 @@ export function StudioSeedanceReferenceStrip({
   );
 }
 
-type StudioSourceAttachmentStripProps = {
+type StudioSourceAttachmentStripProps = StudioFrameInputProps & {
   inputRail: "seedance" | "standard";
-  isDragActive: boolean;
-  seedanceFirstFrameAttachment: AttachmentRecord | null;
-  seedanceLastFrameAttachment: AttachmentRecord | null;
-  standardComposerSlots: StudioComposerSlot[];
-  orderedImageInputs: OrderedImageInput[];
-  mobileAddTileClassName: string;
-  mobileAddTilePlusIconClassName: string;
-  buildAttachmentPreview: AttachmentPreviewBuilder;
-  standardComposerSlotPreview: (
-    slot: StudioComposerSlot,
-    previewKey: string,
-  ) => StudioReferencePreview | null;
-  standardComposerSlotVisual: (slot: StudioComposerSlot) => string | null;
-  onSetDragActive: (value: boolean) => void;
-  onSetFormWarning: (text: string) => void;
-  onDropIntoSourceSlot: (
-    event: DragEvent<HTMLDivElement | HTMLLabelElement>,
-    slotIndex?: number,
-    slot?: StudioComposerSlot,
-  ) => void;
-  onOpenPreview: (preview: StudioReferencePreview | null) => void;
-  onRemoveAttachment: (attachmentId: string) => void;
-  onClearStandardComposerSlot: (slot: StudioComposerSlot) => void;
-  onPickStandardComposerSlotFiles: (
-    slot: StudioComposerSlot,
-    fileList: FileList | File[] | null,
-    input?: HTMLInputElement | null,
-    replaceFilled?: boolean,
-  ) => void;
-  onAddFiles: StudioAddFilesHandler;
-  onResetFileInput: (input: HTMLInputElement | null) => void;
-  onOpenFrameLibrary?: (
+  standardSlotRailProps: StudioStandardSlotRailProps;
+  onOpenFrameLibrary: (
     role: "first_frame" | "last_frame",
     returnFocusTo: HTMLElement | null,
+    replacement?: StudioAttachmentReplacement,
   ) => void;
 };
 
@@ -171,21 +139,14 @@ export function StudioSourceAttachmentStrip({
   isDragActive,
   seedanceFirstFrameAttachment,
   seedanceLastFrameAttachment,
-  standardComposerSlots,
-  orderedImageInputs,
-  mobileAddTileClassName,
-  mobileAddTilePlusIconClassName,
+  standardSlotRailProps,
   buildAttachmentPreview,
-  standardComposerSlotPreview,
-  standardComposerSlotVisual,
   onSetDragActive,
   onSetFormWarning,
   onDropIntoSourceSlot,
   onOpenPreview,
   onOpenFrameLibrary,
   onRemoveAttachment,
-  onClearStandardComposerSlot,
-  onPickStandardComposerSlotFiles,
   onAddFiles,
   onResetFileInput,
 }: StudioSourceAttachmentStripProps) {
@@ -219,6 +180,28 @@ export function StudioSourceAttachmentStrip({
                   `seedance-${slot.role}`,
                 )
               : null;
+            const startFrameWarning =
+              slot.role === "last_frame" && !seedanceFirstFrameAttachment
+                ? "Add a start frame before the end frame."
+                : null;
+
+            function pickFrameFiles(
+              files: FileList | null,
+              input: HTMLInputElement,
+              replacement?: StudioAttachmentReplacement,
+            ) {
+              if (startFrameWarning) {
+                onSetFormWarning(startFrameWarning);
+              } else {
+                onAddFiles(files, {
+                  role: slot.role,
+                  allowedKinds: ["images"],
+                  ...replacement,
+                });
+              }
+              onResetFileInput(input);
+            }
+
             return (
               <div
                 key={`seedance-slot-${slot.role}`}
@@ -254,27 +237,25 @@ export function StudioSourceAttachmentStrip({
                         onOpenPreview={onOpenPreview}
                         onRemove={() => onRemoveAttachment(attachment.id)}
                         replaceControl={
-                          <StudioStagedMediaReplaceControl
+                          <StudioReferenceSourceMenu
+                            action="Replace"
                             label={`Replace ${slot.label.toLowerCase()}`}
                             accept="image/*"
                             testId={`seedance-slot-input-${slot.role}`}
                             onPickFiles={(files, input) => {
-                              if (
-                                slot.role === "last_frame" &&
-                                !seedanceFirstFrameAttachment
-                              ) {
-                                onSetFormWarning(
-                                  "Add a start frame before the end frame.",
-                                );
-                                onResetFileInput(input);
-                                return;
-                              }
-                              onAddFiles(files, {
-                                role: slot.role,
-                                allowedKinds: ["images"],
+                              if (!files?.length) return;
+                              pickFrameFiles(files, input, {
                                 replaceAttachmentId: attachment.id,
                               });
-                              onResetFileInput(input);
+                            }}
+                            onOpenLibrary={(trigger) => {
+                              if (startFrameWarning) {
+                                onSetFormWarning(startFrameWarning);
+                                return;
+                              }
+                              onOpenFrameLibrary(slot.role, trigger, {
+                                replaceAttachmentId: attachment.id,
+                              });
                             }}
                           />
                         }
@@ -300,48 +281,27 @@ export function StudioSourceAttachmentStrip({
                         onDrop={(event) =>
                           onDropIntoSourceSlot(event, slotIndex)
                         }
-                        onPickFiles={(fileList, input) => {
-                          if (
-                            slot.role === "last_frame" &&
-                            !seedanceFirstFrameAttachment
-                          ) {
-                            onSetFormWarning(
-                              "Add a start frame before the end frame.",
-                            );
-                            onResetFileInput(input);
-                            return;
-                          }
-                          onAddFiles(fileList, {
-                            role: slot.role,
-                            allowedKinds: ["images"],
-                          });
-                          onResetFileInput(input);
-                        }}
+                        onPickFiles={pickFrameFiles}
                       >
                         <span className="studio-fixed-slot-empty-label">
                           {slot.label}
                         </span>
                       </StudioMediaSlotAddTile>
-                      {onOpenFrameLibrary && (
-                        <IconButton
-                          className="studio-frame-library"
-                          icon={FolderOpen}
-                          shape="soft"
-                          aria-label={`Choose ${slot.label.toLowerCase()} from library`}
-                          title={`Choose ${slot.label.toLowerCase()} from library`}
-                          disabled={
-                            slot.role === "last_frame" &&
-                            !seedanceFirstFrameAttachment
-                          }
-                          onClick={(event) => {
-                            event.currentTarget.focus();
-                            onOpenFrameLibrary(
-                              slot.role,
-                              event.currentTarget.parentElement,
-                            );
-                          }}
-                        />
-                      )}
+                      <IconButton
+                        className="studio-frame-library"
+                        icon={FolderOpen}
+                        shape="soft"
+                        aria-label={`Choose ${slot.label.toLowerCase()} from library`}
+                        title={`Choose ${slot.label.toLowerCase()} from library`}
+                        disabled={Boolean(startFrameWarning)}
+                        onClick={(event) => {
+                          event.currentTarget.focus();
+                          onOpenFrameLibrary(
+                            slot.role,
+                            event.currentTarget.parentElement,
+                          );
+                        }}
+                      />
                     </>
                   )}
                 </div>
@@ -350,25 +310,7 @@ export function StudioSourceAttachmentStrip({
           })}
         </>
       ) : (
-        <StudioStandardSlotRail
-          slots={standardComposerSlots}
-          isDragActive={isDragActive}
-          mobileAddTileClassName={mobileAddTileClassName}
-          mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
-          buildPreview={standardComposerSlotPreview}
-          resolveVisualUrl={standardComposerSlotVisual}
-          isAssetBackedImageSlot={(slot) =>
-            slot.kind === "image" &&
-            orderedImageInputs[slot.slotIndex]?.source === "asset"
-          }
-          onSetDragActive={onSetDragActive}
-          onSlotDrop={(event, slot) =>
-            onDropIntoSourceSlot(event, slot.slotIndex, slot)
-          }
-          onOpenPreview={onOpenPreview}
-          onClearSlot={onClearStandardComposerSlot}
-          onPickFiles={onPickStandardComposerSlotFiles}
-        />
+        <StudioStandardSlotRail {...standardSlotRailProps} />
       )}
     </div>
   );

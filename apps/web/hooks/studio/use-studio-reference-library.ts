@@ -8,6 +8,7 @@ import type {
   ComposerStatusMessage,
 } from "@/lib/media-studio-contract";
 import type {
+  OrderedImageInput,
   PresetSlotState,
   StudioComposerSlot,
   StructuredPresetImageSlot,
@@ -89,28 +90,15 @@ function seedanceLibraryTarget(
   };
 }
 
-function standardImageSlotTarget(
+function contextualStandardImageSlot(
   enabled: boolean,
   slots: StudioComposerSlot[],
-): ReferenceLibraryTarget | null {
+) {
   if (!enabled) return null;
-  const slot =
+  return (
     slots.find(({ kind, filled }) => kind === "image" && !filled) ??
-    slots.find(({ kind }) => kind === "image");
-  if (!slot) return null;
-
-  return {
-    type: "standard-slot",
-    title:
-      slot.role === "end_frame"
-        ? "Pick a reusable image for the end frame."
-        : slot.role === "start_frame"
-          ? "Pick a reusable image for the start frame."
-          : "Pick a reusable image for this input.",
-    slotIndex: slot.slotIndex,
-    label: slot.label,
-    allowedKinds: ["images"],
-  };
+    slots.find(({ kind }) => kind === "image")
+  );
 }
 
 function composerReferenceTitle(role: NonNullable<AttachmentRecord["role"]>) {
@@ -123,7 +111,6 @@ type AddReferenceMediaOptions = StudioAttachmentReplacement & {
   role?: "first_frame" | "last_frame" | "reference";
   allowedKinds?: AttachmentRecord["kind"][];
   insertImageIndex?: number;
-  replaceImageIndex?: number;
   successMessage?: string;
 };
 
@@ -138,7 +125,7 @@ type UseStudioReferenceLibraryOptions = {
   effectiveSeedanceMode: string;
   standardComposerUsesExplicitSlots: boolean;
   standardComposerSlots: StudioComposerSlot[];
-  orderedImageInputCount: number;
+  orderedImageInputs: OrderedImageInput[];
   dedicatedImageReferenceRailActive: boolean;
   setOpenPicker: (value: null) => void;
   setFormMessage: (message: ComposerStatusMessage | null) => void;
@@ -146,14 +133,13 @@ type UseStudioReferenceLibraryOptions = {
     slotKey: string,
     reference: MediaReference,
   ) => void;
-  clearSourceAsset: () => void;
   addReferenceMediaAsAttachment: (
     reference: MediaReference,
     options?: AddReferenceMediaOptions,
   ) => void;
-  orderedImageInputSourceAt: (
-    slotIndex: number,
-  ) => "asset" | "attachment" | "reference" | null;
+  orderedImageReplacement: (
+    slot: OrderedImageInput,
+  ) => StudioAttachmentReplacement;
 };
 
 export function useStudioReferenceLibrary({
@@ -167,14 +153,13 @@ export function useStudioReferenceLibrary({
   effectiveSeedanceMode,
   standardComposerUsesExplicitSlots,
   standardComposerSlots,
-  orderedImageInputCount,
+  orderedImageInputs,
   dedicatedImageReferenceRailActive,
   setOpenPicker,
   setFormMessage,
   assignPresetSlotReference,
-  clearSourceAsset,
   addReferenceMediaAsAttachment,
-  orderedImageInputSourceAt,
+  orderedImageReplacement,
 }: UseStudioReferenceLibraryOptions) {
   const [selectedReferencePreview, setSelectedReferencePreview] =
     useState<StudioReferencePreview | null>(null);
@@ -238,6 +223,26 @@ export function useStudioReferenceLibrary({
     [openReferenceLibrary],
   );
 
+  const openStandardSlotReferenceLibrary = useCallback(
+    (slot: StudioComposerSlot, returnFocusTo?: HTMLElement) =>
+      openReferenceLibrary(
+        {
+          type: "standard-slot",
+          title:
+            slot.role === "end_frame"
+              ? "Pick a reusable image for the end frame."
+              : slot.role === "start_frame"
+                ? "Pick a reusable image for the start frame."
+                : "Pick a reusable image for this input.",
+          slotIndex: slot.slotIndex,
+          label: slot.label,
+          allowedKinds: ["images"],
+        },
+        returnFocusTo,
+      ),
+    [openReferenceLibrary],
+  );
+
   const openContextualReferenceLibrary = useCallback(() => {
     if (!canOpenReferenceLibrary) {
       openReferenceLibrary({
@@ -267,12 +272,12 @@ export function useStudioReferenceLibrary({
       );
       return;
     }
-    const standardTarget = standardImageSlotTarget(
+    const standardSlot = contextualStandardImageSlot(
       standardComposerUsesExplicitSlots,
       standardComposerSlots,
     );
-    if (standardTarget) {
-      openReferenceLibrary(standardTarget);
+    if (standardSlot) {
+      openStandardSlotReferenceLibrary(standardSlot);
       return;
     }
     openReferenceLibrary({
@@ -287,6 +292,7 @@ export function useStudioReferenceLibrary({
     effectiveSeedanceMode,
     openPresetSlotReferenceLibrary,
     openReferenceLibrary,
+    openStandardSlotReferenceLibrary,
     presetSlotStates,
     seedanceComposer,
     seedanceFirstFrameAttachment,
@@ -323,20 +329,19 @@ export function useStudioReferenceLibrary({
         return;
       }
       if (target.type === "standard-slot") {
-        if (target.slotIndex > orderedImageInputCount) {
+        if (target.slotIndex > orderedImageInputs.length) {
           setFormMessage({
             tone: "warning",
             text: "Fill the earlier image slot first.",
           });
           return;
         }
-        if (orderedImageInputSourceAt(target.slotIndex) === "asset") {
-          clearSourceAsset();
-        }
+        const input = orderedImageInputs[target.slotIndex];
         addReferenceMediaAsAttachment(reference, {
           allowedKinds: target.allowedKinds,
-          insertImageIndex: Math.min(target.slotIndex, orderedImageInputCount),
-          replaceImageIndex: target.slotIndex,
+          ...(input
+            ? orderedImageReplacement(input)
+            : { insertImageIndex: target.slotIndex }),
           successMessage: `Reference image loaded into ${target.label}.`,
         });
         return;
@@ -350,9 +355,8 @@ export function useStudioReferenceLibrary({
     [
       addReferenceMediaAsAttachment,
       assignPresetSlotReference,
-      clearSourceAsset,
-      orderedImageInputCount,
-      orderedImageInputSourceAt,
+      orderedImageInputs,
+      orderedImageReplacement,
       referenceLibraryTarget,
       setFormMessage,
     ],
@@ -368,6 +372,7 @@ export function useStudioReferenceLibrary({
     openContextualReferenceLibrary,
     openComposerReferenceLibrary,
     openPresetSlotReferenceLibrary,
+    openStandardSlotReferenceLibrary,
     handleReferenceLibrarySelect,
   };
 }

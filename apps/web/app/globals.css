@@ -2080,17 +2080,6 @@ textarea {
   color: rgb(255 255 255 / 58%);
 }
 
-.studio-composer-replace-control {
-  border: 1px solid rgb(255 255 255 / 12%);
-  background: rgb(11 14 13 / 88%);
-  color: rgb(255 255 255 / 76%);
-  box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
-}
-
-.studio-composer-replace-control:hover {
-  color: #fff;
-}
-
 .studio-project-primary-text {
   color: #172200;
 }
@@ -3051,13 +3040,13 @@ textarea {
   font-weight: 600;
 }
 
-.studio-ordered-reference-tile > .studio-staged-media-replace {
-  inset: auto var(--studio-reference-control-inset)
-    var(--studio-reference-control-inset) auto;
+.studio-staged-media-replace {
+  inset: auto var(--studio-reference-control-inset, 4px)
+    var(--studio-reference-control-inset, 4px) auto;
 }
 
 .studio-reference-replace-trigger {
-  --studio-control-size: var(--studio-reference-replace-size);
+  --studio-control-size: var(--studio-reference-replace-size, 30px);
   --studio-picker-background: var(--surface-overlay-backdrop);
   --studio-picker-border: var(--border-soft);
   --studio-picker-icon-color: var(--text-primary);
@@ -3792,8 +3781,8 @@ textarea {
   opacity: 1;
 }
 
-.studio-fixed-slot-tile .studio-staged-media-replace {
-  inset: 4px 4px auto auto;
+.studio-fixed-slot-tile > .studio-staged-media-replace {
+  bottom: calc(var(--studio-media-slot-caption-height, 0px) + 4px);
 }
 
 .studio-fixed-slot-add {
@@ -3825,12 +3814,8 @@ textarea {
     display: none;
   }
 
-  .studio-seedance-frame .studio-staged-media-replace {
-    inset: auto 39px 4px auto;
-  }
-
   .studio-seedance-frame .studio-staged-media-remove {
-    inset: auto 4px 4px auto;
+    inset: 4px 4px auto auto;
   }
 
   :where(.studio-create-stage-immersive)
@@ -3956,7 +3941,8 @@ textarea {
   color: var(--text-muted);
 }
 
-.studio-standard-slot-tile .studio-staged-media-replace {
+.studio-standard-slot-tile
+  .studio-staged-media-replace:has(> .studio-staged-media-replace-input) {
   inset: auto 27px 0 auto;
 }
 

@@ -4,6 +4,7 @@ import type { DragEvent } from "react";
 import { Film, Image as ImageIcon } from "lucide-react";
 
 import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
+import { StudioReferenceSourceMenu } from "@/components/studio/studio-reference-source-menu";
 import {
   StudioStagedMediaReplaceControl,
   StudioStagedMediaTile,
@@ -13,12 +14,10 @@ import type {
   StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
 
-type StudioStandardSlotRailProps = {
+export type StudioStandardSlotRailProps = {
   slots: StudioComposerSlot[];
   mobile?: boolean;
   isDragActive: boolean;
-  mobileAddTileClassName?: string;
-  mobileAddTilePlusIconClassName?: string;
   buildPreview: (
     slot: StudioComposerSlot,
     testIdPrefix: string,
@@ -31,6 +30,10 @@ type StudioStandardSlotRailProps = {
     slot: StudioComposerSlot,
   ) => void;
   onOpenPreview: (preview: StudioReferencePreview | null) => void;
+  onOpenSlotLibrary: (
+    slot: StudioComposerSlot,
+    trigger: HTMLButtonElement,
+  ) => void;
   onClearSlot: (slot: StudioComposerSlot) => void;
   onPickFiles: (
     slot: StudioComposerSlot,
@@ -50,6 +53,7 @@ export function StudioStandardSlotRail({
   onSetDragActive,
   onSlotDrop,
   onOpenPreview,
+  onOpenSlotLibrary,
   onClearSlot,
   onPickFiles,
 }: StudioStandardSlotRailProps) {
@@ -66,6 +70,14 @@ export function StudioStandardSlotRail({
 
         const label = slot.role === "end_frame" ? "End frame" : slot.label;
         const Icon = slot.kind === "video" ? Film : ImageIcon;
+        const replaceProps = {
+          label: `Replace ${slot.label}`,
+          accept: slot.accept,
+          testId: `${testId}-replace`,
+          onPickFiles: (files: FileList | null, input: HTMLInputElement) => {
+            if (files?.length) onPickFiles(slot, files, input, true);
+          },
+        };
 
         return (
           <div key={slot.id} className="studio-fixed-slot">
@@ -93,14 +105,17 @@ export function StudioStandardSlotRail({
                     onOpenPreview={(nextPreview) => onOpenPreview(nextPreview)}
                     onRemove={() => onClearSlot(slot)}
                     replaceControl={
-                      <StudioStagedMediaReplaceControl
-                        label={`Replace ${slot.label}`}
-                        accept={slot.accept}
-                        testId={`${testId}-replace`}
-                        onPickFiles={(files, input) =>
-                          onPickFiles(slot, files, input, true)
-                        }
-                      />
+                      slot.kind === "image" ? (
+                        <StudioReferenceSourceMenu
+                          {...replaceProps}
+                          action="Replace"
+                          onOpenLibrary={(trigger) =>
+                            onOpenSlotLibrary(slot, trigger)
+                          }
+                        />
+                      ) : (
+                        <StudioStagedMediaReplaceControl {...replaceProps} />
+                      )
                     }
                     className="studio-fixed-slot-tile studio-standard-slot-tile h-full w-full"
                     tileClassName={

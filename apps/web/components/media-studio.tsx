@@ -19,6 +19,7 @@ import {
   StudioSeedanceReferenceStrip,
   StudioSourceAttachmentStrip,
 } from "@/components/studio/studio-composer-input-strips";
+import type { StudioAddFilesHandler } from "@/components/studio/studio-composer-input-types";
 import { useSeedanceComposerInputs } from "@/components/studio/studio-seedance-inputs";
 import { StudioMultiImageReferenceStrip } from "@/components/studio/studio-multi-image-reference-strip";
 import { StudioCreateStage } from "@/components/studio/studio-create-stage";
@@ -39,6 +40,7 @@ import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
 import { StudioPromptComposerBody } from "@/components/studio/studio-prompt-composer-body";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
 import { StudioSettingsModal } from "@/components/studio/studio-settings-modal";
+import type { StudioStandardSlotRailProps } from "@/components/studio/studio-standard-slot-rail";
 import { StudioStructuredPresetComposer } from "@/components/studio/studio-structured-preset-composer";
 import {
   buildStudioHarnessAttachment,
@@ -369,7 +371,6 @@ export function MediaStudio({
     selectedAssetPlaybackVisual,
     selectedAssetLightboxVisual,
   } = selection.derived;
-  const mobileAddTileClassName = "h-[58px] w-[58px] rounded-[18px]";
   const mobileAddTilePlusIconClassName = "size-5";
   const { lightboxVideoRef } = selection.refs;
   const {
@@ -757,6 +758,7 @@ export function MediaStudio({
     handleReferenceLibrarySelect,
     openComposerReferenceLibrary,
     openPresetSlotReferenceLibrary,
+    openStandardSlotReferenceLibrary,
   } = useStudioReferenceLibrary({
     canOpenReferenceLibrary,
     structuredPresetActive,
@@ -768,15 +770,13 @@ export function MediaStudio({
     effectiveSeedanceMode,
     standardComposerUsesExplicitSlots: standardComposerLayout.usesExplicitSlots,
     standardComposerSlots,
-    orderedImageInputCount: orderedImageInputs.length,
+    orderedImageInputs,
     dedicatedImageReferenceRailActive,
     setOpenPicker,
     setFormMessage,
     assignPresetSlotReference,
-    clearSourceAsset,
     addReferenceMediaAsAttachment,
-    orderedImageInputSourceAt: (slotIndex) =>
-      orderedImageInputs[slotIndex]?.source ?? null,
+    orderedImageReplacement,
   });
   const studioHarnessFixtures = useMemo<StudioTestFixtureControls>(() => {
     const closeStudioOverlays = () => {
@@ -1326,18 +1326,12 @@ export function MediaStudio({
     replaceFilled = false,
   ) {
     if (slot.kind === "image") {
-      const currentSlot = orderedImageInputs[slot.slotIndex] ?? null;
-      // Replacing an image slot has to clear a source-asset-backed slot before the
-      // file add runs, otherwise the ordered attachment insert would duplicate it.
-      if (replaceFilled && currentSlot?.source === "asset") {
-        clearSourceAsset();
+      const currentSlot = orderedImageInputs[slot.slotIndex];
+      if (replaceFilled && currentSlot) {
+        replaceOrderedImageFile(fileList, currentSlot, input ?? null);
+      } else {
+        addImageFilesToOrderedSlot(fileList, slot.slotIndex, input);
       }
-      addImageFilesToOrderedSlot(
-        fileList,
-        slot.slotIndex,
-        input,
-        replaceFilled,
-      );
       return;
     }
     if (slot.role === "driving_video") {
@@ -1353,41 +1347,55 @@ export function MediaStudio({
     }
   }
 
+  const standardSlotRailProps: StudioStandardSlotRailProps = {
+    slots: standardComposerSlots,
+    isDragActive,
+    buildPreview: standardComposerSlotPreview,
+    resolveVisualUrl: standardComposerSlotVisual,
+    isAssetBackedImageSlot: (slot) =>
+      slot.kind === "image" &&
+      orderedImageInputs[slot.slotIndex]?.source === "asset",
+    onSetDragActive: setIsDragActive,
+    onSlotDrop: (event, slot) =>
+      handleSourceTileDrop(event, slot.slotIndex, slot),
+    onOpenPreview: openReferencePreview,
+    onOpenSlotLibrary: openStandardSlotReferenceLibrary,
+    onClearSlot: clearStandardComposerSlot,
+    onPickFiles: addFilesToStandardComposerSlot,
+  };
+
+  const stageComposerFiles: StudioAddFilesHandler = (files, options) => {
+    addFiles(files, options).catch(reportActionError);
+  };
   const composerMediaInteractionProps = {
+    isDragActive,
+    seedanceFirstFrameAttachment,
+    seedanceLastFrameAttachment,
     buildAttachmentPreview,
-    standardComposerSlotPreview,
-    standardComposerSlotVisual,
+    standardSlotRailProps,
+    onDropIntoSourceSlot: handleSourceTileDrop,
     onSetDragActive: setIsDragActive,
     onSetFormWarning: (text: string) =>
       setFormMessage({ tone: "warning", text }),
+    onOpenPreview: openReferencePreview,
+    onRemoveAttachment: removeAttachment,
+    onAddFiles: stageComposerFiles,
+    onResetFileInput: resetFileInputValue,
   };
 
   const sourceAttachmentStrip =
     composerInputRail === "seedance" || composerInputRail === "standard" ? (
       <StudioSourceAttachmentStrip
         inputRail={composerInputRail}
-        isDragActive={isDragActive}
-        seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
-        seedanceLastFrameAttachment={seedanceLastFrameAttachment}
-        standardComposerSlots={standardComposerSlots}
-        orderedImageInputs={orderedImageInputs}
-        mobileAddTileClassName={mobileAddTileClassName}
-        mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
         {...composerMediaInteractionProps}
-        onDropIntoSourceSlot={(event, slotIndex, slot) =>
-          void handleSourceTileDrop(event, slotIndex, slot)
+        onOpenFrameLibrary={(role, returnFocusTo, replacement) =>
+          openComposerReferenceLibrary(
+            "images",
+            role,
+            returnFocusTo,
+            replacement,
+          )
         }
-        onOpenPreview={openReferencePreview}
-        onOpenFrameLibrary={(role, returnFocusTo) =>
-          openComposerReferenceLibrary("images", role, returnFocusTo)
-        }
-        onRemoveAttachment={removeAttachment}
-        onClearStandardComposerSlot={clearStandardComposerSlot}
-        onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
-        onAddFiles={(files, options) => {
-          addFiles(files, options).catch(reportActionError);
-        }}
-        onResetFileInput={resetFileInputValue}
       />
     ) : null;
   const seedanceReferenceStrip =
@@ -1404,9 +1412,7 @@ export function MediaStudio({
         onReferenceDrop={handleSeedanceReferenceDrop}
         onOpenLibrary={openComposerReferenceLibrary}
         onRemoveAttachment={removeAttachment}
-        onAddFiles={(files, options) => {
-          addFiles(files, options).catch(reportActionError);
-        }}
+        onAddFiles={stageComposerFiles}
         onResetFileInput={resetFileInputValue}
       />
     ) : null;
@@ -1416,27 +1422,10 @@ export function MediaStudio({
       <StudioMobileInputsContent
         inputRail={composerInputRail}
         effectiveSeedanceMode={effectiveSeedanceMode}
-        orderedImageInputs={orderedImageInputs}
-        isDragActive={isDragActive}
-        seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
-        seedanceLastFrameAttachment={seedanceLastFrameAttachment}
         standardComposerSectionTitle={standardComposerSectionTitle}
         standardComposerSummaryLabel={standardComposerLayout.summaryLabel}
-        standardComposerSlots={standardComposerSlots}
-        mobileAddTileClassName={mobileAddTileClassName}
         mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
         {...composerMediaInteractionProps}
-        onDropIntoSourceSlot={(event, slotIndex, slot) =>
-          void handleSourceTileDrop(event, slotIndex, slot)
-        }
-        onOpenPreview={openReferencePreview}
-        onRemoveAttachment={removeAttachment}
-        onClearStandardComposerSlot={clearStandardComposerSlot}
-        onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
-        onAddFiles={(files, options) => {
-          addFiles(files, options).catch(reportActionError);
-        }}
-        onResetFileInput={resetFileInputValue}
       />
     ) : null;
 
@@ -2155,7 +2144,6 @@ export function MediaStudio({
     fileList: FileList | File[] | null,
     slotIndex: number,
     input?: HTMLInputElement | null,
-    replaceFilled = false,
   ) {
     if (slotIndex > orderedImageInputs.length) {
       setFormMessage({
@@ -2169,15 +2157,14 @@ export function MediaStudio({
     addFiles(fileList, {
       allowedKinds: ["images"],
       insertImageIndex: slotIndex,
-      replaceImageIndex: replaceFilled ? slotIndex : null,
-    });
+    }).catch(reportActionError);
     resetFileInputValue(input ?? null);
   }
 
   function replaceOrderedImageFile(
-    files: FileList,
+    files: FileList | File[] | null,
     slot: (typeof orderedImageInputs)[number],
-    input: HTMLInputElement,
+    input: HTMLInputElement | null,
   ) {
     expandStudioComposer();
     addFiles(files, {

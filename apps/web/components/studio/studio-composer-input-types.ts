@@ -1,3 +1,4 @@
+import type { DragEvent } from "react";
 import type {
   MediaAttachmentKind,
   StudioReferencePreview,
@@ -18,3 +19,20 @@ export type StudioAddFilesHandler = (
     replaceAttachmentId?: string;
   },
 ) => void;
+
+export type StudioFrameInputProps = {
+  isDragActive: boolean;
+  seedanceFirstFrameAttachment: AttachmentRecord | null;
+  seedanceLastFrameAttachment: AttachmentRecord | null;
+  buildAttachmentPreview: AttachmentPreviewBuilder;
+  onSetDragActive: (value: boolean) => void;
+  onSetFormWarning: (text: string) => void;
+  onDropIntoSourceSlot: (
+    event: DragEvent<HTMLDivElement | HTMLLabelElement>,
+    slotIndex?: number,
+  ) => void;
+  onOpenPreview: (preview: StudioReferencePreview | null) => void;
+  onRemoveAttachment: (attachmentId: string) => void;
+  onAddFiles: StudioAddFilesHandler;
+  onResetFileInput: (input: HTMLInputElement | null) => void;
+};
