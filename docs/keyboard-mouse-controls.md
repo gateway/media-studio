@@ -25,6 +25,9 @@ Media Studio shortcuts are ignored while you are typing in a field or when a blo
 | Click a gallery item | Open the asset inspector |
 | Click a favorite icon | Favorite or unfavorite the asset without opening it |
 | Click Projects, Presets, Reference library, or Settings | Open the matching Studio panel |
+| Click Library beside image references | Append a saved image if the model has room |
+| Drag a gallery image onto a staged image reference | Replace that reference in place |
+| Drag a gallery image onto the `+` reference tile | Add the image as a new reference |
 | Click or drag onto a thumbnail drop area | Choose or upload a thumbnail image |
 
 ## Graph Studio

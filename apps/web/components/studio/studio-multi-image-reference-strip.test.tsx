@@ -68,23 +68,35 @@ function ReferenceStripHarness(
   );
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
-it("keeps the compact drop target available outside the thumbnails until capacity", () => {
+function imageInput(index: number): StripProps["orderedImageInputs"][number] {
+  return {
+    source: "attachment",
+    attachment: {
+      id: String(index),
+      file: null,
+      kind: "images",
+      previewUrl: `/${index}.png`,
+    },
+  };
+}
+
+it("offers library and upload together until the model reaches capacity", () => {
+  vi.stubGlobal("innerHeight", 760);
   const props = referenceStripProps();
   const { rerender } = render(<ReferenceStripHarness {...props} />);
   const add = screen.getByLabelText("Add image references");
-  const references = Array.from(
-    { length: 16 },
-    (_, index): StripProps["orderedImageInputs"][number] => ({
-      source: "attachment",
-      attachment: {
-        id: String(index),
-        file: null,
-        kind: "images",
-        previewUrl: `/${index}.png`,
-      },
-    }),
+  const library = screen.getByRole("button", { name: "Choose from library" });
+  fireEvent.click(library);
+  expect(props.onOpenLibrary).toHaveBeenCalledExactlyOnceWith(
+    screen.getByRole("button", { name: "Expand image references" }),
+  );
+  const references = Array.from({ length: 16 }, (_, index) =>
+    imageInput(index),
   );
 
   rerender(
@@ -112,8 +124,78 @@ it("keeps the compact drop target available outside the thumbnails until capacit
   expect(screen.getByText("16/16")).toBeTruthy();
   expect(screen.queryByLabelText("Add image references")).toBeNull();
   expect(
+    screen.queryByRole("button", { name: "Choose from library" }),
+  ).toBeNull();
+  expect(
     screen.getByRole("button", { name: "Show 14 more image references" }),
   ).toBeTruthy();
+});
+
+it("reveals more reference rows at tall desktop heights and falls back to one row on a phone", () => {
+  vi.stubGlobal("innerWidth", 1265);
+  vi.stubGlobal("innerHeight", 1292);
+  const props = referenceStripProps();
+  render(
+    <ReferenceStripHarness
+      {...props}
+      orderedImageInputs={Array.from({ length: 10 }, (_, index) =>
+        imageInput(index),
+      )}
+    />,
+  );
+
+  expect(screen.getAllByTestId(/^studio-multi-image-slot-\d+$/)).toHaveLength(
+    7,
+  );
+  expect(
+    screen.getByRole("button", { name: "Show 3 more image references" }),
+  ).toBeTruthy();
+
+  vi.stubGlobal("innerWidth", 390);
+  fireEvent.resize(window);
+  expect(screen.getAllByTestId(/^studio-multi-image-slot-\d+$/)).toHaveLength(
+    1,
+  );
+  expect(
+    screen.getByRole("button", { name: "Show 9 more image references" }),
+  ).toBeTruthy();
+});
+
+it("routes a gallery drop on the surviving image to its current position after deletion", () => {
+  const first = imageInput(0);
+  const surviving = imageInput(1);
+  const props = referenceStripProps();
+  function EditableStrip() {
+    const [orderedImageInputs, setOrderedImageInputs] = useState([
+      first,
+      surviving,
+    ]);
+    return (
+      <ReferenceStripHarness
+        {...props}
+        orderedImageInputs={orderedImageInputs}
+        onClearOrderedImageInput={(slot) => {
+          setOrderedImageInputs((slots) =>
+            slots.filter((item) => item !== slot),
+          );
+        }}
+      />
+    );
+  }
+  render(<EditableStrip />);
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "Remove Image reference 1" }),
+  );
+  const target = screen.getByRole("img", { name: "Image reference 1" });
+  expect(target.getAttribute("src")).toBe("/1.png");
+  const dataTransfer = { getData: vi.fn(() => "gallery-image") };
+  expect(fireEvent.dragOver(target, { dataTransfer })).toBe(false);
+  fireEvent.drop(target, { dataTransfer });
+  expect(props.onDropIntoSlot).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ dataTransfer }),
+    0,
+  );
 });
 
 it("keeps the ordered reference actions available when the mobile composer and references are expanded", () => {

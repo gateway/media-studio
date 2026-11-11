@@ -6,6 +6,8 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
+  type FocusEvent,
   type RefObject,
 } from "react";
 import { Check, ChevronDown, ChevronUp, type LucideIcon } from "lucide-react";
@@ -42,6 +44,7 @@ type PillSelectProps = {
   icon?: LucideIcon;
   iconOnly?: boolean;
   menuAlign?: "start" | "end";
+  viewportOverlay?: boolean;
   triggerRef?: RefObject<HTMLButtonElement | null>;
   choiceIcon?: (choice: PillSelectChoice) => LucideIcon | null | undefined;
   label: string;
@@ -63,6 +66,7 @@ export function PillSelect({
   icon: Icon,
   iconOnly = false,
   menuAlign = "start",
+  viewportOverlay = false,
   triggerRef,
   choiceIcon,
   label,
@@ -75,10 +79,16 @@ export function PillSelect({
 }: PillSelectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const [menuPlacement, setMenuPlacement] = useState<"up" | "down">("down");
-  const [menuMaxHeight, setMenuMaxHeight] = useState(
-    appearance === "studio" ? 280 : 320,
-  );
+  const { menuPlacement, menuStyle, popover } = usePillSelectPlacement({
+    containerRef,
+    menuRef,
+    pickerId,
+    open,
+    appearance,
+    menuAlign,
+    iconOnly,
+    viewportOverlay,
+  });
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const normalizedTitle = (
@@ -157,53 +167,6 @@ export function PillSelect({
       return;
     }
 
-    function updateMenuPlacement() {
-      const trigger = containerRef.current?.querySelector("button");
-      if (!trigger) {
-        return;
-      }
-      // In-flow rail menus contribute to the container height. Measuring the
-      // trigger keeps scrolling from resizing the menu against its own bounds.
-      const rect = trigger.getBoundingClientRect();
-      const viewportHeight =
-        window.visualViewport?.height ?? window.innerHeight;
-      const gutter = 20;
-      const gap = 12;
-      const spaceBelow = Math.max(
-        0,
-        viewportHeight - rect.bottom - gutter - gap,
-      );
-      const spaceAbove = Math.max(0, rect.top - gutter - gap);
-      const desiredCap = pickerMenuHeightCap(pickerId);
-      const minUsableHeight = Math.min(220, desiredCap);
-      const nextPlacement =
-        spaceBelow >= minUsableHeight || spaceBelow >= spaceAbove
-          ? "down"
-          : "up";
-      const availableSpace = nextPlacement === "down" ? spaceBelow : spaceAbove;
-      setMenuPlacement(nextPlacement);
-      setMenuMaxHeight(Math.max(0, Math.min(availableSpace, desiredCap)));
-    }
-
-    updateMenuPlacement();
-    window.addEventListener("resize", updateMenuPlacement);
-    window.addEventListener("scroll", updateMenuPlacement, true);
-    window.visualViewport?.addEventListener("resize", updateMenuPlacement);
-    window.visualViewport?.addEventListener("scroll", updateMenuPlacement);
-
-    return () => {
-      window.removeEventListener("resize", updateMenuPlacement);
-      window.removeEventListener("scroll", updateMenuPlacement, true);
-      window.visualViewport?.removeEventListener("resize", updateMenuPlacement);
-      window.visualViewport?.removeEventListener("scroll", updateMenuPlacement);
-    };
-  }, [open, pickerId]);
-
-  useLayoutEffect(() => {
-    if (!open) {
-      return;
-    }
-
     const frame = window.requestAnimationFrame(() => {
       updateScrollIndicators();
     });
@@ -224,11 +187,22 @@ export function PillSelect({
     onClose();
   }
 
+  function closeOnBlur(event: FocusEvent<HTMLDivElement>) {
+    if (
+      viewportOverlay &&
+      open &&
+      event.relatedTarget &&
+      !event.currentTarget.contains(event.relatedTarget)
+    )
+      onClose();
+  }
+
   return (
     <div
       ref={containerRef}
       data-studio-picker
       data-picker-id={pickerId}
+      onBlur={closeOnBlur}
       className={cn(
         "relative",
         widthClassName,
@@ -258,7 +232,8 @@ export function PillSelect({
       {open ? (
         <div
           ref={menuRef}
-          style={pillSelectMenuStyle(menuMaxHeight, menuAlign, iconOnly)}
+          popover={popover}
+          style={menuStyle}
           onScroll={updateScrollIndicators}
           className={cn(
             pillSelectMenuClassName(appearance),
@@ -356,6 +331,173 @@ export function PillSelect({
       ) : null}
     </div>
   );
+}
+
+type PickerPlacementOptions = Pick<PillSelectProps, "pickerId" | "open"> & {
+  containerRef: RefObject<HTMLDivElement | null>;
+  menuRef: RefObject<HTMLDivElement | null>;
+  appearance: "admin" | "studio";
+  menuAlign: "start" | "end";
+  iconOnly: boolean;
+  viewportOverlay: boolean;
+};
+
+function usePillSelectPlacement({
+  containerRef,
+  menuRef,
+  pickerId,
+  open,
+  appearance,
+  menuAlign,
+  iconOnly,
+  viewportOverlay,
+}: PickerPlacementOptions) {
+  const [menuPlacement, setMenuPlacement] = useState<"up" | "down">("down");
+  const [menuMaxHeight, setMenuMaxHeight] = useState(280);
+  const [viewportMenuStyle, setViewportMenuStyle] = useState<CSSProperties>();
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const visualViewport = window.visualViewport;
+
+    function updateMenuPlacement(event?: Event) {
+      if (event?.target === menuRef.current) return;
+      const trigger = containerRef.current?.querySelector("button");
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const viewport = pickerViewportBounds();
+      const { placement, maxHeight, anchor } = verticalMenuPlacement(
+        rect,
+        viewport,
+        pickerMenuHeightCap(pickerId),
+      );
+      setMenuPlacement(placement);
+      setMenuMaxHeight(maxHeight);
+      if (viewportOverlay)
+        setViewportMenuStyle(
+          fixedMenuStyle(rect, menuAlign, appearance, anchor, viewport),
+        );
+    }
+
+    updateMenuPlacement();
+    window.addEventListener("resize", updateMenuPlacement);
+    window.addEventListener("scroll", updateMenuPlacement, true);
+    visualViewport?.addEventListener("resize", updateMenuPlacement);
+    visualViewport?.addEventListener("scroll", updateMenuPlacement);
+
+    return () => {
+      window.removeEventListener("resize", updateMenuPlacement);
+      window.removeEventListener("scroll", updateMenuPlacement, true);
+      visualViewport?.removeEventListener("resize", updateMenuPlacement);
+      visualViewport?.removeEventListener("scroll", updateMenuPlacement);
+    };
+  }, [
+    appearance,
+    containerRef,
+    menuAlign,
+    menuRef,
+    open,
+    pickerId,
+    viewportOverlay,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!open || !viewportOverlay) return;
+    const menu = menuRef.current;
+    // Keep the menu in keyboard order while escaping the scrollable composer.
+    menu?.showPopover?.();
+    return () => menu?.hidePopover?.();
+  }, [menuRef, open, viewportOverlay]);
+
+  return {
+    menuPlacement,
+    menuStyle: viewportOverlay
+      ? { ...viewportMenuStyle, maxHeight: menuMaxHeight }
+      : pillSelectMenuStyle(menuMaxHeight, menuAlign, iconOnly),
+    popover: viewportOverlay ? ("manual" as const) : undefined,
+  };
+}
+
+function pickerViewportBounds() {
+  const viewport = window.visualViewport;
+  if (!viewport)
+    return {
+      top: 0,
+      left: 0,
+      bottom: window.innerHeight,
+      right: window.innerWidth,
+    };
+  const { offsetTop, offsetLeft, height, width } = viewport;
+  return {
+    top: offsetTop,
+    left: offsetLeft,
+    bottom: offsetTop + height,
+    right: offsetLeft + width,
+  };
+}
+
+type PickerViewportBounds = ReturnType<typeof pickerViewportBounds>;
+
+function verticalMenuPlacement(
+  rect: DOMRect,
+  viewport: PickerViewportBounds,
+  desiredCap: number,
+) {
+  const gutter = 20;
+  const gap = 12;
+  const topEdge = viewport.top + gutter;
+  const bottomEdge = Math.max(topEdge, viewport.bottom - gutter);
+  const downAnchor = Math.min(bottomEdge, Math.max(topEdge, rect.bottom + gap));
+  const upAnchor = Math.max(topEdge, Math.min(bottomEdge, rect.top - gap));
+  const spaceBelow = bottomEdge - downAnchor;
+  const spaceAbove = upAnchor - topEdge;
+  const placeBelow =
+    spaceBelow >= Math.min(220, desiredCap) || spaceBelow >= spaceAbove;
+  return {
+    placement: placeBelow ? ("down" as const) : ("up" as const),
+    maxHeight: Math.min(placeBelow ? spaceBelow : spaceAbove, desiredCap),
+    anchor: placeBelow
+      ? { top: downAnchor }
+      : { bottom: window.innerHeight - upAnchor },
+  };
+}
+
+function fixedMenuStyle(
+  rect: DOMRect,
+  align: "start" | "end",
+  appearance: "admin" | "studio",
+  verticalAnchor: Pick<CSSProperties, "top" | "bottom">,
+  viewport: PickerViewportBounds,
+): CSSProperties {
+  const viewportLeft = viewport.left + 8;
+  const viewportRight = viewport.right - 8;
+  const minWidth = Math.min(
+    rect.width,
+    Math.max(0, viewportRight - viewportLeft),
+  );
+  const left = Math.min(
+    Math.max(viewportLeft, rect.left),
+    viewportRight - minWidth,
+  );
+  const right = Math.max(
+    Math.min(viewportRight, rect.right),
+    viewportLeft + minWidth,
+  );
+  const availableWidth =
+    align === "start" ? viewportRight - left : right - viewportLeft;
+  return {
+    position: "fixed",
+    top: "auto",
+    right: align === "end" ? window.innerWidth - right : "auto",
+    bottom: "auto",
+    left: align === "start" ? left : "auto",
+    margin: 0,
+    overscrollBehavior: "contain",
+    width: appearance === "admin" ? minWidth : "max-content",
+    minWidth,
+    maxWidth: Math.min(448, availableWidth),
+    ...verticalAnchor,
+  };
 }
 
 function shouldShowGroupLabel(

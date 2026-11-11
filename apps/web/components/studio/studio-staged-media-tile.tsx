@@ -1,6 +1,7 @@
 "use client";
 
 import { Image as ImageIcon, ImagePlus, Play, Volume2, X } from "lucide-react";
+import type { HTMLAttributes } from "react";
 
 import {
   studioPreviewFallbackClassName,
@@ -21,6 +22,10 @@ type StudioStagedMediaTileProps = {
   className?: string;
   tileClassName?: string;
   testId?: string;
+  dropTarget?: Pick<
+    HTMLAttributes<HTMLDivElement>,
+    "onDragOver" | "onDragLeave" | "onDrop"
+  >;
 };
 
 export function StudioStagedMediaTile({
@@ -35,6 +40,7 @@ export function StudioStagedMediaTile({
   className,
   tileClassName,
   testId,
+  dropTarget,
 }: StudioStagedMediaTileProps) {
   const mediaVisual =
     visualUrl ??
@@ -44,7 +50,11 @@ export function StudioStagedMediaTile({
     (visualUrl && visualUrl !== preview.url ? visualUrl : null);
 
   return (
-    <div data-testid={testId} className={cn("group relative", className)}>
+    <div
+      {...dropTarget}
+      data-testid={testId}
+      className={cn("group relative", className)}
+    >
       <button
         type="button"
         onClick={() => onOpenPreview(preview)}

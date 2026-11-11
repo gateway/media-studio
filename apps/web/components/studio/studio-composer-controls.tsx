@@ -95,6 +95,7 @@ export function StudioComposerModelPicker({
   return (
     <PillSelect
       pickerId="model"
+      viewportOverlay
       open={open}
       onToggle={() => onOpenChange(!open)}
       onClose={() => onOpenChange(false)}
@@ -154,6 +155,7 @@ export function StudioComposerPresetPicker({
   return (
     <PillSelect
       pickerId="preset"
+      viewportOverlay={!inBrowser}
       appearance={inBrowser ? "admin" : "studio"}
       open={open}
       onToggle={() => onOpenChange(!open)}
@@ -269,6 +271,7 @@ export function StudioComposerControls({
         {modelMaxOutputs > 1 ? (
           <PillSelect
             pickerId="output-count"
+            viewportOverlay
             open={openPicker === "output-count"}
             onToggle={() =>
               onOpenPickerChange(
@@ -318,6 +321,7 @@ export function StudioComposerControls({
               <PillSelect
                 key={optionKey}
                 pickerId={optionKey}
+                viewportOverlay
                 open={openPicker === optionKey}
                 onToggle={() =>
                   onOpenPickerChange(

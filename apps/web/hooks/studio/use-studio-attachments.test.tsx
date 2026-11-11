@@ -305,6 +305,49 @@ it("replaces the library item at its exact position among uploaded images", asyn
   expect(URL.revokeObjectURL).not.toHaveBeenCalled();
 });
 
+it("replaces the targeted reference after an earlier image is removed during a gallery fetch", async () => {
+  const first = imageAttachment("first");
+  const target = imageAttachment("target", "reference");
+  const last = imageAttachment("last");
+  const staging = renderFileStaging([first, target, last]);
+  const galleryImage: MediaAsset = {
+    asset_id: "gallery-replacement",
+    generation_kind: "image",
+    created_at: "2026-11-07T00:00:00Z",
+    hero_original_url: "/files/gallery-replacement.png",
+  };
+  let finishFetch!: (response: Response) => void;
+  const fetchAsset = vi.spyOn(globalThis, "fetch").mockReturnValueOnce(
+    new Promise((resolve) => {
+      finishFetch = resolve;
+    }),
+  );
+
+  const pending = staging.current.actions.addGalleryAssetAsAttachment(
+    galleryImage,
+    null,
+    imageKinds,
+    { replaceAttachmentId: target.id },
+  );
+  expect(fetchAsset).toHaveBeenCalledOnce();
+  act(() => staging.current.actions.removeAttachment(first.id));
+  await act(async () => {
+    finishFetch(
+      new Response("gallery image", {
+        headers: { "Content-Type": "image/png" },
+      }),
+    );
+    await pending;
+  });
+
+  expect(staging.current.attachments).toHaveLength(2);
+  expect(staging.current.attachments[0]?.file?.name).toBe(
+    "gallery-replacement.png",
+  );
+  expect(staging.current.attachments[0]?.file?.type).toBe("image/png");
+  expect(staging.current.attachments[1]).toEqual(last);
+});
+
 it.each(["A", "B"])(
   "resolves replacement of B by identity after %s is removed during preview decoding",
   async (removedId) => {

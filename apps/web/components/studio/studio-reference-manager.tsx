@@ -14,6 +14,7 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type DragEvent,
   type MouseEvent,
   type RefObject,
@@ -55,12 +56,13 @@ export type StudioReferenceGroup = {
     visualUrl: string | null;
     token?: string;
     onRemove: () => void;
+    onDrop?: (event: DragEvent<HTMLElement>) => void;
     onReplace?: (files: FileList, input: HTMLInputElement) => void;
   }[];
   uploadTestId: string;
   onAdd: PickFiles;
   onDrop: (event: DragEvent<HTMLElement>) => void;
-  onOpenLibrary?: () => void;
+  onOpenLibrary?: (returnFocusTo: HTMLElement | null) => void;
 };
 
 export type StudioReferenceManagerProps = {
@@ -167,12 +169,14 @@ function ReferenceTiles({
   visibleCount,
   expanded = false,
   onOpenPreview,
+  onDragOver,
+  onDragLeave,
 }: {
   group: StudioReferenceGroup;
   visibleCount: number;
   expanded?: boolean;
   onOpenPreview: StudioReferenceManagerProps["onOpenPreview"];
-}) {
+} & Pick<ReferenceUploadProps, "onDragOver" | "onDragLeave">) {
   const { singular, icon: Icon } = referenceKinds[group.kind];
   return group.slots.slice(0, visibleCount).map((slot, index) => (
     <StudioStagedMediaTile
@@ -194,6 +198,11 @@ function ReferenceTiles({
       visualUrl={slot.visualUrl}
       onOpenPreview={onOpenPreview}
       onRemove={slot.onRemove}
+      dropTarget={
+        slot.onDrop
+          ? { onDragOver, onDragLeave, onDrop: slot.onDrop }
+          : undefined
+      }
       replaceControl={
         slot.onReplace && (
           <StudioStagedMediaReplaceControl
@@ -228,46 +237,32 @@ function ReferenceOverview({
   expandRef,
   density,
   expanded,
-  isDragActive,
   onOpen,
-  onDragOver,
-  onDragLeave,
 }: ReferenceViewProps & {
   density: "compact" | "large";
   expanded: boolean;
-  isDragActive: boolean;
   onOpen: (event: MouseEvent<HTMLButtonElement>) => void;
-  onDragOver: (event: DragEvent<HTMLElement>) => void;
-  onDragLeave: () => void;
 }) {
+  const { onDragOver, onDragLeave } = uploadProps;
   const overviewId = useId();
   const { singular, icon: KindIcon } = referenceKinds[group.kind];
   const used = group.slots.length;
   const showTabs = groups.length > 1;
   const compact = density === "compact";
-  const maxThumbnails = { compact: 4, large: 2 }[density];
-  const visibleCount = overviewThumbnailCount(
-    used,
-    maxThumbnails,
-    used < group.limit,
+  const rows = useSyncExternalStore(
+    subscribeToViewportResize,
+    referenceRows,
+    () => 1,
   );
-  const overflow = used - visibleCount;
+  const visibleCount = overviewThumbnailCount(group, compact, rows);
+  const overflow = (
+    <ReferenceOverflowButton
+      overflow={used - visibleCount}
+      singular={singular}
+      onOpen={onOpen}
+    />
+  );
   const expandLabel = `Expand ${singular} references`;
-  const panelProps = showTabs
-    ? {
-        id: overviewId,
-        role: "tabpanel",
-        "aria-labelledby": `${overviewId}-${group.kind}`,
-      }
-    : {};
-  const dropProps = compact
-    ? {
-        onDragOver,
-        onDragLeave,
-        onDrop: group.onDrop,
-        "data-drag-active": isDragActive,
-      }
-    : {};
 
   return (
     <section
@@ -295,6 +290,7 @@ function ReferenceOverview({
             </span>
           </>
         )}
+        {!compact && overflow}
         <IconButton
           ref={expandRef}
           icon={Maximize2}
@@ -306,9 +302,11 @@ function ReferenceOverview({
           shape="soft"
         />
       </div>
+      {!compact && (
+        <ReferenceLibraryButton group={group} returnFocusTo={expandRef} rail />
+      )}
       <div
-        {...panelProps}
-        {...dropProps}
+        {...overviewPanelProps(overviewId, showTabs, compact, uploadProps)}
         className="studio-ordered-reference-strip"
       >
         {expanded ? null : (
@@ -316,34 +314,83 @@ function ReferenceOverview({
             group={group}
             visibleCount={visibleCount}
             onOpenPreview={onOpenPreview}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
           />
         )}
-        {overflow > 0 && (
-          <Button
-            appearance="admin"
-            variant="subtle"
-            className="studio-ordered-reference-overflow"
-            aria-haspopup="dialog"
-            aria-label={`Show ${overflow} more ${singular} references`}
-            onClick={onOpen}
-          >
-            +{overflow}
-          </Button>
-        )}
+        {compact && overflow}
         {!expanded && <ReferenceUpload {...uploadProps} mode="overview" />}
       </div>
     </section>
   );
 }
 
-function overviewThumbnailCount(
-  used: number,
-  maxThumbnails: number,
-  canAdd: boolean,
+function overviewPanelProps(
+  id: string,
+  showTabs: boolean,
+  compact: boolean,
+  { group, onDragOver, onDragLeave, isDragActive }: ReferenceUploadProps,
 ) {
-  return used > maxThumbnails && canAdd
-    ? maxThumbnails - 1
-    : Math.min(used, maxThumbnails);
+  return {
+    ...(showTabs && {
+      id,
+      role: "tabpanel",
+      "aria-labelledby": `${id}-${group.kind}`,
+    }),
+    ...(compact && {
+      onDragOver,
+      onDragLeave,
+      onDrop: group.onDrop,
+      "data-drag-active": isDragActive,
+    }),
+  };
+}
+
+function subscribeToViewportResize(callback: () => void) {
+  window.addEventListener("resize", callback);
+  return () => window.removeEventListener("resize", callback);
+}
+
+function referenceRows() {
+  if (window.innerWidth < 768) return 1;
+  // Reserve room for the header, model, prompt and options. Each extra row
+  // takes at most 132px plus the 10px gap, even in the widest sidebar.
+  return Math.max(1, Math.floor((window.innerHeight - 700) / 142));
+}
+
+function ReferenceOverflowButton({
+  overflow,
+  singular,
+  onOpen,
+}: {
+  overflow: number;
+  singular: string;
+  onOpen: (event: MouseEvent<HTMLButtonElement>) => void;
+}) {
+  if (overflow <= 0) return null;
+  return (
+    <Button
+      appearance="admin"
+      variant="subtle"
+      className="studio-ordered-reference-overflow"
+      aria-haspopup="dialog"
+      aria-label={`Show ${overflow} more ${singular} references`}
+      onClick={onOpen}
+    >
+      +{overflow}
+    </Button>
+  );
+}
+
+function overviewThumbnailCount(
+  { slots, limit }: StudioReferenceGroup,
+  compact: boolean,
+  rows: number,
+) {
+  const used = slots.length;
+  const canAdd = used < limit;
+  if (!compact) return Math.min(used, rows * 2 - Number(canAdd));
+  return used > 4 && canAdd ? 3 : Math.min(used, 4);
 }
 
 type ReferenceUploadProps = {
@@ -397,6 +444,33 @@ function ReferenceUpload({
         </>
       )}
     </StudioMediaSlotAddTile>
+  );
+}
+
+function ReferenceLibraryButton({
+  group,
+  returnFocusTo,
+  rail,
+}: {
+  group: StudioReferenceGroup;
+  returnFocusTo: RefObject<HTMLButtonElement | null>;
+  rail?: boolean;
+}) {
+  if (group.slots.length >= group.limit || !group.onOpenLibrary) return null;
+  return (
+    <Button
+      appearance="admin"
+      variant="subtle"
+      aria-label="Choose from library"
+      className={rail ? "studio-reference-rail-library" : undefined}
+      onClick={(event) => {
+        event.currentTarget.focus();
+        group.onOpenLibrary?.(returnFocusTo.current);
+      }}
+    >
+      <FolderOpen aria-hidden="true" />{" "}
+      {rail ? "Library" : "Choose from library"}
+    </Button>
   );
 }
 
@@ -475,18 +549,7 @@ function ExpandedReferenceManager({
           </span>
           <div className="studio-expanded-reference-actions">
             <ReferenceUpload {...uploadProps} mode="footer" />
-            {available > 0 && group.onOpenLibrary && (
-              <Button
-                appearance="admin"
-                variant="subtle"
-                onClick={(event) => {
-                  event.currentTarget.focus();
-                  group.onOpenLibrary?.();
-                }}
-              >
-                <FolderOpen aria-hidden="true" /> Choose from library
-              </Button>
-            )}
+            <ReferenceLibraryButton group={group} returnFocusTo={expandRef} />
           </div>
           <Button
             appearance="admin"
@@ -519,6 +582,8 @@ function ExpandedReferenceManager({
             visibleCount={group.slots.length}
             expanded
             onOpenPreview={onOpenPreview}
+            onDragOver={uploadProps.onDragOver}
+            onDragLeave={uploadProps.onDragLeave}
           />
           <ReferenceUpload {...uploadProps} mode="tile" />
         </StudioBrowserGrid>
@@ -575,9 +640,6 @@ export function StudioReferenceManager({
         {...viewProps}
         density={compact ? "compact" : "large"}
         expanded={expanded}
-        isDragActive={isDragActive}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
         onOpen={(event) => {
           event.currentTarget.focus();
           setFeedbackAtOpen(feedback);

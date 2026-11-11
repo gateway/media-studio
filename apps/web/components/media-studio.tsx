@@ -1238,7 +1238,9 @@ export function MediaStudio({
     <StudioMultiImageReferenceStrip
       {...referenceManagerProps}
       imageLimit={maxImageInputs}
-      onOpenLibrary={() => openComposerReferenceLibrary("images")}
+      onOpenLibrary={(returnFocusTo) =>
+        openComposerReferenceLibrary("images", "reference", returnFocusTo)
+      }
       orderedImageInputs={orderedImageInputs}
       buildOrderedImageInputPreview={orderedImageInputPreview}
       onClearOrderedImageInput={clearOrderedImageInput}
@@ -1666,11 +1668,13 @@ export function MediaStudio({
       }
       if (action === "open-projects") {
         event.preventDefault();
+        setOpenPicker(null);
         setProjectBrowserOpen(true);
         return;
       }
       if (action === "open-presets") {
         event.preventDefault();
+        setOpenPicker(null);
         setPresetBrowserOpen(true);
         return;
       }
@@ -1695,6 +1699,7 @@ export function MediaStudio({
     openContextualReferenceLibrary,
     router,
     selectedProjectId,
+    setOpenPicker,
   ]);
 
   function handleSourceTileDrop(
@@ -1708,6 +1713,9 @@ export function MediaStudio({
     const galleryAssetId = event.dataTransfer.getData(
       "application/x-bumblebee-media-asset-id",
     );
+    const filledReference = dedicatedImageReferenceRailActive
+      ? orderedImageInputs[slotIndex]
+      : undefined;
     if (standardSlot) {
       if (galleryAssetId) {
         const asset =
@@ -1842,6 +1850,15 @@ export function MediaStudio({
         void addGalleryAssetAsAttachment(asset, role);
         return;
       }
+      if (filledReference) {
+        addGalleryAssetAsAttachment(
+          asset,
+          null,
+          ["images"],
+          orderedImageReplacement(filledReference),
+        ).catch(reportActionError);
+        return;
+      }
       if (slotIndex === 0) {
         stageAssetAsSource(asset, false);
         return;
@@ -1895,12 +1912,19 @@ export function MediaStudio({
       });
       return;
     }
+    if (filledReference) {
+      void addFiles(Array.from(event.dataTransfer.files).slice(0, 1), {
+        allowedKinds: ["images"],
+        ...orderedImageReplacement(filledReference),
+      }).catch(reportActionError);
+      return;
+    }
     addFiles(
       event.dataTransfer.files,
       dedicatedImageReferenceRailActive
         ? { allowedKinds: ["images"], insertImageIndex: slotIndex }
         : undefined,
-    );
+    ).catch(reportActionError);
   }
 
   function handleSeedanceReferenceDrop(
@@ -2150,26 +2174,28 @@ export function MediaStudio({
     slot: (typeof orderedImageInputs)[number],
     input: HTMLInputElement,
   ) {
-    const replacement =
-      slot.source === "asset"
-        ? {
-            claimSourceImage: prepareSourceReplacement(
-              slot.asset.asset_id,
-              clearSourceAsset,
-            ),
-          }
-        : {
-            replaceAttachmentId:
-              slot.source === "reference"
-                ? slot.attachmentId
-                : slot.attachment.id,
-          };
     expandStudioComposer();
     addFiles(files, {
       allowedKinds: ["images"],
-      ...replacement,
+      ...orderedImageReplacement(slot),
     }).catch(reportActionError);
     resetFileInputValue(input);
+  }
+
+  function orderedImageReplacement(slot: (typeof orderedImageInputs)[number]) {
+    return slot.source === "asset"
+      ? {
+          claimSourceImage: prepareSourceReplacement(
+            slot.asset.asset_id,
+            clearSourceAsset,
+          ),
+        }
+      : {
+          replaceAttachmentId:
+            slot.source === "reference"
+              ? slot.attachmentId
+              : slot.attachment.id,
+        };
   }
 
   function clearOrderedImageInput(

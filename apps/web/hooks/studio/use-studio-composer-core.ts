@@ -699,21 +699,6 @@ export function useStudioComposer({
   });
 
   useEffect(() => {
-    function closePicker(event: MouseEvent) {
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        target.closest("[data-studio-picker]")
-      ) {
-        return;
-      }
-      setOpenPicker(null);
-    }
-    window.addEventListener("mousedown", closePicker);
-    return () => window.removeEventListener("mousedown", closePicker);
-  }, []);
-
-  useEffect(() => {
     return () => {
       if (autoValidateTimerRef.current) {
         window.clearTimeout(autoValidateTimerRef.current);

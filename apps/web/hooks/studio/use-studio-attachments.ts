@@ -456,10 +456,13 @@ export function useStudioAttachments({
     asset: MediaAsset | null,
     role: NonNullable<AttachmentRecord["role"]> | null = null,
     allowedKinds?: AttachmentRecord["kind"][],
-    extraConfig: {
-      insertImageIndex?: number | null;
-      replaceImageIndex?: number | null;
-    } = {},
+    placement: Pick<
+      FileAddConfig,
+      | "insertImageIndex"
+      | "replaceImageIndex"
+      | "replaceAttachmentId"
+      | "claimSourceImage"
+    > = {},
   ) {
     if (!asset) {
       setFormMessage({
@@ -512,29 +515,15 @@ export function useStudioAttachments({
               ? "audio/wav"
               : "image/png"),
       });
-      const addConfig =
-        role != null || allowedKinds?.length
-          ? {
-              ...(role != null ? { role } : {}),
-              ...(allowedKinds?.length
-                ? { allowedKinds }
-                : { allowedKinds: [kind] }),
-              ...(extraConfig.insertImageIndex != null
-                ? { insertImageIndex: extraConfig.insertImageIndex }
-                : {}),
-              ...(extraConfig.replaceImageIndex != null
-                ? { replaceImageIndex: extraConfig.replaceImageIndex }
-                : {}),
-            }
-          : {
-              ...(extraConfig.insertImageIndex != null
-                ? { insertImageIndex: extraConfig.insertImageIndex }
-                : {}),
-              ...(extraConfig.replaceImageIndex != null
-                ? { replaceImageIndex: extraConfig.replaceImageIndex }
-                : {}),
-            };
-      addFiles([file], addConfig);
+      await addFiles([file], {
+        ...placement,
+        ...(role != null ? { role } : {}),
+        allowedKinds: allowedKinds?.length
+          ? allowedKinds
+          : role != null
+            ? [kind]
+            : undefined,
+      });
     } catch {
       setFormMessage({
         tone: "danger",

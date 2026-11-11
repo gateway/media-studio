@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PillSelect } from "@/components/ui/pill-select";
@@ -93,25 +94,21 @@ describe("PillSelect", () => {
   });
 });
 
-it("keeps in-flow model menu height stable while the menu scrolls", () => {
-  let pickerBottom = 120;
+it("positions the composer menu outside flow and flips it as the rail scrolls", () => {
+  let top = 76;
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
-    function (this: HTMLElement) {
-      const bottom = this.hasAttribute("data-studio-picker")
-        ? pickerBottom
-        : 120;
-      return {
-        x: 0,
-        y: 76,
-        top: 76,
-        left: 0,
-        bottom,
-        right: 340,
+    () =>
+      ({
+        x: 12,
+        y: top,
+        top,
+        left: 12,
+        bottom: top + 44,
+        right: 352,
         width: 340,
-        height: bottom - 76,
+        height: 44,
         toJSON: () => ({}),
-      } as DOMRect;
-    },
+      }) as DOMRect,
   );
   Object.defineProperty(window, "innerHeight", {
     configurable: true,
@@ -121,6 +118,7 @@ it("keeps in-flow model menu height stable while the menu scrolls", () => {
   render(
     <PillSelect
       pickerId="model"
+      viewportOverlay
       open
       onToggle={vi.fn()}
       onClose={vi.fn()}
@@ -136,11 +134,57 @@ it("keeps in-flow model menu height stable while the menu scrolls", () => {
     .getByText("Seedance 2.5")
     .closest(".scrollbar-none") as HTMLElement;
   expect(menu.style.maxHeight).toBe("520px");
-  pickerBottom = 660;
+  expect(menu.style.position).toBe("fixed");
+  expect(menu.style.top).toBe("132px");
+  expect(menu.style.left).toBe("12px");
+  top = 855;
+  fireEvent.scroll(window);
+  expect(menu.style.top).toBe("auto");
+  expect(menu.style.bottom).toBe("149px");
   fireEvent.scroll(menu);
   expect(menu.style.maxHeight).toBe("520px");
   fireEvent.click(screen.getByText("Seedance 2.5"));
   expect(onSelect).toHaveBeenCalledExactlyOnceWith("seedance-2.5");
+});
+
+it("closes when the SVG caret is clicked again or focus leaves the picker", () => {
+  function ComposerMenu() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <PillSelect
+          pickerId="model"
+          viewportOverlay
+          open={open}
+          onToggle={() => setOpen(!open)}
+          onClose={() => setOpen(false)}
+          label="Current model"
+          choices={[{ value: "different", label: "Different model" }]}
+          onSelect={vi.fn()}
+        />
+        <button type="button">Open another panel</button>
+      </>
+    );
+  }
+  render(<ComposerMenu />);
+  const trigger = screen.getByRole("button", { name: "Current model" });
+  const caret = trigger.querySelector("svg path")!;
+  fireEvent.click(caret);
+  expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  fireEvent.pointerDown(caret);
+  fireEvent.mouseDown(caret);
+  expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  fireEvent.click(caret);
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+  fireEvent.click(trigger);
+  const option = screen.getByTestId("studio-picker-option-model-different");
+  fireEvent.blur(trigger, { relatedTarget: option });
+  expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  fireEvent.blur(option, {
+    relatedTarget: screen.getByText("Open another panel"),
+  });
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
 });
 
 it.each([
