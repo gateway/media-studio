@@ -67,7 +67,7 @@ export function StudioPromptComposerBody<
   return (
     <div className="studio-prompt-body">
       <StudioMultiShotToggle enabled={multiShotsEnabled} control={multiShot} />
-      <div className="relative">
+      <div className="studio-prompt-editor relative">
         <label className="block">
           <span
             className={multiShotsEnabled ? "sr-only" : "studio-prompt-label"}

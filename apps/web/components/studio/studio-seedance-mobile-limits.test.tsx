@@ -275,10 +275,32 @@ it("uses one manager for hidden slots and preserves the selected kind and drop r
   );
   expect(managerVideos.tabIndex).toBe(0);
   expect(manager.getByRole("tab", { name: "Images 0/30" }).tabIndex).toBe(-1);
-  fireEvent.click(manager.getByRole("button", { name: "Choose from library" }));
-  expect(base.onOpenLibrary).toHaveBeenLastCalledWith("videos");
+  const expand = screen.getByRole("button", {
+    name: "Expand video references",
+  });
+  fireEvent.click(
+    manager.getByRole("button", { name: "Add video references" }),
+  );
+  fireEvent.click(manager.getByText("Choose from library"));
+  expect(base.onOpenLibrary).toHaveBeenLastCalledWith(
+    "videos",
+    "reference",
+    expand,
+  );
 
-  const replace = manager.getByLabelText("Replace video reference 7");
+  const replace = manager.getByTestId(
+    "seedance-group-tile-videos-videos-6-replace",
+  );
+  fireEvent.click(
+    manager.getByRole("button", { name: "Replace video reference 7" }),
+  );
+  fireEvent.click(manager.getByText("Choose from library"));
+  expect(base.onOpenLibrary).toHaveBeenLastCalledWith(
+    "videos",
+    "reference",
+    expand,
+    { replaceAttachmentId: videos[6].id },
+  );
   const replacement = new File([], "replacement.mp4", { type: "video/mp4" });
   fireEvent.change(replace, { target: { files: [replacement] } });
   expect(base.onAddFiles).toHaveBeenLastCalledWith([replacement], {
@@ -292,8 +314,15 @@ it("uses one manager for hidden slots and preserves the selected kind and drop r
   expect(base.onRemoveAttachment).toHaveBeenCalledExactlyOnceWith(videos[6].id);
 
   fireEvent.click(manager.getByRole("tab", { name: "Images 0/30" }));
-  fireEvent.click(manager.getByRole("button", { name: "Choose from library" }));
-  expect(base.onOpenLibrary).toHaveBeenLastCalledWith("images");
+  fireEvent.click(
+    manager.getByRole("button", { name: "Add image references" }),
+  );
+  fireEvent.click(manager.getByText("Choose from library"));
+  expect(base.onOpenLibrary).toHaveBeenLastCalledWith(
+    "images",
+    "reference",
+    expand,
+  );
 
   fireEvent.keyDown(dialog, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
@@ -350,7 +379,7 @@ it.each(groups)(
         allowedKinds: [kind],
       });
       expect(base.onResetFileInput).toHaveBeenLastCalledWith(input);
-      fireEvent.drop(input.closest("label")!);
+      fireEvent.drop(input.parentElement!);
       expect(base.onReferenceDrop).toHaveBeenLastCalledWith(
         expect.anything(),
         kind,

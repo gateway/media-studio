@@ -15,6 +15,7 @@ import {
 } from "@/components/studio/studio-reference-manager";
 import { IconButton } from "@/components/ui/icon-button";
 import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
+import type { StudioAttachmentReplacement } from "@/hooks/studio/use-studio-attachments";
 import type {
   AttachmentPreviewBuilder,
   StudioAddFilesHandler,
@@ -45,7 +46,12 @@ type StudioSeedanceReferenceStripProps = StudioReferenceManagerProps & {
     event: DragEvent<HTMLElement>,
     kind: AttachmentRecord["kind"],
   ) => void;
-  onOpenLibrary: (kind: AttachmentRecord["kind"]) => void;
+  onOpenLibrary: (
+    kind: AttachmentRecord["kind"],
+    role: "reference",
+    returnFocusTo: HTMLElement | null,
+    replacement?: StudioAttachmentReplacement,
+  ) => void;
   onRemoveAttachment: (attachmentId: string) => void;
   onAddFiles: StudioAddFilesHandler;
   onResetFileInput: (input: HTMLInputElement | null) => void;
@@ -93,6 +99,10 @@ export function StudioSeedanceReferenceStrip({
               ),
               visualUrl: seedanceReferenceVisual(attachment),
               onRemove: () => onRemoveAttachment(attachment.id),
+              onOpenReplacementLibrary: (returnFocusTo) =>
+                onOpenLibrary(kind, "reference", returnFocusTo, {
+                  replaceAttachmentId: attachment.id,
+                }),
               onReplace: (files, input) => {
                 onAddFiles(files, {
                   role: "reference",
@@ -108,7 +118,8 @@ export function StudioSeedanceReferenceStrip({
               onResetFileInput(input);
             },
             onDrop: (event) => onReferenceDrop(event, kind),
-            onOpenLibrary: () => onOpenLibrary(kind),
+            onOpenLibrary: (returnFocusTo) =>
+              onOpenLibrary(kind, "reference", returnFocusTo),
           };
         },
       )}

@@ -863,9 +863,12 @@ html:has(.studio-browser-backdrop) {
   gap: 16px;
 }
 
-.studio-expanded-reference-grid .studio-ordered-reference-tile,
-.studio-reference-add-tile {
+.studio-expanded-reference-grid
+  .studio-ordered-reference-tile
+  > .surface-preview-frame,
+.studio-reference-add-tile .studio-reference-source-trigger {
   width: 100%;
+  height: auto;
   min-width: 0;
   aspect-ratio: 1.36;
 }
@@ -889,7 +892,7 @@ html:has(.studio-browser-backdrop) {
   align-items: center;
   gap: 12px;
   height: 36px;
-  padding-inline: 12px 76px;
+  padding-inline: 12px;
   border-top: 1px solid var(--border-soft);
   background: var(--ms-surface-secondary);
   color: var(--text-primary);
@@ -908,36 +911,10 @@ html:has(.studio-browser-backdrop) {
   white-space: nowrap;
 }
 
-.studio-reference-add-tile .studio-slot-tile {
-  width: 100%;
-  height: 100%;
-  min-height: 140px;
-  flex-direction: column;
-  gap: 12px;
-  border-style: dashed;
-  background: transparent;
-  color: var(--text-primary);
-}
-
 .studio-expanded-reference-actions svg {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-}
-
-.studio-reference-add-tile .studio-slot-tile > svg {
-  width: 28px;
-  height: 28px;
-  color: var(--accent-strong);
-}
-
-.studio-reference-add-title {
-  font-size: 1rem;
-}
-
-.studio-reference-add-hint {
-  color: var(--text-muted);
-  font-size: 0.8125rem;
 }
 
 .studio-expanded-reference-feedback {
@@ -960,12 +937,6 @@ html:has(.studio-browser-backdrop) {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-}
-
-.studio-expanded-reference-actions .studio-slot-tile-drag-active {
-  --action-subtle-border: var(--accent-border);
-  --action-subtle-surface: var(--accent-soft);
-  --action-subtle-surface-hover: var(--accent-soft);
 }
 
 @media (width < 600px), (height <= 700px) {
@@ -1070,8 +1041,10 @@ html:has(.studio-browser-backdrop) {
     gap: 10px;
   }
 
-  .studio-expanded-reference-grid .studio-ordered-reference-tile,
-  .studio-reference-add-tile {
+  .studio-expanded-reference-grid
+    .studio-ordered-reference-tile
+    > .surface-preview-frame,
+  .studio-reference-add-tile .studio-reference-source-trigger {
     aspect-ratio: 1;
   }
 
@@ -1086,20 +1059,7 @@ html:has(.studio-browser-backdrop) {
   }
 
   .studio-reference-tile-caption {
-    height: auto;
-    padding: 4px;
-    border: 0;
-    background: transparent;
-  }
-
-  .studio-reference-tile-caption,
-  .studio-reference-add-tile
-    :is(.studio-reference-add-title, .studio-reference-add-hint) {
     @apply sr-only;
-  }
-
-  .studio-reference-add-tile .studio-slot-tile {
-    min-height: 0;
   }
 
   .studio-expanded-reference-footer {
@@ -1114,7 +1074,6 @@ html:has(.studio-browser-backdrop) {
 
   .studio-expanded-reference-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     flex-shrink: 0;
     gap: 8px;
     margin: 0 16px 8px;
@@ -1124,7 +1083,9 @@ html:has(.studio-browser-backdrop) {
     display: none;
   }
 
-  .studio-expanded-reference-actions :is(button, label) {
+  .studio-expanded-reference-actions
+    > .studio-reference-add-footer
+    .studio-reference-source-trigger {
     width: 100%;
     min-height: 44px;
     gap: 6px;

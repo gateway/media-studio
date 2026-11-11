@@ -1238,8 +1238,13 @@ export function MediaStudio({
     <StudioMultiImageReferenceStrip
       {...referenceManagerProps}
       imageLimit={maxImageInputs}
-      onOpenLibrary={(returnFocusTo) =>
-        openComposerReferenceLibrary("images", "reference", returnFocusTo)
+      onOpenLibrary={(returnFocusTo, replacement) =>
+        openComposerReferenceLibrary(
+          "images",
+          "reference",
+          returnFocusTo,
+          replacement && orderedImageReplacement(replacement),
+        )
       }
       orderedImageInputs={orderedImageInputs}
       buildOrderedImageInputPreview={orderedImageInputPreview}
@@ -2383,7 +2388,11 @@ export function MediaStudio({
 
   return (
     <div className={immersive ? "min-h-dvh" : "space-y-7"}>
-      <StudioCreateStage immersive={immersive}>
+      <StudioCreateStage
+        immersive={immersive}
+        composerCollapsed={desktopComposerCollapsed}
+        inspectorOpen={Boolean(selectedAsset)}
+      >
         <div hidden={presetBrowserOpen}>{renderStudioHeader()}</div>
 
         <StudioGallery
@@ -2416,7 +2425,7 @@ export function MediaStudio({
 
         {!selectedAsset ? (
           <>
-            <div ref={composerShellRef}>
+            <div id="studio-composer-shell" ref={composerShellRef}>
               <StudioComposer
                 immersive={immersive}
                 composerCollapsed={desktopComposerCollapsed}

@@ -15,7 +15,10 @@ import {
 
 type StudioMultiImageReferenceStripProps = StudioReferenceManagerProps & {
   imageLimit: number;
-  onOpenLibrary: (returnFocusTo: HTMLElement | null) => void;
+  onOpenLibrary: (
+    returnFocusTo: HTMLElement | null,
+    replacement?: OrderedImageInput,
+  ) => void;
   orderedImageInputs: OrderedImageInput[];
   buildOrderedImageInputPreview: (
     slot: OrderedImageInput | null,
@@ -71,6 +74,8 @@ export function StudioMultiImageReferenceStrip({
               onDrop: (event) => onDropIntoSlot(event, index),
               onReplace: (files, input) =>
                 onReplaceImageFile(files, slot, input),
+              onOpenReplacementLibrary: (returnFocusTo) =>
+                onOpenLibrary(returnFocusTo, slot),
             };
           }),
           uploadTestId: "studio-multi-image-input",

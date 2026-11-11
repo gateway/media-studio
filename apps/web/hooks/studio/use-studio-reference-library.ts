@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import type { StudioAttachmentReplacement } from "@/hooks/studio/use-studio-attachments";
 import type {
   AttachmentRecord,
   ComposerStatusMessage,
@@ -21,6 +22,7 @@ export type ReferenceLibraryTarget =
       title: string;
       role?: "first_frame" | "last_frame" | "reference" | null;
       allowedKinds?: AttachmentRecord["kind"][];
+      replacement?: StudioAttachmentReplacement;
     }
   | {
       type: "standard-slot";
@@ -117,7 +119,7 @@ function composerReferenceTitle(role: NonNullable<AttachmentRecord["role"]>) {
   return `Pick a reusable image for the ${role === "first_frame" ? "start" : "end"} frame.`;
 }
 
-type AddReferenceMediaOptions = {
+type AddReferenceMediaOptions = StudioAttachmentReplacement & {
   role?: "first_frame" | "last_frame" | "reference";
   allowedKinds?: AttachmentRecord["kind"][];
   insertImageIndex?: number;
@@ -207,13 +209,17 @@ export function useStudioReferenceLibrary({
     kind: AttachmentRecord["kind"],
     role: NonNullable<AttachmentRecord["role"]> = "reference",
     returnFocusTo?: HTMLElement | null,
+    replacement?: StudioAttachmentReplacement,
   ) {
     openReferenceLibrary(
       {
         type: "attachment",
-        title: composerReferenceTitle(role),
+        title: replacement
+          ? "Choose a replacement from your reference library."
+          : composerReferenceTitle(role),
         role,
         allowedKinds: [kind],
+        replacement,
       },
       returnFocusTo,
     );
@@ -338,6 +344,7 @@ export function useStudioReferenceLibrary({
       addReferenceMediaAsAttachment(reference, {
         role: target.role ?? undefined,
         allowedKinds: target.allowedKinds,
+        ...target.replacement,
       });
     },
     [

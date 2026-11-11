@@ -167,7 +167,27 @@ function renderFileStaging(
       setAttachments,
       setPresetSlotStates: vi.fn(),
     });
-    return { actions, attachments, source, reportStatus };
+    const library = useStudioReferenceLibrary({
+      canOpenReferenceLibrary: true,
+      structuredPresetActive: false,
+      structuredPresetImageSlots: [],
+      presetSlotStates: {},
+      seedanceComposer,
+      seedanceFirstFrameAttachment: null,
+      seedanceLastFrameAttachment: null,
+      effectiveSeedanceMode: "prompt_only",
+      standardComposerUsesExplicitSlots: false,
+      standardComposerSlots: [],
+      orderedImageInputCount: attachments.length + sourceCount,
+      dedicatedImageReferenceRailActive: !seedanceComposer,
+      setOpenPicker: vi.fn(),
+      setFormMessage: reportStatus,
+      assignPresetSlotReference: actions.assignPresetSlotReference,
+      clearSourceAsset: () => source.setSourceAssetId(null),
+      addReferenceMediaAsAttachment: actions.addReferenceMediaAsAttachment,
+      orderedImageInputSourceAt: () => null,
+    });
+    return { actions, attachments, source, reportStatus, library };
   });
   return result;
 }
@@ -457,6 +477,91 @@ it("appends a library reference after a gallery source and an uploaded image", (
     });
   });
   expect(staging.current.attachments).toHaveLength(2);
+});
+
+const replacementLibraryImage: MediaReference = {
+  reference_id: "library-replacement",
+  kind: "image",
+  status: "ready",
+  stored_path: "references/replacement.png",
+  stored_url: "/references/replacement.png",
+  file_size_bytes: 12,
+  sha256: "fixture",
+  usage_count: 0,
+};
+
+it.each([false, true])(
+  "replaces exactly the chosen reference through the library at capacity (Seedance: %s)",
+  (seedance) => {
+    const fetchUsage = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response());
+    const role = seedance ? "reference" : null;
+    const first = imageAttachment("first", role);
+    const target = imageAttachment("target", role);
+    const last = imageAttachment("last", role);
+    const staging = renderFileStaging([first, target, last], 0, 3, seedance);
+    const opener = document.createElement("button");
+    const openReplacement = () =>
+      staging.current.library.openComposerReferenceLibrary(
+        "images",
+        "reference",
+        opener,
+        {
+          replaceAttachmentId: target.id,
+        },
+      );
+
+    act(openReplacement);
+    expect(staging.current.library.referenceLibraryReturnFocus.current).toBe(
+      opener,
+    );
+    act(() => staging.current.library.setReferenceLibraryTarget(null));
+    expect(staging.current.attachments).toEqual([first, target, last]);
+    expect(fetchUsage).not.toHaveBeenCalled();
+
+    act(openReplacement);
+    act(() =>
+      staging.current.library.handleReferenceLibrarySelect(
+        replacementLibraryImage,
+      ),
+    );
+    expect(staging.current.attachments).toEqual([
+      first,
+      expect.objectContaining({
+        referenceId: replacementLibraryImage.reference_id,
+      }),
+      last,
+    ]);
+    expect(staging.current.library.referenceLibraryTarget).toBeNull();
+    expect(fetchUsage).toHaveBeenCalledOnce();
+  },
+);
+
+it("uses the source claim for library replacement and preserves its first position", () => {
+  const following = imageAttachment("following");
+  const staging = renderFileStaging([following], 1);
+  act(() => staging.current.source.setSourceAssetId("gallery-source"));
+  const claimSourceImage = staging.current.source.prepareSourceReplacement(
+    "gallery-source",
+    () => staging.current.source.setSourceAssetId(null),
+  );
+  act(() =>
+    staging.current.actions.addReferenceMediaAsAttachment(
+      replacementLibraryImage,
+      {
+        allowedKinds: imageKinds,
+        claimSourceImage,
+      },
+    ),
+  );
+  expect(staging.current.source.sourceAssetId).toBeNull();
+  expect(staging.current.attachments).toEqual([
+    expect.objectContaining({
+      referenceId: replacementLibraryImage.reference_id,
+    }),
+    following,
+  ]);
 });
 
 it("replaces the requested filled preset slot while an earlier slot is empty", () => {

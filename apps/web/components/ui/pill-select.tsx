@@ -46,8 +46,10 @@ type PillSelectProps = {
   menuAlign?: "start" | "end";
   viewportOverlay?: boolean;
   triggerRef?: RefObject<HTMLButtonElement | null>;
+  triggerClassName?: string;
   choiceIcon?: (choice: PillSelectChoice) => LucideIcon | null | undefined;
   label: string;
+  triggerLabel?: string;
   choices: PillSelectChoice[];
   selectedValue?: string;
   menuTitle?: string;
@@ -68,8 +70,10 @@ export function PillSelect({
   menuAlign = "start",
   viewportOverlay = false,
   triggerRef,
+  triggerClassName,
   choiceIcon,
   label,
+  triggerLabel,
   choices,
   selectedValue,
   menuTitle,
@@ -218,11 +222,11 @@ export function PillSelect({
         aria-label={label}
         title={label}
         onClick={onToggle}
-        className={pillSelectButtonClassName(appearance)}
+        className={cn(pillSelectButtonClassName(appearance), triggerClassName)}
       >
         <PillSelectTriggerContent
           Icon={SelectedIcon}
-          label={label}
+          label={triggerLabel ?? label}
           iconOnly={iconOnly}
           appearance={appearance}
           open={open}

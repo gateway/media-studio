@@ -561,7 +561,7 @@ textarea {
   --studio-header-end: calc(
     var(--studio-header-size) + env(safe-area-inset-top)
   );
-  --studio-rail-size: clamp(304px, 25vw, 368px);
+  --studio-rail-size: clamp(328px, 28vw, 400px);
   --studio-control-size: 34px;
 
   min-height: 100dvh;
@@ -2888,7 +2888,7 @@ textarea {
 }
 
 .studio-ordered-references {
-  --studio-ordered-reference-size: min(132px, calc((100cqw - 4px) * 0.4));
+  --studio-ordered-reference-size: min(168px, calc((100cqw - 10px) / 2));
   --studio-ordered-reference-height: var(--studio-ordered-reference-size);
   --studio-ordered-reference-gap: 10px;
 
@@ -2897,10 +2897,9 @@ textarea {
 
 .studio-ordered-references[data-reference-density="compact"] {
   /* Four previews and one overflow tile, or reserve a cell for Add. */
-  --studio-ordered-reference-size: min(62px, calc((100cqw - 32px) / 5));
-  --studio-ordered-reference-action-size: var(--studio-ordered-reference-size);
+  --studio-ordered-reference-size: min(82px, calc((100cqw - 32px) / 5));
   --studio-ordered-reference-height: min(
-    65px,
+    85px,
     calc(var(--studio-ordered-reference-size) + 3px)
   );
   --studio-ordered-reference-gap: 8px;
@@ -2988,44 +2987,40 @@ textarea {
   min-height: 0;
 }
 
-[data-reference-density="large"] .studio-reference-add-overview {
-  --studio-ordered-reference-action-size: 100%;
-}
-
-.studio-reference-rail-library {
-  margin-block-end: 10px;
-}
-
-.studio-reference-rail-library > svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-:where(.studio-ordered-reference-strip) > .studio-ordered-reference-tile {
+.studio-ordered-reference-strip
+  > :is(.studio-ordered-reference-tile, .studio-reference-add-overview) {
   width: var(--studio-ordered-reference-size);
-  height: var(--studio-ordered-reference-height);
 }
 
 .studio-ordered-reference-strip
-  :is(.studio-slot-tile, .studio-ordered-reference-overflow) {
-  width: var(--studio-ordered-reference-action-size);
+  :is(
+    .studio-ordered-reference-tile > .surface-preview-frame,
+    .studio-reference-add-overview .studio-reference-source-trigger,
+    .studio-ordered-reference-overflow
+  ) {
   height: var(--studio-ordered-reference-height);
-  min-height: 0;
-  padding: 0;
-  border-radius: var(--radius-control);
 }
 
-.studio-ordered-reference-strip .studio-slot-tile {
+.studio-reference-source-trigger {
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.studio-reference-source-trigger > :where(span) {
+  flex: none;
+}
+
+.studio-reference-add-overview .studio-reference-source-trigger,
+.studio-reference-add-tile .studio-reference-source-trigger {
   border-style: dashed;
-}
-
-:where(.studio-ordered-reference-strip)
-  .studio-slot-tile:not(:hover, .studio-slot-tile-drag-active) {
   background: transparent;
 }
 
-.studio-ordered-reference-strip .studio-ordered-reference-overflow {
+.studio-ordered-reference-strip > .studio-ordered-reference-overflow {
+  width: var(--studio-ordered-reference-size);
+  padding: 0;
+  border-radius: var(--radius-control);
   font-size: 1rem;
   font-weight: 400;
 }
@@ -3065,12 +3060,20 @@ textarea {
   font-weight: 600;
 }
 
-.studio-ordered-reference-tile .studio-staged-media-replace {
-  inset: auto calc(var(--studio-reference-control-size) + 5px) 4px auto;
+.studio-ordered-reference-tile > .studio-staged-media-replace {
+  position: static;
+  margin-block-start: 4px;
+}
+
+.studio-ordered-reference-tile .studio-reference-source-trigger {
+  --studio-control-size: 28px;
+
+  height: var(--studio-control-size);
+  padding-inline: 4px;
 }
 
 .studio-ordered-reference-tile .studio-staged-media-remove {
-  inset: auto 4px 4px auto;
+  inset: 4px 4px auto auto;
   opacity: 1;
 }
 
@@ -3079,25 +3082,52 @@ textarea {
   height: var(--studio-reference-control-size);
 }
 
+[data-reference-density="compact"] .studio-reference-source-trigger {
+  --studio-picker-font-size: 0.6875rem;
+
+  gap: 2px;
+  padding-inline: 2px;
+  font-size: var(--studio-picker-font-size);
+  letter-spacing: normal;
+}
+
+[data-reference-density="compact"]
+  .studio-reference-source-trigger
+  > :is(.studio-select-chevron, .lucide-plus) {
+  display: none;
+}
+
 [data-reference-density="compact"] .studio-ordered-reference-tile {
   --studio-reference-control-size: min(
     24px,
-    calc((var(--studio-ordered-reference-size) - 9px) / 2)
+    calc(var(--studio-ordered-reference-height) - 20px)
+  );
+}
+
+[data-reference-density="compact"] .studio-staged-media-remove {
+  inset-block-start: calc(
+    var(--studio-ordered-reference-height) -
+      var(--studio-reference-control-size) - 1px
   );
 }
 
 [data-reference-density="compact"] .studio-staged-media-position {
+  inset-block-start: 1px;
   width: 18px;
   height: 18px;
   font-size: 0.6875rem;
 }
 
-@media (width >= 1024px) and (hover: hover) {
-  [data-reference-density="compact"]
-    .studio-ordered-reference-tile:not(:hover, :focus-within)
-    :is(.studio-staged-media-replace, .studio-staged-media-remove) {
-    opacity: 0;
-  }
+:is(.studio-reference-add-overview, .studio-reference-add-tile)
+  .studio-reference-source-trigger:hover,
+:is(
+    .studio-reference-add-overview,
+    .studio-reference-add-tile,
+    .studio-reference-add-footer
+  )[data-drag-active="true"]
+  .studio-reference-source-trigger {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 
 .studio-staged-media-replace-input:has(> input:focus-visible),
@@ -3198,6 +3228,36 @@ textarea {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
+  }
+
+  .studio-composer-divider {
+    position: fixed;
+    inset: var(--studio-header-end) auto 0 var(--studio-rail-size);
+    z-index: 71;
+    width: 14px;
+    transform: translateX(-50%);
+    cursor: col-resize;
+    touch-action: none;
+  }
+
+  .studio-composer-divider::after {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 5px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    border-radius: var(--radius-control);
+    background: var(--border-strong);
+    content: "";
+  }
+
+  .studio-composer-divider:is(:hover, :focus-visible, :active)::after {
+    background: var(--accent-strong);
+  }
+
+  .studio-composer-divider:focus-visible {
+    outline: 2px solid var(--accent-strong);
+    outline-offset: -2px;
   }
 
   :where(.studio-create-stage-immersive)
@@ -3303,6 +3363,35 @@ textarea {
     @media (height <= 700px) {
       min-height: 120px;
     }
+  }
+
+  :where(.studio-create-stage-immersive) .studio-prompt-body {
+    flex: 1 0 auto;
+  }
+
+  :where(.studio-create-stage-immersive)
+    :is(
+      .studio-prompt-body,
+      .studio-prompt-editor,
+      .studio-prompt-editor > label
+    ) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  :where(.studio-create-stage-immersive)
+    :is(
+      .studio-prompt-editor,
+      .studio-prompt-editor > label,
+      .studio-prompt-textarea
+    ) {
+    flex: 1 0 auto;
+  }
+
+  :where(.studio-create-stage-immersive)
+    .studio-composer-rail[data-structured-preset-active="false"]
+    .studio-composer-controls-bar {
+    flex: 0 0 auto;
   }
 
   :where(.studio-create-stage-immersive) .studio-composer-options {
@@ -3622,10 +3711,7 @@ textarea {
   }
 
   [data-reference-density="compact"] .studio-ordered-reference-tile {
-    --studio-reference-control-size: min(
-      34px,
-      calc((var(--studio-ordered-reference-size) - 9px) / 2)
-    );
+    --studio-reference-control-size: 30px;
   }
 
   :where(.studio-create-stage-immersive) .studio-prompt-body {

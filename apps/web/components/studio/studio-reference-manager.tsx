@@ -3,11 +3,8 @@
 import {
   AudioLines,
   Clapperboard,
-  FolderOpen,
   Image as ImageIcon,
   Maximize2,
-  Plus,
-  Upload,
   X,
 } from "lucide-react";
 import {
@@ -25,11 +22,8 @@ import {
   StudioBrowserGrid,
   StudioBrowserOverlay,
 } from "@/components/studio/studio-browser-surface";
-import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
-import {
-  StudioStagedMediaReplaceControl,
-  StudioStagedMediaTile,
-} from "@/components/studio/studio-staged-media-tile";
+import { StudioReferenceSourceMenu } from "@/components/studio/studio-reference-source-menu";
+import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { ToastBanner } from "@/components/ui/toast-banner";
@@ -57,12 +51,13 @@ export type StudioReferenceGroup = {
     token?: string;
     onRemove: () => void;
     onDrop?: (event: DragEvent<HTMLElement>) => void;
-    onReplace?: (files: FileList, input: HTMLInputElement) => void;
+    onReplace: (files: FileList, input: HTMLInputElement) => void;
+    onOpenReplacementLibrary: (returnFocusTo: HTMLElement | null) => void;
   }[];
   uploadTestId: string;
   onAdd: PickFiles;
   onDrop: (event: DragEvent<HTMLElement>) => void;
-  onOpenLibrary?: (returnFocusTo: HTMLElement | null) => void;
+  onOpenLibrary: (returnFocusTo: HTMLElement | null) => void;
 };
 
 export type StudioReferenceManagerProps = {
@@ -169,6 +164,7 @@ function ReferenceTiles({
   visibleCount,
   expanded = false,
   onOpenPreview,
+  expandRef,
   onDragOver,
   onDragLeave,
 }: {
@@ -176,6 +172,7 @@ function ReferenceTiles({
   visibleCount: number;
   expanded?: boolean;
   onOpenPreview: StudioReferenceManagerProps["onOpenPreview"];
+  expandRef: RefObject<HTMLButtonElement | null>;
 } & Pick<ReferenceUploadProps, "onDragOver" | "onDragLeave">) {
   const { singular, icon: Icon } = referenceKinds[group.kind];
   return group.slots.slice(0, visibleCount).map((slot, index) => (
@@ -204,14 +201,16 @@ function ReferenceTiles({
           : undefined
       }
       replaceControl={
-        slot.onReplace && (
-          <StudioStagedMediaReplaceControl
-            label={`Replace ${singular} reference ${index + 1}`}
-            accept={`${singular}/*`}
-            testId={`${slot.testId}-replace`}
-            onPickFiles={slot.onReplace}
-          />
-        )
+        <StudioReferenceSourceMenu
+          action="Replace"
+          label={`Replace ${singular} reference ${index + 1}`}
+          accept={`${singular}/*`}
+          testId={`${slot.testId}-replace`}
+          onPickFiles={(files, input) => {
+            if (files?.length) slot.onReplace(files, input);
+          }}
+          onOpenLibrary={() => slot.onOpenReplacementLibrary(expandRef.current)}
+        />
       }
       className="studio-ordered-reference-tile"
       testId={slot.testId}
@@ -302,9 +301,6 @@ function ReferenceOverview({
           shape="soft"
         />
       </div>
-      {!compact && (
-        <ReferenceLibraryButton group={group} returnFocusTo={expandRef} rail />
-      )}
       <div
         {...overviewPanelProps(overviewId, showTabs, compact, uploadProps)}
         className="studio-ordered-reference-strip"
@@ -314,12 +310,19 @@ function ReferenceOverview({
             group={group}
             visibleCount={visibleCount}
             onOpenPreview={onOpenPreview}
+            expandRef={expandRef}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
           />
         )}
         {compact && overflow}
-        {!expanded && <ReferenceUpload {...uploadProps} mode="overview" />}
+        {!expanded && (
+          <ReferenceUpload
+            {...uploadProps}
+            expandRef={expandRef}
+            mode="overview"
+          />
+        )}
       </div>
     </section>
   );
@@ -354,8 +357,8 @@ function subscribeToViewportResize(callback: () => void) {
 function referenceRows() {
   if (window.innerWidth < 768) return 1;
   // Reserve room for the header, model, prompt and options. Each extra row
-  // takes at most 132px plus the 10px gap, even in the widest sidebar.
-  return Math.max(1, Math.floor((window.innerHeight - 700) / 142));
+  // reserves the largest thumbnail, its action, and the row gap.
+  return Math.max(1, Math.floor((window.innerHeight - 550) / 210));
 }
 
 function ReferenceOverflowButton({
@@ -405,72 +408,43 @@ function ReferenceUpload({
   isDragActive,
   onDragOver,
   onDragLeave,
+  expandRef,
   mode,
-}: ReferenceUploadProps & { mode: "overview" | "tile" | "footer" }) {
-  if (group.slots.length >= group.limit) return null;
-  const { label, singular } = referenceKinds[group.kind];
-  const inputProps =
-    mode === "footer"
-      ? {
-          actionLabel: `Upload ${label.toLowerCase()}`,
-          inputLabel: `Upload ${singular} references`,
-          testId: `${group.uploadTestId}-upload`,
-          icon: Upload,
-        }
-      : {
-          inputLabel: `Add ${singular} references`,
-          testId: group.uploadTestId,
-          icon: Plus,
-        };
-  return (
-    <StudioMediaSlotAddTile
-      key={group.kind}
-      accept={`${singular}/*`}
-      multiple
-      {...inputProps}
-      wrapperClassName={`studio-reference-add-${mode}`}
-      isDragActive={isDragActive}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={group.onDrop}
-      onPickFiles={group.onAdd}
-    >
-      {mode === "tile" && (
-        <>
-          <span className="studio-reference-add-title">
-            Add {label.toLowerCase()}
-          </span>
-          <span className="studio-reference-add-hint">Drop here or upload</span>
-        </>
-      )}
-    </StudioMediaSlotAddTile>
-  );
-}
-
-function ReferenceLibraryButton({
-  group,
-  returnFocusTo,
-  rail,
-}: {
-  group: StudioReferenceGroup;
-  returnFocusTo: RefObject<HTMLButtonElement | null>;
-  rail?: boolean;
+}: ReferenceUploadProps & {
+  expandRef: RefObject<HTMLButtonElement | null>;
+  mode: "overview" | "tile" | "footer";
 }) {
-  if (group.slots.length >= group.limit || !group.onOpenLibrary) return null;
+  if (group.slots.length >= group.limit) return null;
+  const { singular } = referenceKinds[group.kind];
+  const footer = mode === "footer";
   return (
-    <Button
-      appearance="admin"
-      variant="subtle"
-      aria-label="Choose from library"
-      className={rail ? "studio-reference-rail-library" : undefined}
-      onClick={(event) => {
-        event.currentTarget.focus();
-        group.onOpenLibrary?.(returnFocusTo.current);
+    <div
+      className={`studio-reference-add-${mode}`}
+      data-drag-active={isDragActive}
+      onDragOver={(event) => {
+        event.stopPropagation();
+        onDragOver(event);
+      }}
+      onDragLeave={(event) => {
+        event.stopPropagation();
+        onDragLeave();
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        group.onDrop(event);
       }}
     >
-      <FolderOpen aria-hidden="true" />{" "}
-      {rail ? "Library" : "Choose from library"}
-    </Button>
+      <StudioReferenceSourceMenu
+        key={group.kind}
+        action="Add"
+        label={`Add ${footer ? "more " : ""}${singular} references`}
+        accept={`${singular}/*`}
+        testId={footer ? `${group.uploadTestId}-upload` : group.uploadTestId}
+        onPickFiles={group.onAdd}
+        onOpenLibrary={() => group.onOpenLibrary(expandRef.current)}
+      />
+    </div>
   );
 }
 
@@ -548,8 +522,11 @@ function ExpandedReferenceManager({
             </span>
           </span>
           <div className="studio-expanded-reference-actions">
-            <ReferenceUpload {...uploadProps} mode="footer" />
-            <ReferenceLibraryButton group={group} returnFocusTo={expandRef} />
+            <ReferenceUpload
+              {...uploadProps}
+              expandRef={expandRef}
+              mode="footer"
+            />
           </div>
           <Button
             appearance="admin"
@@ -582,10 +559,11 @@ function ExpandedReferenceManager({
             visibleCount={group.slots.length}
             expanded
             onOpenPreview={onOpenPreview}
+            expandRef={expandRef}
             onDragOver={uploadProps.onDragOver}
             onDragLeave={uploadProps.onDragLeave}
           />
-          <ReferenceUpload {...uploadProps} mode="tile" />
+          <ReferenceUpload {...uploadProps} expandRef={expandRef} mode="tile" />
         </StudioBrowserGrid>
       </div>
     </StudioBrowserOverlay>,

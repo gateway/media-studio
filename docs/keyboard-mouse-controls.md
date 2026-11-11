@@ -17,6 +17,8 @@ Media Studio shortcuts are ignored while you are typing in a field or when a blo
 | `Escape` | Close the asset inspector or lightbox |
 | `ArrowUp` / `ArrowDown` | Move through prompt reference suggestions |
 | `Enter` / `Tab` | Insert the selected prompt reference suggestion |
+| `ArrowLeft` / `ArrowRight` on the desktop composer divider | Narrow or widen the composer; hold `Shift` for larger steps |
+| `Home` / `End` on the desktop composer divider | Set the composer to its minimum or maximum width |
 
 ### Mouse
 
@@ -25,9 +27,11 @@ Media Studio shortcuts are ignored while you are typing in a field or when a blo
 | Click a gallery item | Open the asset inspector |
 | Click a favorite icon | Favorite or unfavorite the asset without opening it |
 | Click Projects, Presets, Reference library, or Settings | Open the matching Studio panel |
-| Click Library beside image references | Append a saved image if the model has room |
+| Click Add in References | Choose **Upload file** or **Choose from library** to append a reference if the model has room |
+| Click Replace beneath a reference | Choose **Upload file** or **Choose from library** to replace that reference in place |
+| Drag the desktop composer divider | Resize the composer without changing the draft |
 | Drag a gallery image onto a staged image reference | Replace that reference in place |
-| Drag a gallery image onto the `+` reference tile | Add the image as a new reference |
+| Drag a gallery image onto the Add reference tile | Add the image as a new reference |
 | Click or drag onto a thumbnail drop area | Choose or upload a thumbnail image |
 
 ## Graph Studio

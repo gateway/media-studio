@@ -30,13 +30,16 @@ import {
 import type { MediaAsset, MediaReference } from "@/lib/types";
 import { probeVideoMetadata } from "@/lib/video-metadata";
 
-type FileAddConfig = {
+export type StudioAttachmentReplacement = {
+  replaceAttachmentId?: string;
+  claimSourceImage?: () => boolean;
+};
+
+type FileAddConfig = StudioAttachmentReplacement & {
   role?: NonNullable<AttachmentRecord["role"]>;
   allowedKinds?: AttachmentRecord["kind"][];
   insertImageIndex?: number | null;
   replaceImageIndex?: number | null;
-  replaceAttachmentId?: string;
-  claimSourceImage?: () => boolean;
 };
 
 type LibraryAddConfig = FileAddConfig & { successMessage?: string };
@@ -199,6 +202,7 @@ export function useStudioAttachments({
     { claimSourceImage, replaceAttachmentId }: FileAddConfig,
     insertImageIndex: number | null,
     replaceImageIndex: number | null,
+    onComplete?: (committed: number) => void,
   ) {
     if (!mounted.current) {
       releaseFilePreviews(next);
@@ -207,9 +211,10 @@ export function useStudioAttachments({
     if (claimSourceImage) {
       if (claimSourceImage()) {
         setAttachments((current) => [...next, ...current]);
-        checkAfterCommit(next);
+        checkAfterCommit(next, onComplete);
       } else {
         releaseFilePreviews(next);
+        onComplete?.(0);
       }
       return;
     }
@@ -231,7 +236,7 @@ export function useStudioAttachments({
         replaceAttachmentId,
       }),
     );
-    if (replaceAttachmentId !== undefined) checkAfterCommit(next);
+    if (replaceAttachmentId !== undefined) checkAfterCommit(next, onComplete);
   }
 
   function remainingSeedanceCapacity(
@@ -275,7 +280,7 @@ export function useStudioAttachments({
     checkAfterCommit(next, onComplete);
   }
 
-  function remainingSeedanceFileCapacity(
+  function remainingSeedanceTargetCapacity(
     kind: AttachmentRecord["kind"],
     role: NonNullable<AttachmentRecord["role"]>,
     replacementId?: string,
@@ -325,7 +330,7 @@ export function useStudioAttachments({
         continue;
       }
       if (seedanceComposer && explicitRole) {
-        const remaining = remainingSeedanceFileCapacity(
+        const remaining = remainingSeedanceTargetCapacity(
           kind,
           explicitRole,
           config.replaceAttachmentId,
@@ -532,6 +537,32 @@ export function useStudioAttachments({
     }
   }
 
+  function libraryCapacityWarning(
+    kind: AttachmentRecord["kind"],
+    config: LibraryAddConfig,
+  ) {
+    if (seedanceComposer && config.role) {
+      return remainingSeedanceTargetCapacity(
+        kind,
+        config.role,
+        config.replaceAttachmentId,
+      ) > 0
+        ? null
+        : "This slot is already full.";
+    }
+    if (config.replaceAttachmentId || config.claimSourceImage) return null;
+    const atCapacity = {
+      images:
+        stagedImageCount >= maxImageInputs && config.replaceImageIndex == null,
+      videos: stagedVideoCount >= maxVideoInputs,
+      audios: stagedAudioCount >= maxAudioInputs,
+    };
+    const label = { images: "images", videos: "videos", audios: "audio" }[kind];
+    return atCapacity[kind]
+      ? `This model cannot accept more ${label} right now.`
+      : null;
+  }
+
   function addReferenceMediaAsAttachment(
     reference: MediaReference | null,
     config: LibraryAddConfig = {},
@@ -553,30 +584,9 @@ export function useStudioAttachments({
       });
       return;
     }
-    if (seedanceComposer && config.role) {
-      if (remainingSeedanceCapacity(kind, config.role) <= 0) {
-        setFormMessage({ tone: "warning", text: "This slot is already full." });
-        return;
-      }
-    } else if (kind === "images" && stagedImageCount >= maxImageInputs) {
-      if (config.replaceImageIndex == null) {
-        setFormMessage({
-          tone: "warning",
-          text: "This model cannot accept more images right now.",
-        });
-        return;
-      }
-    } else if (kind === "videos" && stagedVideoCount >= maxVideoInputs) {
-      setFormMessage({
-        tone: "warning",
-        text: "This model cannot accept more videos right now.",
-      });
-      return;
-    } else if (kind === "audios" && stagedAudioCount >= maxAudioInputs) {
-      setFormMessage({
-        tone: "warning",
-        text: "This model cannot accept more audio right now.",
-      });
+    const capacityWarning = libraryCapacityWarning(kind, config);
+    if (capacityWarning) {
+      setFormMessage({ tone: "warning", text: capacityWarning });
       return;
     }
 
@@ -610,6 +620,17 @@ export function useStudioAttachments({
         tone: "healthy",
         text: libraryStagingMessage(config.successMessage),
       });
+    if (config.replaceAttachmentId || config.claimSourceImage) {
+      stagePickedAttachments([attachment], config, null, null, (committed) => {
+        if (committed) reportSuccess();
+        else
+          setFormMessage({
+            tone: "warning",
+            text: "The reference to replace is no longer staged.",
+          });
+      });
+      return;
+    }
     if (seedanceComposer) {
       stageSeedanceAttachments([attachment], (committed) => {
         if (committed) reportSuccess();

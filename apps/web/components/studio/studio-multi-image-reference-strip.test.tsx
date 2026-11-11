@@ -89,9 +89,18 @@ it("offers library and upload together until the model reaches capacity", () => 
   vi.stubGlobal("innerHeight", 760);
   const props = referenceStripProps();
   const { rerender } = render(<ReferenceStripHarness {...props} />);
-  const add = screen.getByLabelText("Add image references");
-  const library = screen.getByRole("button", { name: "Choose from library" });
-  fireEvent.click(library);
+  const add = screen.getByRole("button", { name: "Add image references" });
+  const uploadInput = screen.getByTestId("studio-multi-image-input");
+  const launchFilePicker = vi
+    .spyOn(uploadInput, "click")
+    .mockImplementation(() => {});
+  fireEvent.click(add);
+  fireEvent.click(screen.getByText("Upload file"));
+  expect(launchFilePicker).toHaveBeenCalledOnce();
+  expect(uploadInput.hasAttribute("multiple")).toBe(true);
+  expect(document.activeElement).toBe(add);
+  fireEvent.click(add);
+  fireEvent.click(screen.getByText("Choose from library"));
   expect(props.onOpenLibrary).toHaveBeenCalledExactlyOnceWith(
     screen.getByRole("button", { name: "Expand image references" }),
   );
@@ -106,13 +115,15 @@ it("offers library and upload together until the model reaches capacity", () => 
     />,
   );
   expect(screen.getByText("4/16")).toBeTruthy();
-  expect(screen.getByLabelText("Add image references")).toBe(add);
+  expect(screen.getByRole("button", { name: "Add image references" })).toBe(
+    add,
+  );
   expect(screen.getByTestId("studio-multi-image-slot-1")).toBeTruthy();
   expect(screen.queryByTestId("studio-multi-image-slot-2")).toBeNull();
   expect(
     screen.getByRole("button", { name: "Show 3 more image references" }),
   ).toBeTruthy();
-  fireEvent.drop(add.closest("label")!);
+  fireEvent.drop(add);
   expect(props.onDropIntoSlot).toHaveBeenCalledExactlyOnceWith(
     expect.anything(),
     4,
@@ -122,10 +133,10 @@ it("offers library and upload together until the model reaches capacity", () => 
     <ReferenceStripHarness {...props} orderedImageInputs={references} />,
   );
   expect(screen.getByText("16/16")).toBeTruthy();
-  expect(screen.queryByLabelText("Add image references")).toBeNull();
   expect(
-    screen.queryByRole("button", { name: "Choose from library" }),
+    screen.queryByRole("button", { name: "Add image references" }),
   ).toBeNull();
+  expect(screen.queryByText("Choose from library")).toBeNull();
   expect(
     screen.getByRole("button", { name: "Show 14 more image references" }),
   ).toBeTruthy();
@@ -145,10 +156,10 @@ it("reveals more reference rows at tall desktop heights and falls back to one ro
   );
 
   expect(screen.getAllByTestId(/^studio-multi-image-slot-\d+$/)).toHaveLength(
-    7,
+    5,
   );
   expect(
-    screen.getByRole("button", { name: "Show 3 more image references" }),
+    screen.getByRole("button", { name: "Show 5 more image references" }),
   ).toBeTruthy();
 
   vi.stubGlobal("innerWidth", 390);
@@ -240,8 +251,6 @@ it("keeps the ordered reference actions available when the mobile composer and r
   expect(expanded.getByRole("status").textContent).toContain(
     "14 image slots available",
   );
-  expect(expanded.getByText("Add images")).toBeTruthy();
-  expect(expanded.getByText("Drop here or upload")).toBeTruthy();
   expect(screen.getAllByTestId("studio-multi-image-slot-1")).toHaveLength(1);
   expect(
     expanded
@@ -256,7 +265,22 @@ it("keeps the ordered reference actions available when the mobile composer and r
       ?.getAttribute("src"),
   ).toBe("/second.png");
 
-  const replace = expanded.getByLabelText("Replace image reference 2");
+  const replaceTrigger = expanded.getByRole("button", {
+    name: "Replace image reference 2",
+  });
+  const replace = expanded.getByTestId("studio-multi-image-slot-2-replace");
+  const launchFilePicker = vi
+    .spyOn(replace, "click")
+    .mockImplementation(() => {});
+  fireEvent.click(replaceTrigger);
+  fireEvent.keyDown(replaceTrigger, { key: "Escape" });
+  expect(expanded.queryByText("Upload file")).toBeNull();
+  expect(screen.getByRole("dialog", { name: "References" })).toBe(dialog);
+  expect(document.activeElement).toBe(replaceTrigger);
+  fireEvent.click(replaceTrigger);
+  fireEvent.click(expanded.getByText("Upload file"));
+  expect(launchFilePicker).toHaveBeenCalledOnce();
+  expect(replace.hasAttribute("multiple")).toBe(false);
   fireEvent.change(replace, { target: { files: [] } });
   expect(callbacks.onReplaceImageFile).not.toHaveBeenCalled();
   const files = [new File([], "image.png", { type: "image/png" })];
@@ -267,15 +291,17 @@ it("keeps the ordered reference actions available when the mobile composer and r
     replace,
   );
 
-  const add = expanded.getByLabelText("Add image references");
+  const add = expanded.getByTestId("studio-multi-image-input");
   fireEvent.change(add, { target: { files } });
   expect(
     callbacks.onAddImageFilesToOrderedSlot,
   ).toHaveBeenCalledExactlyOnceWith(files, 2, add);
-  fireEvent.drop(add.closest("label")!);
+  fireEvent.drop(
+    expanded.getByRole("button", { name: "Add image references" }),
+  );
   expect(callbacks.onDropIntoSlot).toHaveBeenCalledWith(expect.anything(), 2);
 
-  const footerUpload = expanded.getByLabelText("Upload image references");
+  const footerUpload = expanded.getByTestId("studio-multi-image-input-upload");
   fireEvent.change(footerUpload, { target: { files } });
   expect(callbacks.onAddImageFilesToOrderedSlot).toHaveBeenNthCalledWith(
     2,
@@ -283,7 +309,9 @@ it("keeps the ordered reference actions available when the mobile composer and r
     2,
     footerUpload,
   );
-  fireEvent.drop(footerUpload.closest("label")!);
+  fireEvent.drop(
+    expanded.getByRole("button", { name: "Add more image references" }),
+  );
   expect(callbacks.onDropIntoSlot).toHaveBeenCalledTimes(2);
 
   fireEvent.click(expanded.getByRole("button", { name: "Image reference 1" }));
@@ -296,10 +324,12 @@ it("keeps the ordered reference actions available when the mobile composer and r
   expect(callbacks.onClearOrderedImageInput).toHaveBeenCalledExactlyOnceWith(
     second,
   );
-  fireEvent.click(
-    expanded.getByRole("button", { name: "Choose from library" }),
+  fireEvent.click(replaceTrigger);
+  fireEvent.click(expanded.getByText("Choose from library"));
+  expect(callbacks.onOpenLibrary).toHaveBeenCalledExactlyOnceWith(
+    expand,
+    second,
   );
-  expect(callbacks.onOpenLibrary).toHaveBeenCalledTimes(1);
   fireEvent.keyDown(dialog, { key: "Escape" });
   expect(screen.queryByRole("dialog", { name: "References" })).toBeNull();
   expect(document.activeElement).toBe(expand);
