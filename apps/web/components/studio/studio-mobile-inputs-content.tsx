@@ -100,7 +100,10 @@ export function StudioMobileInputsContent({
                   : "0/1"
             }
           >
-            <div className="scrollbar-none studio-mobile-input-rail">
+            <div
+              className="scrollbar-none studio-mobile-input-rail"
+              data-frame-rail="true"
+            >
               {[
                 {
                   label: "Start frame",

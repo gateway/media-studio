@@ -61,6 +61,9 @@ export function StudioStandardSlotRail({
     <div
       className="studio-fixed-slot-rail"
       data-motion={slots.some((slot) => slot.role === "driving_video")}
+      data-frame-rail={slots.some(
+        (slot) => slot.role === "start_frame" || slot.role === "end_frame",
+      )}
     >
       {slots.map((slot) => {
         const testId = `${testIdPrefix}-${slot.id}`;

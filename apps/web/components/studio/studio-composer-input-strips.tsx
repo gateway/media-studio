@@ -192,6 +192,7 @@ export function StudioSourceAttachmentStrip({
   return (
     <div
       className={inputRail === "seedance" ? "studio-fixed-slot-rail" : "w-full"}
+      data-frame-rail={inputRail === "seedance"}
     >
       {inputRail === "seedance" ? (
         <>

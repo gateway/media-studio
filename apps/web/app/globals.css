@@ -4052,6 +4052,49 @@ textarea {
   height: 14px;
 }
 
+:where(.studio-create-stage-immersive)
+  [data-frame-rail="true"]
+  .surface-preview-frame
+  > img {
+  object-fit: contain;
+  scale: 1;
+}
+
+@media (width >= 768px) {
+  :where(.studio-create-stage-immersive)
+    [data-frame-rail="true"]
+    .studio-fixed-slot-media {
+    min-block-size: clamp(90px, 13dvh, 128px);
+  }
+
+  :where(.studio-create-stage-immersive [data-frame-rail="true"])
+    .studio-standard-slot-tile
+    .studio-fixed-slot-caption
+    > :where(svg) {
+    display: none;
+  }
+}
+
+@media (width >= 768px) and (height >= 1080px) {
+  :where(.studio-create-stage-immersive) [data-frame-rail="true"] {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 216px), 1fr));
+    gap: 14px;
+  }
+
+  :where(.studio-create-stage-immersive)
+    [data-frame-rail="true"]
+    .studio-fixed-slot-media {
+    block-size: min(216px, 17dvh);
+  }
+
+  :where(.studio-create-stage-immersive [data-frame-rail="true"])
+    .studio-standard-slot-tile
+    .studio-fixed-slot-caption {
+    padding-inline-start: 10px;
+    font-size: 0.75rem;
+  }
+}
+
 /* Preset editors consume the same palette as Studio without changing other admin pages. */
 :root .studio-preset-editor-theme,
 :root .studio-settings-theme,
