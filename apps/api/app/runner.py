@@ -123,7 +123,8 @@ class MediaRunner:
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
-        self.reconcile()
+        if settings.media_startup_recovery_enabled:
+            self.reconcile()
         self._stop.clear()
         self._thread = threading.Thread(target=self._loop, name=self.thread_name, daemon=True)
         self._thread.start()

@@ -743,14 +743,10 @@ def active_jobs() -> List[Dict[str, Any]]:
 
 
 def has_pending_generation() -> bool:
+    from .store_support import pending_generation_exists
+
     with get_connection() as connection:
-        jobs = connection.execute(
-            "SELECT 1 FROM media_jobs WHERE (status = 'queued' AND dismissed = 0) OR status IN ('submitted', 'running') LIMIT 1"
-        ).fetchone()
-        graphs = connection.execute(
-            "SELECT 1 FROM graph_runs WHERE status NOT IN ('completed', 'failed', 'cancelled') LIMIT 1"
-        ).fetchone()
-    return bool(jobs or graphs)
+        return pending_generation_exists(connection)
 
 
 def queued_job_count() -> int:

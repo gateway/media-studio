@@ -105,14 +105,15 @@ async def lifespan(_: FastAPI):
     settings.downloads_dir.mkdir(parents=True, exist_ok=True)
     settings.outputs_dir.mkdir(parents=True, exist_ok=True)
     store.bootstrap_schema()
-    from .graph.runtime import runtime as graph_runtime
+    if settings.media_startup_recovery_enabled:
+        from .graph.runtime import runtime as graph_runtime
 
-    recovered_graph_runs = graph_runtime.recover_interrupted_runs()
-    if recovered_graph_runs:
-        logger.warning("Recovered %s interrupted Graph Studio run(s) after startup.", recovered_graph_runs)
-    interrupted_graph_runs = store.mark_interrupted_graph_runs()
-    if interrupted_graph_runs:
-        logger.warning("Marked %s interrupted Graph Studio run(s) as failed after startup.", interrupted_graph_runs)
+        recovered_graph_runs = graph_runtime.recover_interrupted_runs()
+        if recovered_graph_runs:
+            logger.warning("Recovered %s interrupted Graph Studio run(s) after startup.", recovered_graph_runs)
+        interrupted_graph_runs = store.mark_interrupted_graph_runs()
+        if interrupted_graph_runs:
+            logger.warning("Marked %s interrupted Graph Studio run(s) as failed after startup.", interrupted_graph_runs)
     if settings.media_pricing_refresh_on_startup:
         kie_adapter.refresh_pricing_snapshot_if_stale()
     try:

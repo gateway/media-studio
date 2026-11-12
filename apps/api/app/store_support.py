@@ -246,6 +246,15 @@ def next_queue_position(connection: sqlite3.Connection) -> int:
     return int(row["next_position"])
 
 
+def pending_generation_exists(connection: sqlite3.Connection) -> bool:
+    jobs = connection.execute(
+        "SELECT 1 FROM media_jobs WHERE (status = 'queued' AND dismissed = 0) OR status IN ('submitted', 'running') LIMIT 1"
+    ).fetchone()
+    graphs = connection.execute(
+        "SELECT 1 FROM graph_runs WHERE status NOT IN ('completed', 'failed', 'cancelled') LIMIT 1"
+    ).fetchone()
+    return bool(jobs or graphs)
+
 
 def database_has_user_schema(connection: sqlite3.Connection) -> bool:
     from .store_schema import database_has_user_schema as _database_has_user_schema

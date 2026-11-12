@@ -13,7 +13,7 @@ Important:
 
 - the queue runner lives inside the API process as the Media Studio Runner
 - if the API process stops, the runner stops with it
-- when the API starts again, the runner reconciles queued and active jobs from the database
+- when the API starts again with startup recovery enabled, the runner reconciles queued and active jobs from the database
 
 This means the correct production-style setup is to supervise the API process, not to expect the runner to resurrect its own parent process.
 
@@ -28,12 +28,14 @@ ownership mechanism.
 
 ## What Happens On Restart
 
-On API startup, the runner:
+By default, when the runner starts it:
 
 - repairs queue positions
 - resets invalid active jobs
 - recomputes open batch counts
 - attempts to recover active jobs that already have terminal provider status cached
+
+The API also attempts to recover interrupted Graph runs and marks unresolved interrupted runs as failed. `MEDIA_STARTUP_RECOVERY_ENABLED=false` skips both Graph operations and the runner's startup reconciliation, including asset deduplication. `MEDIA_BACKGROUND_POLL_ENABLED` still controls the worker. The recovery setting leaves schema checks and migrations in place.
 
 Studio itself rehydrates from the database and dashboard snapshot when the page loads again, so leaving `/studio` and returning later should show the latest persisted state.
 
@@ -59,6 +61,17 @@ Normal local one-terminal launch:
 cd /absolute/path/to/media-studio
 npm run start:studio
 ```
+
+For an existing installation, choose an explicit mode when you need to verify the worker state:
+
+| Command | Live submission | Media worker | Startup recovery |
+| --- | --- | --- | --- |
+| `npm run dev -- --startup-mode verification` | Off | Off | Off |
+| `npm run dev -- --startup-mode live` | On | On | Off |
+
+Both modes disable startup pricing refresh and API hot reload. The launcher checks `/health` before reporting readiness or reuse. Live mode requires a configured KIE key, an enabled queue and a fresh, healthy worker heartbeat. Reuse also checks the web app's API proxy so it cannot mistake a browser session connected to another backend for verification mode. If browser authentication prevents the check, confirm the running instance's ownership separately. The launcher reports mismatches without restarting the app. Plain launch commands retain their configured defaults.
+
+Starting in live mode activates automatic processing; authorize that change before using it. Before starting an explicit mode, the launcher checks the existing database for pending migrations using a read-only connection. It also checks for pending media jobs and Graph runs before live activation. Pending migrations or work need separate approval before proceeding; the explicit launcher leaves them untouched. The preflight rejects WAL databases rather than touching SQLite's WAL/SHM files. A live launch does not authorize a paid render. Verification mode suppresses automatic processing and recovery; it is not a read-only application session.
 
 Stop that launcher:
 

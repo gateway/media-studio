@@ -81,6 +81,7 @@ class AppSettings(BaseModel):
     kie_api_repo_path: Optional[Path] = None
     media_enable_live_submit: bool = False
     media_background_poll_enabled: bool = True
+    media_startup_recovery_enabled: bool = True
     media_poll_seconds: int = 6
     media_pricing_cache_hours: int = 6
     media_pricing_refresh_on_startup: bool = True
@@ -127,6 +128,7 @@ settings = AppSettings(
     ),
     media_enable_live_submit=_env_bool("MEDIA_ENABLE_LIVE_SUBMIT", False),
     media_background_poll_enabled=_env_bool("MEDIA_BACKGROUND_POLL_ENABLED", True),
+    media_startup_recovery_enabled=_env_bool("MEDIA_STARTUP_RECOVERY_ENABLED", True),
     media_poll_seconds=int(os.getenv("MEDIA_POLL_SECONDS", "6")),
     media_pricing_cache_hours=int(os.getenv("MEDIA_PRICING_CACHE_HOURS", "6")),
     media_pricing_refresh_on_startup=_env_bool("MEDIA_PRICING_REFRESH_ON_STARTUP", True),

@@ -16,6 +16,7 @@ import {
   controlApiBaseUrl,
   findAvailablePort,
   isPortAvailable,
+  loadMediaEnv,
   mediaRoot,
   npmCommand,
   runtimeAccessHost,
@@ -29,6 +30,7 @@ import {
   windowsListeningProcessQuery,
   windowsMediaStudioProcessQuery,
 } from "./studio_process_identification.mjs";
+import { startupModeEnv, startupModeIssue } from "./studio_startup_mode.mjs";
 
 const children = new Set();
 let shuttingDown = false;
@@ -44,6 +46,7 @@ function usage() {
       "  --production        Run production-style API and web app.",
       "  --open              Open Studio in the default browser after startup.",
       "  --no-open           Do not open the browser.",
+      "  --startup-mode MODE Require verification or live processing on this installation.",
       "  --api-host HOST     API bind host.",
       "  --api-port PORT     API port.",
       "  --web-host HOST     Web bind host.",
@@ -62,6 +65,9 @@ function parseArgs(argv) {
       options.openBrowser = true;
     } else if (arg === "--no-open") {
       options.openBrowser = false;
+    } else if (arg === "--startup-mode") {
+      options.startupMode = argv[++index];
+      if (!options.startupMode) throw new Error("Missing value for --startup-mode.");
     } else if (arg === "--api-host") {
       index += 1;
       if (!argv[index]) {
@@ -308,23 +314,67 @@ async function waitForUrl(url, timeoutMs = 90000) {
   return false;
 }
 
-async function fetchHealthInstallId(url, timeoutMs = 1500) {
+async function fetchHealth(url, timeoutMs = 1500) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+    const response = await fetch(url, { cache: "no-store", redirect: "error", signal: controller.signal });
     if (!response.ok) {
       return null;
     }
-    const payload = await response.json();
-    return typeof payload.install_id === "string" && payload.install_id.trim()
-      ? payload.install_id.trim()
-      : null;
+    return await response.json();
   } catch {
     return null;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function matchesInstall(health, runtime) {
+  return typeof health?.install_id === "string" && health.install_id.trim() === runtime.env.MEDIA_STUDIO_INSTALL_ID;
+}
+
+async function reuseStudio(runtime, options, apiPort, webPort) {
+  const apiHealthUrl = `${controlApiBaseUrl(runtime.apiHost, apiPort)}/health`;
+  const health = await fetchHealth(apiHealthUrl);
+  if (!matchesInstall(health, runtime)) return false;
+
+  const webUrl = `http://${runtimeAccessHost(runtime.webHost)}:${webPort}`;
+  if (!(await waitForUrl(`${webUrl}/icon.svg`, 1500))) return false;
+  const issue = startupModeIssue(options.startupMode, health);
+  if (issue) throw new Error(`Running installation does not match ${options.startupMode} mode: ${issue} Confirm ownership before stopping it.`);
+  if (options.startupMode) {
+    const webHealth = await fetchHealth(`${webUrl}/api/control/health`, 5000);
+    if (!matchesInstall(webHealth, runtime)) {
+      throw new Error("Cannot verify that the running web app reaches this installation. Protected web routes require a separate ownership check.");
+    }
+    const webIssue = startupModeIssue(options.startupMode, webHealth);
+    if (webIssue) throw new Error(`The running web app does not reach ${options.startupMode} mode: ${webIssue}`);
+  }
+
+  const url = `${webUrl}/studio`;
+  console.log(`Media Studio is already running: ${url}`);
+  reportStartupMode(options.startupMode);
+  if (options.openBrowser) openBrowser(url);
+  return true;
+}
+
+function reportStartupMode(mode) {
+  if (mode) console.log(`Startup mode: ${mode} (submission and worker verified from API health).`);
+}
+
+async function checkStartedMode(mode, healthUrl, runtime) {
+  let health = await fetchHealth(healthUrl);
+  for (let attempt = 0; attempt < 3 && mode === "live" && health?.runner_active === true &&
+      health.heartbeat_age_seconds === null; attempt += 1) {
+    // The API can answer before the worker records its first scheduler tick.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    health = await fetchHealth(healthUrl);
+  }
+  if (!matchesInstall(health, runtime)) throw new Error("API health does not identify the expected installation.");
+  const issue = startupModeIssue(mode, health);
+  if (issue) throw new Error(`Media Studio did not start in ${mode} mode: ${issue}`);
+  reportStartupMode(mode);
 }
 
 function spawnChecked(command, args, env, label) {
@@ -588,25 +638,7 @@ function openBrowser(url) {
   }
 }
 
-async function failIfPortsUnavailable(runtime, options) {
-  const apiAvailable = await isPortAvailable(runtime.apiHost, runtime.apiPort);
-  const webAvailable = await isPortAvailable(runtime.webHost, runtime.webPort);
-  if (apiAvailable && webAvailable) {
-    return;
-  }
-
-  const apiHealthUrl = `${controlApiBaseUrl(runtime.apiHost, runtime.apiPort)}/health`;
-  const webReadyUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/icon.svg`;
-  const apiReady = !apiAvailable && (await waitForUrl(apiHealthUrl, 1500));
-  const webReady = !webAvailable && (await waitForUrl(webReadyUrl, 1500));
-  const runningInstallId = apiReady ? await fetchHealthInstallId(apiHealthUrl) : null;
-  if (apiReady && webReady && runningInstallId === runtime.env.MEDIA_STUDIO_INSTALL_ID) {
-    console.log("Media Studio already appears to be running.");
-    console.log(`Studio: http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
-    if (options.openBrowser) openBrowser(`http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
-    process.exit(0);
-  }
-
+function failIfPortsUnavailable(runtime, apiAvailable, webAvailable) {
   if (!apiAvailable) {
     console.error(`API port ${runtime.apiPort} is already in use.`);
     console.error("Stop the existing process, set MEDIA_STUDIO_API_PORT in .env, or pass --api-port.");
@@ -633,24 +665,15 @@ async function resolveAvailablePorts(runtime, options) {
   const apiAvailable = await isPortAvailable(runtime.apiHost, runtime.apiPort);
   const webAvailable = await isPortAvailable(runtime.webHost, runtime.webPort);
   if (apiAvailable && webAvailable) {
-    return;
+    return false;
   }
 
-  const apiHealthUrl = `${controlApiBaseUrl(runtime.apiHost, runtime.apiPort)}/health`;
-  const webReadyUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/icon.svg`;
-  const apiReady = !apiAvailable && (await waitForUrl(apiHealthUrl, 1500));
-  const webReady = !webAvailable && (await waitForUrl(webReadyUrl, 1500));
-  const runningInstallId = apiReady ? await fetchHealthInstallId(apiHealthUrl) : null;
-  if (apiReady && webReady && runningInstallId === runtime.env.MEDIA_STUDIO_INSTALL_ID) {
-    console.log("Media Studio already appears to be running.");
-    console.log(`Studio: http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
-    if (options.openBrowser) openBrowser(`http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
-    process.exit(0);
+  if (!apiAvailable && !webAvailable && await reuseStudio(runtime, options, runtime.apiPort, runtime.webPort)) {
+    return true;
   }
 
-  if ((!apiAvailable && options.explicitApiPort) || (!webAvailable && options.explicitWebPort)) {
-    await failIfPortsUnavailable(runtime, options);
-    return;
+  if (options.startupMode || (!apiAvailable && options.explicitApiPort) || (!webAvailable && options.explicitWebPort)) {
+    failIfPortsUnavailable(runtime, apiAvailable, webAvailable);
   }
 
   const originalApiPort = runtime.apiPort;
@@ -676,49 +699,94 @@ async function resolveAvailablePorts(runtime, options) {
   }
   console.log("The selected ports are temporary. To make them permanent, set MEDIA_STUDIO_API_PORT and MEDIA_STUDIO_WEB_PORT in .env.");
   console.log("");
+  return false;
+}
+
+function readRuntimeRecord(file) {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function readLiveSession(sessionFile) {
+  const session = readRuntimeRecord(sessionFile);
+  if (!Number.isInteger(session?.pid) || session.pid <= 0) return null;
+  try {
+    process.kill(session.pid, 0);
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function startupPreflight(runtime, mode) {
+  if (mode === "live" && !runtime.env.KIE_API_KEY?.trim()) throw new Error("The KIE key is not configured.");
+  const result = spawnSync(runtime.pythonPath, [
+    "-B", path.join(mediaRoot, "scripts", "startup_preflight.py"), "--db", runtime.env.MEDIA_STUDIO_DB_PATH, "--mode", mode,
+  ], { cwd: mediaRoot, env: runtime.env, encoding: "utf8", timeout: 10000 });
+  if (result.status !== 0) throw new Error(result.stderr?.trim() || "Read-only startup preflight failed.");
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const runtime = withResolvedRuntimeEnv({ ...options, reload: !options.production });
-  activeRuntime = runtime;
-  const paths = runtimePaths(mediaRoot, runtime.env);
-  // Reopen the actual ports from the previous launch, including automatic port selection.
-  // Stale state is ignored unless the owner is alive and its API identifies this install.
-  const sessionFile = path.join(paths.runtimeDir, "media-studio-session.json");
-  try {
-    const session = JSON.parse(readFileSync(sessionFile, "utf8"));
-    process.kill(session.pid, 0);
-    if (
-      session.installId === runtime.env.MEDIA_STUDIO_INSTALL_ID &&
-      session.apiHost === runtime.apiHost && session.webHost === runtime.webHost &&
-      (!options.explicitApiPort || String(session.apiPort) === runtime.apiPort) &&
-      (!options.explicitWebPort || String(session.webPort) === runtime.webPort) &&
-      await fetchHealthInstallId(`${controlApiBaseUrl(session.apiHost, session.apiPort)}/health`) === session.installId &&
-      await waitForUrl(`http://${runtimeAccessHost(session.webHost)}:${session.webPort}/icon.svg`, 1500)
-    ) {
-      const url = `http://${runtimeAccessHost(session.webHost)}:${session.webPort}/studio`;
-      console.log(`Media Studio is already running: ${url}`);
-      if (options.openBrowser) openBrowser(url);
-      return;
-    }
-  } catch {
-    // No live session recorded; continue normal startup.
+  const env = { ...process.env, ...startupModeEnv(options.startupMode) };
+  if (options.startupMode) {
+    const installId = loadMediaEnv().MEDIA_STUDIO_INSTALL_ID?.trim();
+    if (!installId) throw new Error("Startup mode requires an existing Media Studio install identity.");
+    env.MEDIA_STUDIO_INSTALL_ID = installId;
   }
-  activePaths = paths;
-  for (const signal of ["SIGINT", "SIGTERM"]) {
-    process.on(signal, () => shutdown(paths, 0));
+  const runtime = withResolvedRuntimeEnv({ ...options, env, reload: !options.production });
+  const runtimeDir = path.join(runtime.env.MEDIA_STUDIO_DATA_ROOT, "runtime");
+  const sessionFile = path.join(runtimeDir, "media-studio-session.json");
+  // Reopen the actual ports from the previous launch, including automatic port selection.
+  const session = readLiveSession(sessionFile);
+  if (session?.installId === runtime.env.MEDIA_STUDIO_INSTALL_ID) {
+    const matchesAddress = session.apiHost === runtime.apiHost && session.webHost === runtime.webHost &&
+      (!options.explicitApiPort || String(session.apiPort) === runtime.apiPort) &&
+      (!options.explicitWebPort || String(session.webPort) === runtime.webPort);
+    if (matchesAddress && await reuseStudio(runtime, options, session.apiPort, session.webPort)) return;
+    if (options.startupMode) {
+      throw new Error("A live launcher is recorded for this installation, but it could not be reused on the requested hosts and ports. Confirm ownership before stopping it.");
+    }
+  }
+
+  if (await resolveAvailablePorts(runtime, options)) return;
+
+  const bindApiUrl = controlApiBaseUrl(runtime.apiHost, runtime.apiPort);
+  if (options.startupMode) {
+    const recordedApi = readRuntimeRecord(path.join(runtimeDir, "media-studio-api-runtime.json"));
+    if (recordedApi?.installId === runtime.env.MEDIA_STUDIO_INSTALL_ID && recordedApi.host && recordedApi.port &&
+        !(await isPortAvailable(recordedApi.host, recordedApi.port))) {
+      throw new Error("An API for this installation is already running without a reusable web session. Confirm ownership before stopping it.");
+    }
+    if (runtime.controlApiBaseUrl !== bindApiUrl) throw new Error("The configured control API does not match the API bind address.");
   }
 
   if (!existsSync(runtime.pythonPath)) {
     throw new Error(`Shared KIE Python runtime not found at ${runtime.pythonPath}. Run setup first.`);
   }
+  if (options.startupMode) startupPreflight(runtime, options.startupMode);
 
-  await resolveAvailablePorts(runtime, options);
+  if (options.production) {
+    const kieUpdated = await kieRepoPreflight(runtime);
+    ensurePythonDependencies(runtime, { force: kieUpdated });
+    if (!options.startupMode) migrationPreflight(runtime);
+    ensureWebBuild(runtime);
+    if (options.startupMode) startupPreflight(runtime, options.startupMode);
+  }
+
+  const paths = runtimePaths(mediaRoot, runtime.env);
+  activeRuntime = runtime;
+  activePaths = paths;
+  for (const signal of ["SIGINT", "SIGTERM"]) {
+    process.on(signal, () => shutdown(paths, 0));
+  }
 
   const studioUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`;
   const settingsUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/settings`;
-  const apiHealthUrl = `${runtime.controlApiBaseUrl}/health`;
+  const apiHealthUrl = `${options.startupMode ? bindApiUrl : runtime.controlApiBaseUrl}/health`;
   const webReadyUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/icon.svg`;
 
   rmSync(paths.apiLog, { force: true });
@@ -738,13 +806,6 @@ async function main() {
   console.log("Press Ctrl+C to stop both processes.");
   console.log("");
 
-  if (options.production) {
-    const kieUpdated = await kieRepoPreflight(runtime);
-    ensurePythonDependencies(runtime, { force: kieUpdated });
-    migrationPreflight(runtime);
-    ensureWebBuild(runtime);
-  }
-
   const apiArgs = [
     path.join(mediaRoot, "scripts", "dev_api.mjs"),
     "--host",
@@ -752,7 +813,7 @@ async function main() {
     "--port",
     runtime.apiPort,
   ];
-  if (options.production) {
+  if (options.production || options.startupMode) {
     apiArgs.push("--no-reload");
   }
 
@@ -781,6 +842,7 @@ async function main() {
     console.error("The Media Studio web app did not become ready.");
     shutdown(paths, 1);
   }
+  if (options.startupMode) await checkStartedMode(options.startupMode, apiHealthUrl, runtime);
   console.log(`Media Studio is ready: ${studioUrl}`);
   writeFileSync(sessionFile, JSON.stringify({
     pid: process.pid, installId: runtime.env.MEDIA_STUDIO_INSTALL_ID,
@@ -795,5 +857,6 @@ async function main() {
 
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
-  shutdown(activePaths, 1);
+  if (activePaths) shutdown(activePaths, 1);
+  else process.exitCode = 1;
 });
