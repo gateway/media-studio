@@ -17,24 +17,26 @@ import type {
   MediaValidationResponse,
 } from "@/lib/types";
 import { isRecord } from "@/lib/utils";
-import { supportedModelInputPatterns } from "@/lib/studio-model-support";
+import {
+  modelInputLimit,
+  supportedModelInputPatterns,
+} from "@/lib/studio-model-support";
 import {
   mediaDisplayUrl,
   mediaDownloadName,
-  mediaDownloadUrl,
   mediaInlineUrl,
   mediaPlaybackUrl,
-  mediaPreviewUrl,
   mediaThumbnailUrl,
-  referencePlaybackUrl,
-  referencePreviewUrl,
 } from "@/lib/studio-media-urls";
 
 import { toControlApiDataPreviewPath, toControlApiProxyPath } from "./media-paths";
 
 export { isRecord } from "@/lib/utils";
 export { isSeedanceModel } from "@/lib/seedance-model";
-export { supportedModelInputPatterns } from "@/lib/studio-model-support";
+export {
+  modelInputLimit,
+  supportedModelInputPatterns,
+} from "@/lib/studio-model-support";
 export {
   mediaDisplayUrl,
   mediaDownloadName,
@@ -1428,18 +1430,6 @@ export function classifyFile(file: File) {
   if (/\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(lowerName)) return "videos" as const;
   if (/\.(mp3|wav|aac|m4a|ogg|flac)$/i.test(lowerName)) return "audios" as const;
   return "images" as const;
-}
-
-export function modelInputLimit(
-  model: MediaModelSummary | null,
-  inputKey: "image_inputs" | "video_inputs" | "audio_inputs",
-) {
-  const raw = isRecord(model?.[inputKey]) ? model?.[inputKey].required_max : null;
-  const parsed = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isFinite(parsed)) {
-    return 0;
-  }
-  return Math.max(0, Math.trunc(parsed));
 }
 
 export function modelSupportsImageToVideoAnimation(model: MediaModelSummary | null) {

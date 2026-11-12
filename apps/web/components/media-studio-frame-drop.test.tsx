@@ -292,3 +292,97 @@ it("replaces only the full Driving video slot using the shared file and library 
       .getAttribute("src"),
   ).toBe("/api/control/files/source.png");
 });
+
+it("stages, replaces, validates and removes a Turbo source image with no provider maximum", async () => {
+  vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  const reference: MediaReference = {
+    reference_id: "library-image",
+    kind: "image",
+    status: "ready",
+    stored_path: "references/library.png",
+    stored_url: "/references/library.png",
+    thumb_url: "/references/library-thumb.png",
+    file_size_bytes: 12,
+    sha256: "fixture",
+    usage_count: 0,
+  };
+  const fetch = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith("/api/control/reference-media?")) {
+        return Response.json({ ok: true, items: [reference] });
+      }
+      if (url === "/api/control/media") return Response.json({ ok: true });
+      return new Response(null, { status: 404 });
+    });
+  renderStudio(
+    {
+      ...kling,
+      key: "kling-3.0-turbo-i2v",
+      label: "Kling 3.0 Turbo Image to Video",
+      provider_model: "kling/v3-turbo-image-to-video",
+      image_inputs: { required_min: 1 },
+    },
+    [galleryImage("replacement")],
+  );
+
+  const slot = "studio-standard-slot-slot-source-image";
+  const tile = () => within(screen.getByTestId(`${slot}-filled`));
+  const preview = () => tile().getByRole("img");
+  expect(
+    screen.queryByTestId("studio-standard-slot-slot-end-frame"),
+  ).toBeNull();
+  fireEvent.change(screen.getByTestId(slot), {
+    target: {
+      files: [
+        new File([], "original.png", { type: "image/png" }),
+        new File([], "extra.png", { type: "image/png" }),
+      ],
+    },
+  });
+  await waitFor(() =>
+    expect(preview().getAttribute("src")).toBe("/preview/original.png"),
+  );
+
+  dropGalleryImage("replacement", preview());
+  await waitFor(() =>
+    expect(preview().getAttribute("src")).toBe(
+      "/api/control/files/replacement.png",
+    ),
+  );
+  fireEvent.click(tile().getByRole("button", { name: "Replace Source image" }));
+  fireEvent.click(screen.getByText("Choose from library"));
+  fireEvent.click(await screen.findByRole("button", { name: "Use image" }));
+  expect(preview().getAttribute("src")).toBe(reference.thumb_url);
+
+  await waitFor(() => {
+    const validation = fetch.mock.calls
+      .filter(([url]) => url === "/api/control/media")
+      .at(-1)?.[1]?.body as FormData;
+    expect(validation?.get("intent")).toBe("validate");
+    expect(validation.get("model_key")).toBe("kling-3.0-turbo-i2v");
+    expect(JSON.parse(String(validation.get("attachment_manifest")))).toEqual([
+      expect.objectContaining({
+        kind: "images",
+        role: null,
+        reference_id: reference.reference_id,
+        has_file: false,
+      }),
+    ]);
+  });
+
+  fireEvent.click(tile().getByRole("button", { name: "Remove Source image" }));
+  expect(screen.queryByTestId(`${slot}-filled`)).toBeNull();
+  expect(screen.getByTestId(slot)).toBeTruthy();
+
+  fireEvent.change(screen.getByRole("textbox", { name: "Prompt" }), {
+    target: { value: "Move across the frame." },
+  });
+  const requestsBeforeClick = fetch.mock.calls.length;
+  fireEvent.click(screen.getByTestId("studio-generate-button"));
+  expect(
+    screen.getAllByText("Add source image before generating with this model."),
+  ).not.toHaveLength(0);
+  expect(fetch.mock.calls).toHaveLength(requestsBeforeClick);
+});

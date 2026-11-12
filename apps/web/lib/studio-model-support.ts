@@ -25,11 +25,18 @@ export type StudioModelSupport = {
   unsupportedOptionKeys: string[];
 };
 
-function modelInputLimit(model: MediaModelSummary | null, inputKey: "image_inputs" | "video_inputs" | "audio_inputs") {
+// Studio uses the required count as its slot capacity when the maximum is unspecified.
+export function modelInputLimit(
+  model: MediaModelSummary | null,
+  inputKey: "image_inputs" | "video_inputs" | "audio_inputs",
+) {
   const candidate = model?.[inputKey];
   const input = isRecord(candidate) ? candidate : null;
   const rawMax = input?.required_max;
-  const raw = rawMax !== null && rawMax !== undefined && rawMax !== "" ? rawMax : input?.required_min;
+  const raw =
+    rawMax !== null && rawMax !== undefined && rawMax !== ""
+      ? rawMax
+      : input?.required_min;
   const parsed = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(parsed)) {
     return 0;

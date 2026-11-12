@@ -18,7 +18,14 @@ const catalog = [
   {"key": "kling-3.0-i2v", "input_patterns": ["single_image", "first_last_frames"], "image_inputs": {"required_max": 2}, "video_inputs": {"required_max": 0}, "audio_inputs": {"required_max": 0}, "expected": "standard"},
   {"key": "kling-3.0-motion", "input_patterns": ["motion_control"], "image_inputs": {"required_max": 1}, "video_inputs": {"required_max": 1}, "audio_inputs": {"required_max": 0}, "expected": "standard"},
   {"key": "kling-3.0-t2v", "input_patterns": ["prompt_only"], "image_inputs": {"required_max": 0}, "video_inputs": {"required_max": 0}, "audio_inputs": {"required_max": 0}, "expected": "none"},
-  {"key": "kling-3.0-turbo-i2v", "input_patterns": ["single_image", "first_last_frames"], "image_inputs": {"required_max": null}, "video_inputs": {"required_max": 0}, "audio_inputs": {"required_max": 0}, "expected": "none"},
+  {
+    key: "kling-3.0-turbo-i2v",
+    input_patterns: ["single_image", "first_last_frames"],
+    image_inputs: { required_min: 1, required_max: null },
+    video_inputs: { required_max: 0 },
+    audio_inputs: { required_max: 0 },
+    expected: "standard",
+  },
   {"key": "nano-banana-2", "input_patterns": ["prompt_only", "image_edit"], "image_inputs": {"required_max": 14}, "video_inputs": {"required_max": 0}, "audio_inputs": {"required_max": 0}, "expected": "multi-image"},
   {"key": "nano-banana-pro", "input_patterns": ["prompt_only", "image_edit"], "image_inputs": {"required_max": 8}, "video_inputs": {"required_max": 0}, "audio_inputs": {"required_max": 0}, "expected": "multi-image"},
   {"key": "seedance-2.0-fast", "input_patterns": ["prompt_only", "single_image", "first_last_frames", "multimodal_reference"], "image_inputs": {"required_max": 9}, "video_inputs": {"required_max": 3}, "audio_inputs": {"required_max": 3}, "expected": "seedance"},
@@ -47,6 +54,26 @@ describe("Studio composer input routing", () => {
 
   it.each(catalog)("leaves structured preset inputs to their own composer for $key", ({ expected: _expected, ...model }) => {
     expect(route(model as MediaModelSummary, true)).toBe("none");
+  });
+
+  it.each([
+    { maximum: 0, slots: [] },
+    { maximum: 2, slots: ["slot-start-frame", "slot-end-frame"] },
+  ])("honors an explicit image maximum of $maximum", ({ maximum, slots }) => {
+    const model = {
+      key: "kling-3.0-turbo-i2v",
+      label: "Kling 3.0 Turbo Image to Video",
+      provider_model: "kling/v3-turbo-image-to-video",
+      task_modes: ["image_to_video"],
+      input_patterns: ["single_image", "first_last_frames"],
+      image_inputs: { required_min: 1, required_max: maximum },
+    } satisfies MediaModelSummary;
+    const layout = resolveStandardComposerSlots({
+      model,
+      attachments: [],
+      sourceAsset: null,
+    });
+    expect(layout.slots.map((slot) => slot.id)).toEqual(slots);
   });
 
   it("does not revive a mixed-media fallback for an unfamiliar contract", () => {
