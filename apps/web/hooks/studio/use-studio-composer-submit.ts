@@ -6,18 +6,17 @@ import type { MutableRefObject } from "react";
 
 import type { AttachmentRecord, ComposerStatusMessage } from "@/lib/media-studio-contract";
 import {
-  buildNormalizedStudioOptions,
   isCoarsePointerDevice,
   type MultiShotParseResult,
   type PresetSlotState,
   studioValidationReady,
-  stripUnsupportedStudioOptions,
   type StructuredPresetImageSlot,
 } from "@/lib/media-studio-helpers";
 import { normalizeImageFileForUpload } from "@/lib/studio-composer-file-utils";
 import { studioDebug } from "@/lib/studio-debug";
 import { enhancementFailureMessage } from "@/lib/studio-enhancement";
 import { createOptimisticBatch } from "@/lib/studio-gallery";
+import { isRecord } from "@/lib/utils";
 import type {
   MediaBatch,
   MediaEnhancePreviewResponse,
@@ -30,6 +29,16 @@ import type {
 type BusyState = "idle" | "validate" | "submit";
 type ComposerIntent = "validate" | "submit" | "enhance";
 
+function studioValidationMessage(validation: MediaValidationResponse | undefined) {
+  const { impossible_inputs: invalid, missing_inputs: missing, errors } = validation?.validation ?? {};
+  const issues = [invalid, missing, errors].flatMap((entries) => Array.isArray(entries) ? entries : []);
+  for (const issue of issues) {
+    const message = isRecord(issue) ? issue.message : issue;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return "Check the generation options and try again.";
+}
+
 type UseStudioComposerSubmitOptions = {
   autoValidateTimerRef: MutableRefObject<number | null>;
   validationRequestIdRef: MutableRefObject<number>;
@@ -37,11 +46,9 @@ type UseStudioComposerSubmitOptions = {
   currentModel: MediaModelSummary | null;
   currentPreset: MediaPreset | null;
   currentPresetCompatibleWithModel: boolean;
-  currentPresetDefaultOptions: Record<string, unknown> | null;
   selectedPresetId: string;
   modelKey: string;
-  inferredInputPattern: string;
-  optionValues: Record<string, unknown>;
+  requestOptions: Record<string, unknown>;
   prompt: string;
   structuredPresetActive: boolean;
   structuredPresetPromptPreview: string;
@@ -95,23 +102,13 @@ export function useStudioComposerSubmit(options: UseStudioComposerSubmitOptions)
   async function buildMediaFormData(intent: ComposerIntent) {
     const formData = new FormData();
     const includeEnhancementImages = intent !== "enhance" || options.enhanceSupportsImage;
-    const normalizedOptions = buildNormalizedStudioOptions(
-      options.currentModel,
-      options.optionValues,
-      options.currentPresetDefaultOptions,
-    );
-    const sanitizedOptions = stripUnsupportedStudioOptions(
-      options.modelKey,
-      options.inferredInputPattern,
-      normalizedOptions,
-    );
     const effectivePrompt = options.structuredPresetActive ? options.structuredPresetPromptPreview : options.prompt;
     formData.set("intent", intent);
     formData.set("model_key", options.modelKey);
     formData.set("prompt", effectivePrompt);
     formData.set("output_count", String(options.outputCount));
     formData.set("enhance", intent === "enhance" ? "true" : "false");
-    formData.set("options", JSON.stringify(sanitizedOptions));
+    formData.set("options", JSON.stringify(options.requestOptions));
     formData.set("system_prompt_ids", JSON.stringify(options.selectedPromptIds));
     if (options.seedanceComposer) {
       formData.set("task_mode", options.effectiveSeedanceMode === "prompt_only" ? "text_to_video" : "reference_to_video");
@@ -344,9 +341,7 @@ export function useStudioComposerSubmit(options: UseStudioComposerSubmitOptions)
         return null;
       }
       options.setValidation(payload.validation ?? null);
-      if (!silent) {
-        options.setFormMessage({ tone: "healthy", text: payload.success ?? "Estimate ready." });
-      }
+      if (!silent) reportValidation(payload.validation, payload.success);
       return payload.validation ?? null;
     } catch {
       if (!silent) {
@@ -358,6 +353,16 @@ export function useStudioComposerSubmit(options: UseStudioComposerSubmitOptions)
         options.setBusyState("idle");
       }
     }
+  }
+
+  function reportValidation(validation: MediaValidationResponse | undefined, success?: string) {
+    if (studioValidationReady(validation ?? null)) {
+      options.setFormMessage({ tone: "healthy", text: success ?? "Estimate ready." });
+      return;
+    }
+    const message = { tone: "danger", text: studioValidationMessage(validation) } as const;
+    options.setFormMessage(message);
+    options.showFloatingComposerBanner(message, 5600);
   }
 
   async function submitMedia(intent: "validate" | "submit") {

@@ -1503,6 +1503,11 @@ export type StudioDynamicOption = {
   min?: number | null;
   max?: number | null;
   hidden_from_studio?: boolean;
+  ui_control?: string;
+  ui_visible_when?: Record<string, unknown>;
+  ui_choice_visible_when?: Record<string, Record<string, unknown>>;
+  ui_step?: number;
+  value_aliases?: Record<string, string>;
 };
 
 export type MediaModelDetailResponse = {

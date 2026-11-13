@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 
-import type { AttachmentRecord, GalleryKindFilter } from "@/lib/media-studio-contract";
-import type { MediaAsset, MediaBatch, MediaJob, MediaReference } from "@/lib/types";
+import type { AttachmentRecord, GalleryKindFilter, MediaStudioProps } from "@/lib/media-studio-contract";
+import type { MediaAsset, MediaBatch, MediaJob, MediaReference, MediaValidationResponse } from "@/lib/types";
+
+import type { StudioComposerController } from "@/hooks/studio/use-studio-composer";
+import type { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
+import type { ReferenceLibraryTarget } from "@/hooks/studio/use-studio-reference-library";
+import { isCoarsePointerDevice, modelInputLimit } from "@/lib/media-studio-helpers";
+import { mobileComposerCollapsedForProgrammaticExpand } from "@/lib/studio-composer-reveal";
 
 const STUDIO_MOTION_FIXTURE_VIDEO_DURATION_SECONDS = 20.083333;
 const STUDIO_MOTION_FIXTURE_VIDEO_WIDTH = 720;
@@ -68,7 +74,7 @@ export function buildStudioHarnessAttachment(
   } satisfies AttachmentRecord;
 }
 
-export function buildStudioHarnessMotionVideoAttachment() {
+function buildStudioHarnessMotionVideoAttachment() {
   const posterUrl = studioHarnessFixtureImageDataUri("20.1s video", "crimson");
   const reference = buildStudioHarnessReference(1, "video", {
     reference_id: "studio-fixture-motion-driving-video",
@@ -129,6 +135,353 @@ export type StudioTestFixtureControls = {
   mountMotionControlVideo: (modelKey?: string) => StudioFixtureMountResult;
   mountMobileInputs: (mode?: "multi-image" | "seedance" | "standard") => StudioFixtureMountResult;
 };
+
+type Setter<T> = Dispatch<SetStateAction<T>>;
+
+type StudioHarnessFixturesParams = {
+  models: MediaStudioProps["models"];
+  prompts: MediaStudioProps["prompts"];
+  modelKey: string;
+  currentModelKey: string | undefined;
+  closeStudioOverlays: () => void;
+  setDesktopComposerCollapsed: Setter<boolean>;
+  setPromptReferenceDismissed: Setter<boolean>;
+  setPromptHasFocus: Setter<boolean>;
+  setPromptCursorIndex: Setter<number | null>;
+  setStudioHarnessFixtureState: Setter<StudioHarnessFixtureState | null>;
+  setReferenceLibraryTarget: Setter<ReferenceLibraryTarget | null>;
+  composerActions: Pick<
+    StudioComposerController["actions"],
+    | "clearComposer"
+    | "clearSourceAsset"
+    | "setAttachments"
+    | "setMobileComposerCollapsed"
+    | "setModelKey"
+    | "setOpenPicker"
+    | "setOptionValues"
+    | "setOutputCount"
+    | "setPresetInputValues"
+    | "setPresetSlotStates"
+    | "setPrompt"
+    | "setSelectedPresetId"
+    | "setSelectedPromptIds"
+    | "setValidation"
+  >;
+  galleryActions: Pick<
+    ReturnType<typeof useStudioGalleryFeed>["actions"],
+    | "activateGalleryKindFilter"
+    | "setGalleryModelFilter"
+    | "setLocalAssets"
+    | "setLocalBatches"
+    | "setLocalJobs"
+    | "setOptimisticBatches"
+  >;
+};
+
+export function useStudioHarnessFixtures({
+  models,
+  prompts,
+  modelKey,
+  currentModelKey,
+  closeStudioOverlays,
+  setDesktopComposerCollapsed,
+  setPromptReferenceDismissed,
+  setPromptHasFocus,
+  setPromptCursorIndex,
+  setStudioHarnessFixtureState,
+  setReferenceLibraryTarget,
+  composerActions: {
+    clearComposer,
+    clearSourceAsset,
+    setAttachments,
+    setMobileComposerCollapsed,
+    setModelKey,
+    setOpenPicker,
+    setOptionValues,
+    setOutputCount,
+    setPresetInputValues,
+    setPresetSlotStates,
+    setPrompt,
+    setSelectedPresetId,
+    setSelectedPromptIds,
+    setValidation,
+  },
+  galleryActions: {
+    activateGalleryKindFilter,
+    setGalleryModelFilter,
+    setLocalAssets,
+    setLocalBatches,
+    setLocalJobs,
+    setOptimisticBatches,
+  },
+}: StudioHarnessFixturesParams) {
+  const fixtures = useMemo<StudioTestFixtureControls>(() => {
+    const prepareComposerFixture = () => {
+      closeStudioOverlays();
+      setDesktopComposerCollapsed(false);
+      setMobileComposerCollapsed(false);
+      setSelectedPresetId("");
+      setSelectedPromptIds([]);
+      setPresetInputValues({});
+      setPresetSlotStates({});
+      setOptionValues({});
+      setValidation(null);
+      setOpenPicker(null);
+      setPromptReferenceDismissed(false);
+      setPromptHasFocus(false);
+      setPromptCursorIndex(null);
+      setStudioHarnessFixtureState(null);
+    };
+    const findMultiImageModel = () =>
+      models.find(
+        (model) =>
+          model.studio_exposed !== false &&
+          !model.key.startsWith("seedance") &&
+          modelInputLimit(model, "image_inputs") > 1 &&
+          modelInputLimit(model, "video_inputs") === 0 &&
+          modelInputLimit(model, "audio_inputs") === 0,
+      );
+    const findSeedanceModel = () =>
+      models.find(
+        (model) =>
+          model.studio_exposed !== false &&
+          model.key.startsWith("seedance-2.0"),
+      );
+    const findStandardModel = () =>
+      models.find(
+        (model) =>
+          model.studio_exposed !== false &&
+          modelInputLimit(model, "image_inputs") > 0 &&
+          modelInputLimit(model, "image_inputs") <= 2 &&
+          modelInputLimit(model, "video_inputs") === 0 &&
+          modelInputLimit(model, "audio_inputs") === 0 &&
+          !model.key.startsWith("seedance"),
+      );
+    const findMotionControlModel = (preferredKey = "kling-3.0-motion") =>
+      models.find(
+        (model) => model.studio_exposed !== false && model.key === preferredKey,
+      ) ??
+      models.find(
+        (model) =>
+          model.studio_exposed !== false &&
+          (model.input_patterns ?? []).includes("motion_control"),
+      );
+
+    return {
+      reset: () => {
+        setStudioHarnessFixtureState(null);
+        setPromptHasFocus(false);
+        setPromptCursorIndex(null);
+        setPromptReferenceDismissed(false);
+        clearComposer();
+        closeStudioOverlays();
+        setDesktopComposerCollapsed(false);
+        setMobileComposerCollapsed((collapsed) =>
+          mobileComposerCollapsedForProgrammaticExpand(
+            isCoarsePointerDevice(),
+            collapsed,
+          ),
+        );
+      },
+      mountPromptReferencePicker: () => {
+        const targetModel = findMultiImageModel();
+        if (!targetModel) {
+          return {
+            ok: false,
+            reason: "No non-Seedance multi-image Studio model is available.",
+          };
+        }
+        prepareComposerFixture();
+        clearSourceAsset();
+        setModelKey(targetModel.key);
+        setAttachments([
+          buildStudioHarnessAttachment(1, "images"),
+          buildStudioHarnessAttachment(2, "images"),
+        ]);
+        const nextPrompt = "Blend this concept with @image";
+        setPrompt(nextPrompt);
+        setPromptCursorIndex(nextPrompt.length);
+        setPromptHasFocus(true);
+        return { ok: true };
+      },
+      mountComposerEnhanceSetup: () => {
+        prepareComposerFixture();
+        setPrompt("Enhance this neon observatory scene.");
+        setStudioHarnessFixtureState({ composerEnhanceMode: "setup" });
+        return { ok: true };
+      },
+      mountComposerEnhanceDisabled: () => {
+        prepareComposerFixture();
+        setPrompt("Enhance this glass castle portrait.");
+        setStudioHarnessFixtureState({ composerEnhanceMode: "disabled" });
+        return { ok: true };
+      },
+      mountContextPanels: () => {
+        closeStudioOverlays();
+        setStudioHarnessFixtureState({ contextPanels: true });
+        setLocalJobs([
+          {
+            job_id: "studio-fixture-job-1",
+            model_key: currentModelKey ?? modelKey,
+            status: "completed",
+            raw_prompt:
+              "Fixture job used only to mount Studio context panel chrome.",
+            created_at: "2026-06-18T00:00:00.000Z",
+            provider_task_id: "local-fixture",
+          } as MediaJob,
+        ]);
+        if (prompts[0]?.prompt_id) {
+          setSelectedPromptIds([prompts[0].prompt_id]);
+        }
+        setValidation({
+          state: "ready",
+          resolved_system_prompt: {
+            rendered_system_prompt:
+              "Fixture preflight text for context-panel visual verification.",
+          },
+        } as MediaValidationResponse);
+        return { ok: true };
+      },
+      mountGalleryEmptyState: () => {
+        closeStudioOverlays();
+        setStudioHarnessFixtureState({ galleryEmpty: true });
+        setLocalAssets([]);
+        setLocalJobs([]);
+        setLocalBatches([]);
+        setOptimisticBatches([]);
+        activateGalleryKindFilter("all");
+        setGalleryModelFilter("all");
+        return { ok: true };
+      },
+      mountMotionControlVideo: (preferredKey = "kling-3.0-motion") => {
+        const targetModel = findMotionControlModel(preferredKey);
+        if (!targetModel) {
+          return {
+            ok: false,
+            reason: "No motion-control Studio model is available.",
+          };
+        }
+        prepareComposerFixture();
+        setModelKey(targetModel.key);
+        setAttachments([
+          buildStudioHarnessAttachment(1, "images"),
+          buildStudioHarnessMotionVideoAttachment(),
+        ]);
+        setOptionValues({ character_orientation: "image", mode: "720p" });
+        setOutputCount(1);
+        setPrompt(
+          "Motion-control fixture with a 20.083333 second driving video.",
+        );
+        return { ok: true };
+      },
+      mountMobileInputs: (mode = "multi-image") => {
+        prepareComposerFixture();
+        if (mode === "seedance") {
+          const targetModel = findSeedanceModel();
+          if (!targetModel) {
+            return {
+              ok: false,
+              reason: "No Seedance Studio model is available.",
+            };
+          }
+          setModelKey(targetModel.key);
+          setAttachments([
+            buildStudioHarnessAttachment(1, "images", "first_frame"),
+            buildStudioHarnessAttachment(2, "images", "reference"),
+            buildStudioHarnessAttachment(3, "videos", "reference"),
+            buildStudioHarnessAttachment(4, "audios", "reference"),
+          ]);
+          setPrompt("Seedance fixture using @image1 @video1 @audio1.");
+          return { ok: true };
+        }
+        if (mode === "standard") {
+          const targetModel = findStandardModel();
+          if (!targetModel) {
+            return {
+              ok: false,
+              reason: "No standard image-input Studio model is available.",
+            };
+          }
+          setModelKey(targetModel.key);
+          setAttachments([]);
+          setPrompt("Standard input fixture.");
+          return { ok: true };
+        }
+        const targetModel = findMultiImageModel();
+        if (!targetModel) {
+          return {
+            ok: false,
+            reason: "No multi-image Studio model is available.",
+          };
+        }
+        setModelKey(targetModel.key);
+        setAttachments([
+          buildStudioHarnessAttachment(1, "images"),
+          buildStudioHarnessAttachment(2, "images"),
+        ]);
+        setPrompt("Multi-image mobile fixture.");
+        return { ok: true };
+      },
+    };
+  }, [
+    activateGalleryKindFilter,
+    clearComposer,
+    closeStudioOverlays,
+    clearSourceAsset,
+    currentModelKey,
+    setLocalBatches,
+    modelKey,
+    models,
+    prompts,
+    setAttachments,
+    setGalleryModelFilter,
+    setLocalAssets,
+    setLocalJobs,
+    setMobileComposerCollapsed,
+    setModelKey,
+    setOpenPicker,
+    setDesktopComposerCollapsed,
+    setPromptCursorIndex,
+    setPromptHasFocus,
+    setPromptReferenceDismissed,
+    setStudioHarnessFixtureState,
+    setOptimisticBatches,
+    setOptionValues,
+    setOutputCount,
+    setPresetInputValues,
+    setPresetSlotStates,
+    setPrompt,
+    setSelectedPresetId,
+    setSelectedPromptIds,
+    setValidation,
+  ]);
+  const appliedFixtureRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!studioTestHarnessLocalHost()) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("studioTestHarness") !== "1") return;
+    const fixtureKey = params.get("studioFixture");
+    if (!fixtureKey || appliedFixtureRef.current === fixtureKey) return;
+    appliedFixtureRef.current = fixtureKey;
+
+    const mounts = new Map<string, () => unknown>([
+      ["prompt-reference", fixtures.mountPromptReferencePicker],
+      ["enhance-setup", fixtures.mountComposerEnhanceSetup],
+      ["enhance-disabled", fixtures.mountComposerEnhanceDisabled],
+      ["context-panels", fixtures.mountContextPanels],
+      ["gallery-empty", fixtures.mountGalleryEmptyState],
+      ["motion-control-video", () => fixtures.mountMotionControlVideo()],
+      ["motion-control-video-2-6", () => fixtures.mountMotionControlVideo("kling-2.6-motion")],
+      ["reference-library", () => setReferenceLibraryTarget({ type: "browse", title: "Reference Library fixture" })],
+      ["mobile-seedance", () => fixtures.mountMobileInputs("seedance")],
+      ["mobile-standard", () => fixtures.mountMobileInputs("standard")],
+      ["mobile-inputs", () => fixtures.mountMobileInputs("multi-image")],
+    ]);
+    const mount = mounts.get(fixtureKey);
+    if (mount) window.requestAnimationFrame(() => { mount(); });
+  }, [fixtures, setReferenceLibraryTarget]);
+  return fixtures;
+}
 
 type StudioShellHandoffSnapshotParams = {
   projectId: string | null;
@@ -241,6 +594,11 @@ declare global {
   }
 }
 
+function studioTestHarnessLocalHost() {
+  if (typeof window === "undefined") return false;
+  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+}
+
 function studioTestHarnessEnabled() {
   if (typeof window === "undefined") {
     return false;
@@ -248,9 +606,7 @@ function studioTestHarnessEnabled() {
   if (window.navigator.webdriver) {
     return true;
   }
-  const hostname = window.location.hostname;
-  const localDevHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  return localDevHost && new URLSearchParams(window.location.search).get("studioTestHarness") === "1";
+  return studioTestHarnessLocalHost() && new URLSearchParams(window.location.search).get("studioTestHarness") === "1";
 }
 
 type StudioTestHarnessParams = {

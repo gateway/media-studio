@@ -115,6 +115,7 @@ Media Studio reads its model catalog from the companion [`kie-api`](https://gith
 | **GPT Image 2** | Text-to-image and image editing with ordered references |
 | **GPT Image 2.5 Flare** | Text-to-image and image editing |
 | **GPT Image 2.5 Sunburst** | Text-to-image and image editing |
+| **GPT Image 2.6 Sunburst and Flare** | Text-to-image and image editing with PNG, JPEG, WebP, GIF and SVG output |
 | **Nano Banana 2** | Text-to-image and image editing |
 | **Nano Banana Pro** | Text-to-image and image editing |
 

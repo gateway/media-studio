@@ -49,11 +49,9 @@ function renderInspectorInfo(
   );
 }
 
-describe("StudioInspectorInfo", () => {
-  afterEach(() => {
-    cleanup();
-  });
+afterEach(cleanup);
 
+describe("StudioInspectorInfo", () => {
   it("allows long inspector values to wrap inside the information pane", () => {
     renderInspectorInfo();
 
@@ -137,3 +135,30 @@ it("shows the existing catalog label while preserving the raw model key as read-
   ).toBeNull();
   expect(screen.getByText("Model key")).toBeTruthy();
 });
+
+it.each([
+  [9, "9 (2 requested)"],
+  [2, "2"],
+  [undefined, null],
+])(
+  "reports the measured GIF frame count when available (%s)",
+  (count, expected) => {
+    render(
+      <StudioInspectorInfo
+        selectedAsset={{
+          asset_id: "gif",
+          created_at: "2026-11-13",
+          hero_original_path: "outputs/output.gif",
+          payload: {
+            options: { frame_count: 2 },
+            outputs: [{ metadata: { frame_count: count } }],
+          },
+        }}
+      />,
+    );
+    expect(
+      screen.queryByText("Actual frame count")?.nextElementSibling
+        ?.textContent ?? null,
+    ).toBe(expected);
+  },
+);

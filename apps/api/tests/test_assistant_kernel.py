@@ -461,47 +461,36 @@ def test_graph_discovery_handles_natural_queries_within_result_budget(app_module
     del app_modules
     tools = importlib.import_module("app.assistant.kernel_tools")
     context = tools.KernelToolContext(workflow=None, canvas_context={})
+    image_edit_node = "model.kie.gpt_image_2_6_sunburst_image_to_image"
+    expected_types = {"media.load_image", "prompt.recipe", image_edit_node}
     listed = tools.execute_kernel_tool(
         tool_name="list_graph_node_types",
         arguments=json.dumps(
             {
-                "query": "face image and product image into a recipe then GPT Image 2",
+                "query": "Load an image from the library and apply a prompt recipe to edit with GPT Image 2.6 Sunburst",
                 "limit": 20,
             }
         ),
         capability="graph_builder",
         context=context,
     )
+    assert listed.trace.error is None
+    assert listed.trace.result_size_bytes <= tools.KERNEL_SCHEMA_RESULT_TARGET_BYTES
     listed_types = {item["type"] for item in listed.result["node_types"]}
-    assert {
-        "media.load_image",
-        "prompt.recipe",
-        "model.kie.gpt_image_2_image_to_image",
-    }.issubset(listed_types)
+    assert expected_types.issubset(listed_types)
+    _assert_discovered_schemas(tools, context, expected_types | {"media.save_image"})
 
+
+def _assert_discovered_schemas(tools, context, node_types) -> None:
     inspected = tools.execute_kernel_tool(
         tool_name="inspect_graph_node_schemas",
-        arguments=json.dumps(
-            {
-                "node_types": [
-                    "media.load_image",
-                    "prompt.recipe",
-                    "model.kie.gpt_image_2_image_to_image",
-                    "media.save_image",
-                ]
-            }
-        ),
+        arguments={"node_types": sorted(node_types)},
         capability="graph_builder",
         context=context,
     )
     assert inspected.trace.error is None
     assert len(json.dumps(inspected.result, separators=(",", ":")).encode("utf-8")) <= tools.KERNEL_TOOL_RESULT_MAX_BYTES
-    assert {item["type"] for item in inspected.result["definitions"]} == {
-        "media.load_image",
-        "prompt.recipe",
-        "model.kie.gpt_image_2_image_to_image",
-        "media.save_image",
-    }
+    assert {item["type"] for item in inspected.result["definitions"]} == node_types
     assert all({"ports", "fields", "limits", "ui"}.issubset(item) for item in inspected.result["definitions"])
 
 

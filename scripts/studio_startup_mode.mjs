@@ -23,7 +23,10 @@ export function startupModeIssue(mode, health) {
   if (health.runner_active !== live) {
     return `Expected the media worker to be ${live ? "active" : "inactive"}.`;
   }
-  if (!live) return null;
+  return live ? liveWorkerIssue(health) : null;
+}
+
+function liveWorkerIssue(health) {
   if (health.kie_api_key_configured !== true)
     return "The KIE key is not configured.";
   if (health.queue_enabled !== true) return "Media queue processing is paused.";

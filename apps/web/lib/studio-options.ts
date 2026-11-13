@@ -15,7 +15,9 @@ import {
 import {
   HIDDEN_STUDIO_OPTION_KEYS,
   optionChoices,
+  studioRawOptionEntries,
 } from "@/lib/studio-model-support";
+import { parseStudioAspectRatio } from "@/lib/studio-aspect-ratio";
 import type { MediaModelSummary } from "@/lib/types";
 import { isRecord } from "@/lib/utils";
 
@@ -58,29 +60,11 @@ export function optionEntries(model: MediaModelSummary | null) {
           !HIDDEN_STUDIO_OPTION_KEYS.has(option.key),
       )
       .map((option) => {
-        const schema: Record<string, unknown> = {
-          type: option.type,
-          allowed: option.allowed,
-          default: option.default,
-          min: option.min,
-          max: option.max,
-          required: option.required,
-          label: option.label,
-          help_text: option.help_text,
-          ui_group: option.ui_group,
-          ui_order: option.ui_order,
-          advanced: option.advanced,
-        };
-        return [option.key, schema] as [string, Record<string, unknown>];
+        const { key, ...schema } = option;
+        return [key, schema] as [string, Record<string, unknown>];
       });
   }
-  if (!model?.options || !isRecord(model.options)) {
-    return [] as Array<[string, Record<string, unknown>]>;
-  }
-  return Object.entries(model.options).filter(
-    (entry): entry is [string, Record<string, unknown>] =>
-      !HIDDEN_STUDIO_OPTION_KEYS.has(entry[0]) && isRecord(entry[1]),
-  );
+  return studioRawOptionEntries(model?.options);
 }
 
 export function sanitizeStudioOptions(options: Record<string, unknown>) {
@@ -137,34 +121,85 @@ export function buildNormalizedStudioOptions(
   return sanitizeStudioOptions(seededOptions);
 }
 
-export function stripUnsupportedStudioOptions(
-  modelKey: string,
+export function resolveStudioOptions(
+  model: MediaModelSummary | null,
+  currentOptions: Record<string, unknown>,
+  presetDefaults: Record<string, unknown> | null,
   inputPattern: string,
-  options: Record<string, unknown>,
 ) {
-  const sanitized = { ...options };
-  if (modelKey === "kling-3.0-i2v" && inputPattern === "first_last_frames") {
-    delete sanitized.aspect_ratio;
+  const entries = optionEntries(model);
+  const schemas = new Map(entries);
+  const options = buildNormalizedStudioOptions(model, currentOptions, presetDefaults);
+  delete options.studio_still_format;
+  const active = new Map<string, Record<string, unknown> | null>();
+
+  function matches(conditions: unknown) {
+    if (!isRecord(conditions)) return true;
+    return Object.entries(conditions).every(([field, expected]) => {
+      const actual = effectiveValue(field);
+      return Array.isArray(expected) ? expected.includes(actual) : expected === actual;
+    });
   }
-  return sanitized;
+
+  function effectiveValue(key: string): unknown {
+    if (key === "$input_pattern") return inputPattern;
+    const schema = schemas.get(key);
+    if (!schema) return null;
+    resolve(key, schema);
+    return options[key] ?? null;
+  }
+
+  function resolve(key: string, schema: Record<string, unknown>) {
+    if (active.has(key)) return;
+    const value = options[key];
+    // A recursive lookup sees a missing value until its upstream field is resolved.
+    active.set(key, null);
+    delete options[key];
+    if (!matches(schema.ui_visible_when)) return;
+    const effective = resolveStudioOptionValue(schema, value, matches);
+    if (effective.schema) active.set(key, effective.schema);
+    if (hasUsableOptionValue(effective.value)) options[key] = effective.value;
+  }
+
+  for (const [key, schema] of entries) resolve(key, schema);
+  const activeEntries = entries.flatMap(([key]): Array<[string, Record<string, unknown>]> => {
+    const schema = active.get(key);
+    return schema ? [[key, schema]] : [];
+  });
+  return { options, entries: activeEntries };
+}
+
+function resolveStudioOptionValue(
+  schema: Record<string, unknown>,
+  value: unknown,
+  matches: (conditions: unknown) => boolean,
+) {
+  const aliases = isRecord(schema.value_aliases) ? schema.value_aliases : {};
+  const selected = typeof value === "string" ? (aliases[value.toLowerCase()] ?? value) : value;
+  const rules = schema.ui_choice_visible_when;
+  if (!isRecord(rules)) return { schema, value: selected };
+
+  const allowed = optionChoices(schema, selected).filter((choice) => matches(rules[String(choice)]));
+  if (!allowed.length) return { schema: null, value: undefined };
+  return {
+    schema: { ...schema, effective_choices: allowed },
+    value: studioChoiceOrDefault(allowed, selected, schema.default),
+  };
+}
+
+function studioChoiceOrDefault(choices: unknown[], value: unknown, defaultValue: unknown) {
+  if (choices.includes(value)) return value;
+  return choices.includes(defaultValue) ? defaultValue : choices[0];
+}
+
+export function studioOptionChoices(schema: Record<string, unknown>, value: unknown) {
+  return Array.isArray(schema.effective_choices) ? schema.effective_choices as unknown[] : optionChoices(schema, value);
 }
 
 function aspectRatioIcon(value: unknown) {
-  const raw = String(value ?? "").trim();
-  const match = raw.match(/^(\d+(?:\.\d+)?)\s*[:x/]\s*(\d+(?:\.\d+)?)$/i);
-  if (!match) {
-    return Ratio;
-  }
-  const width = Number(match[1]);
-  const height = Number(match[2]);
-  if (
-    !Number.isFinite(width) ||
-    !Number.isFinite(height) ||
-    width <= 0 ||
-    height <= 0
-  ) {
-    return Ratio;
-  }
+  const dimensions = parseStudioAspectRatio(String(value ?? ""), ":x/");
+  if (!dimensions) return Ratio;
+  const { width, height } = dimensions;
   if (Math.abs(width - height) < 0.001) {
     return Square;
   }
@@ -360,12 +395,18 @@ export function parseMultiShotScript(
 
 export function displayChoiceLabel(
   optionKey: string,
-  _schema: Record<string, unknown>,
+  schema: Record<string, unknown>,
   value: unknown,
 ) {
   if (value == null || value === "") {
     return "Select";
   }
+  const labels = schema.ui_choice_labels;
+  const label =
+    isRecord(labels) && Object.hasOwn(labels, String(value))
+      ? labels[String(value)]
+      : undefined;
+  if (typeof label === "string") return label;
   if (optionKey === "mode" && typeof value === "string") {
     if (value === "std" || value === "720p") return "Standard";
     if (value === "pro" || value === "1080p") return "High";
@@ -383,8 +424,6 @@ export function displayChoiceLabel(
     return value.replaceAll("_", " ").toUpperCase();
   }
   if (typeof value === "boolean") {
-    if (optionKey === "google_search") return value ? "On" : "Off";
-    if (optionKey === "sound") return value ? "On" : "Off";
     return value ? "On" : "Off";
   }
   if (typeof value === "string") {
@@ -410,7 +449,7 @@ export function buildChoiceList(
   schema: Record<string, unknown>,
   currentValue: unknown,
 ): StudioChoice[] {
-  return optionChoices(schema, currentValue).map((choice) => ({
+  return studioOptionChoices(schema, currentValue).map((choice) => ({
     value: serializeOptionChoice(choice),
     label: displayChoiceLabel(optionKey, schema, choice),
   }));

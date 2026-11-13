@@ -18,6 +18,7 @@ import {
 import { useId, useState } from "react";
 
 import { AdminToggle } from "@/components/admin-controls";
+import { Button } from "@/components/ui/button";
 import { isSeedanceModel } from "@/lib/seedance-model";
 import { PillSelect, type PillSelectChoice } from "@/components/ui/pill-select";
 import {
@@ -35,6 +36,7 @@ import {
   studioComposerModelLabel,
 } from "@/hooks/studio/use-studio-shell-catalog";
 import type { MediaModelSummary, MediaPreset } from "@/lib/types";
+import { studioOutputGroups, studioOutputSelection } from "@/lib/studio-output";
 import { cn } from "@/lib/utils";
 
 type StudioComposerControlsProps = {
@@ -50,7 +52,7 @@ type StudioComposerControlsProps = {
   outputCount: number;
   compactOptionEntries: Array<[string, Record<string, unknown>]>;
   optionValues: Record<string, unknown>;
-  inferredInputPattern: string | null;
+  draftOptionValues?: Record<string, unknown>;
   canSubmit: boolean;
   generateButtonLabel: string;
   onOpenPickerChange: (pickerId: string | null) => void;
@@ -59,6 +61,39 @@ type StudioComposerControlsProps = {
   onClear: () => void;
   onSubmit: () => void;
 };
+
+export function StudioComposerOutputPicker({
+  entries,
+  value,
+  stillFormat,
+  onSelect,
+}: {
+  entries: StudioComposerControlsProps["compactOptionEntries"];
+  value: unknown;
+  stillFormat?: unknown;
+  onSelect: (format: string) => void;
+}) {
+  const groups = studioOutputGroups(entries);
+  if (groups.length <= 1) return null;
+  return (
+    <div className="studio-composer-output-picker" role="group" aria-label="Output">
+      {groups.map(({ key, label, formats }) => (
+        <Button
+          key={key}
+          appearance="admin"
+          variant="ghost"
+          aria-pressed={formats.includes(String(value))}
+          onClick={() => {
+            if (formats.includes(String(value))) return;
+            onSelect(formats.find((format) => format === stillFormat) ?? formats[0]);
+          }}
+        >
+          {label}
+        </Button>
+      ))}
+    </div>
+  );
+}
 
 export function StudioComposerModelPicker({
   model,
@@ -181,82 +216,14 @@ export function StudioComposerPresetPicker({
   );
 }
 
-export function StudioComposerControls({
-  structuredPresetActive,
-  modelPicker,
-  openPicker,
-  modelKey,
-  presetPicker,
-  imageGenerateAction = false,
-  showEstimate = false,
-  estimatedCredits,
-  modelMaxOutputs,
-  outputCount,
-  compactOptionEntries,
-  optionValues,
-  inferredInputPattern,
-  canSubmit,
-  generateButtonLabel,
-  onOpenPickerChange,
-  onOutputCountChange,
-  onOptionChange,
-  onClear,
-  onSubmit,
-}: StudioComposerControlsProps) {
-  const secondaryOptions: Array<{
-    key: string;
-    label: string;
-    icon: LucideIcon;
-    checked: boolean;
-  }> = [];
-  const optionControls = composerOptionEntries(
-    modelKey,
-    compactOptionEntries,
-  ).flatMap(([optionKey, schema]) => {
-    if (composerHidesOption(modelKey, inferredInputPattern, optionKey)) {
-      return [];
-    }
-
-    const currentValue = optionValues[optionKey];
-    const resolvedValue = currentValue ?? schema.default;
-    const toggle = seedanceToggleControl(modelKey, optionKey, schema);
-    if (toggle) {
-      secondaryOptions.push({
-        key: optionKey,
-        ...toggle,
-        checked: resolvedValue === true,
-      });
-      return [];
-    }
-    const choices = buildChoiceList(optionKey, schema, currentValue);
-    const [firstChoice = { label: "Select" }] = choices;
-    const resolvedLabel =
-      resolvedValue == null || resolvedValue === ""
-        ? firstChoice.label
-        : displayChoiceLabel(optionKey, schema, resolvedValue);
-    const selectedValue = serializeOptionChoice(resolvedValue);
-    return [
-      {
-        optionKey,
-        schema,
-        currentValue,
-        resolvedValue,
-        resolvedLabel,
-        controlLabel: composerControlLabel(
-          modelKey,
-          optionKey,
-          resolvedLabel,
-          resolvedValue,
-        ),
-        selectedValue,
-        choices: choices.length
-          ? choices
-          : [{ value: selectedValue, label: resolvedLabel }],
-        hasChoices: choices.length > 0,
-      },
-    ];
-  });
-
+export function StudioComposerControls(props: StudioComposerControlsProps) {
+  const {
+    structuredPresetActive, modelPicker, openPicker, presetPicker, showEstimate = false,
+    estimatedCredits, modelMaxOutputs, outputCount, canSubmit, generateButtonLabel,
+    onOpenPickerChange, onOutputCountChange, onClear, onSubmit,
+  } = props;
+  const output = studioOutputSelection(props.compactOptionEntries, props.optionValues);
+  const action = composerGenerateAction(output, props.imageGenerateAction);
   return (
     <div
       className={cn(
@@ -294,67 +261,7 @@ export function StudioComposerControls({
           />
         ) : null}
 
-        {optionControls.map(
-          ({
-            optionKey,
-            schema,
-            currentValue,
-            resolvedValue,
-            controlLabel,
-            selectedValue,
-            choices,
-            hasChoices,
-          }) => {
-            if (!hasChoices && schema.type === "int_range") {
-              return (
-                <StudioNumericOptionControl
-                  key={optionKey}
-                  optionKey={optionKey}
-                  schema={schema}
-                  resolvedValue={resolvedValue}
-                  onOptionChange={onOptionChange}
-                />
-              );
-            }
-
-            return (
-              <PillSelect
-                key={optionKey}
-                pickerId={optionKey}
-                viewportOverlay
-                open={openPicker === optionKey}
-                onToggle={() =>
-                  onOpenPickerChange(
-                    openPicker === optionKey ? null : optionKey,
-                  )
-                }
-                onClose={() => onOpenPickerChange(null)}
-                widthClassName={pickerWidth(optionKey)}
-                icon={composerOptionIcon(modelKey, optionKey, currentValue)}
-                choiceIcon={(choice) =>
-                  composerOptionIcon(
-                    modelKey,
-                    optionKey,
-                    parseOptionChoice(schema, choice.value),
-                  )
-                }
-                label={controlLabel}
-                selectedValue={selectedValue}
-                menuTitle={optionKey.replaceAll("_", " ")}
-                choices={composerOptionChoices(modelKey, optionKey, choices)}
-                onSelect={(value) =>
-                  onOptionChange(optionKey, parseOptionChoice(schema, value))
-                }
-              />
-            );
-          },
-        )}
-        {secondaryOptions.length > 0 && (
-          <StudioComposerMoreControls
-            options={secondaryOptions}
-            onOptionChange={onOptionChange}
-          />
-        )}
+        <StudioComposerOptionFields {...props} output={output} />
       </div>
       <div className="studio-composer-actions flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
         <StudioComposerEstimate
@@ -377,15 +284,71 @@ export function StudioComposerControls({
             disabled={!canSubmit}
             className="studio-composer-action-button studio-composer-generate-button"
           >
-            {imageGenerateAction ? <ImageIcon aria-hidden="true" /> : null}
-            {imageGenerateAction
-              ? generateButtonLabel.replace(/^Generate\b/, "Generate image")
-              : generateButtonLabel}
+            {action === "Generate image" ? <ImageIcon aria-hidden="true" /> : null}
+            {generateButtonLabel.replace(/^Generate\b/, action)}
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+type OutputSelection = ReturnType<typeof studioOutputSelection>;
+
+function composerGenerateAction(output: OutputSelection, imageAction?: boolean) {
+  if (output.action && (output.grouped || output.action !== "image")) return `Generate ${output.action}`;
+  return imageAction ? "Generate image" : "Generate";
+}
+
+function StudioComposerOptionFields(props: StudioComposerControlsProps & { output: OutputSelection }) {
+  const { onOptionChange, output } = props;
+  const { regular, advanced, secondary } = buildComposerOptionFields(props);
+  return (
+    <>
+      {regular}
+      {output.loopLabel && <span className="studio-composer-loop-length" aria-live="polite">{output.loopLabel}</span>}
+      {advanced.length > 0 && (
+        <details className="studio-composer-advanced-options">
+          <summary>Advanced settings</summary>
+          <div className="studio-composer-options">{advanced}</div>
+        </details>
+      )}
+      {secondary.length > 0 && <StudioComposerMoreControls options={secondary} onOptionChange={onOptionChange} />}
+    </>
+  );
+}
+
+function buildComposerOptionFields({
+  modelKey, compactOptionEntries, optionValues, draftOptionValues, output,
+  openPicker, onOpenPickerChange, onOptionChange,
+}: StudioComposerControlsProps & { output: OutputSelection }) {
+  const regular: React.ReactNode[] = [];
+  const advanced: React.ReactNode[] = [];
+  const secondary: Array<{
+    key: string; label: string; icon: LucideIcon; checked: boolean;
+  }> = [];
+  for (const [optionKey, schema] of composerOptionEntries(modelKey, compactOptionEntries)) {
+    if (optionKey === "multi_shots" && MULTI_SHOT_MODEL_KEYS.has(modelKey)) continue;
+    const value = optionValues[optionKey] ?? schema.default;
+    const toggle = seedanceToggleControl(modelKey, optionKey, schema);
+    if (toggle) {
+      secondary.push({ key: optionKey, ...toggle, checked: value === true });
+      continue;
+    }
+    const fields = schema.ui_group === "advanced" ? advanced : regular;
+    fields.push(
+      <StudioComposerOptionField
+        key={optionKey}
+        optionKey={optionKey}
+        schema={schema}
+        value={value}
+        draftValue={draftOptionValues?.[optionKey]}
+        output={output}
+        {...{ modelKey, openPicker, onOpenPickerChange, onOptionChange }}
+      />,
+    );
+  }
+  return { regular, advanced, secondary };
 }
 
 function StudioComposerMoreControls({
@@ -504,38 +467,101 @@ export function StudioComposerOptionToggle({
   );
 }
 
-function StudioNumericOptionControl({
+function StudioComposerOptionField({
   optionKey,
   schema,
-  resolvedValue,
+  value,
+  draftValue,
+  output,
+  modelKey,
+  openPicker,
+  onOpenPickerChange,
+  onOptionChange,
+}: Pick<StudioComposerControlsProps, "modelKey" | "openPicker" | "onOpenPickerChange" | "onOptionChange"> & {
+  optionKey: string;
+  schema: Record<string, unknown>;
+  value: unknown;
+  draftValue: unknown;
+  output: OutputSelection;
+}) {
+  const choices = composerFieldChoices(optionKey, schema, value, output.group);
+  if (output.grouped && choices.length <= 1 && optionKey === "output_format") return null;
+  if (!choices.length && isComposerOptionInput(schema)) {
+    return <StudioOptionInput optionKey={optionKey} schema={schema} value={draftValue ?? value} onOptionChange={onOptionChange} />;
+  }
+  const selectedValue = serializeOptionChoice(value);
+  const label = choiceControlLabel(modelKey, optionKey, schema, value, choices, output.grouped);
+  const pickerClassName = outputPickerClassName(output);
+  return (
+    <PillSelect
+      pickerId={optionKey}
+      viewportOverlay
+      open={openPicker === optionKey}
+      onToggle={() => onOpenPickerChange(openPicker === optionKey ? null : optionKey)}
+      onClose={() => onOpenPickerChange(null)}
+      widthClassName={pickerWidth(optionKey)}
+      icon={composerOptionIcon(modelKey, optionKey, value)}
+      choiceIcon={(choice) => composerOptionIcon(modelKey, optionKey, parseOptionChoice(schema, choice.value))}
+      className={pickerClassName}
+      label={label}
+      selectedValue={selectedValue}
+      menuTitle={String(schema.label ?? optionKey.replaceAll("_", " "))}
+      choices={composerOptionChoices(modelKey, optionKey, choices)}
+      onSelect={(value) => onOptionChange(optionKey, parseOptionChoice(schema, value))}
+    />
+  );
+}
+
+function outputPickerClassName(output: OutputSelection) {
+  if (!output.grouped) return undefined;
+  return cn("studio-output-option", output.group?.key === "svg" && "studio-output-option-wide");
+}
+
+function isComposerOptionInput(schema: Record<string, unknown>) {
+  return schema.type === "int_range" || schema.ui_control === "text";
+}
+
+function choiceControlLabel(
+  modelKey: string,
+  key: string,
+  schema: Record<string, unknown>,
+  value: unknown,
+  choices: PillSelectChoice[],
+  grouped: boolean,
+) {
+  const label = value == null || value === "" ? (choices[0]?.label ?? "Select") : displayChoiceLabel(key, schema, value);
+  return grouped && typeof schema.label === "string"
+    ? `${schema.label} · ${label}`
+    : composerControlLabel(modelKey, key, label, value);
+}
+
+function StudioOptionInput({
+  optionKey,
+  schema,
+  value,
   onOptionChange,
 }: {
   optionKey: string;
   schema: Record<string, unknown>;
-  resolvedValue: unknown;
+  value: unknown;
   onOptionChange: StudioComposerControlsProps["onOptionChange"];
 }) {
-  const min = typeof schema.min === "number" ? schema.min : undefined;
-  const max = typeof schema.max === "number" ? schema.max : undefined;
-  const numericValue = Number(resolvedValue ?? min ?? 0);
+  const numeric = schema.type === "int_range";
   return (
-    <label className="flex h-10 w-[calc(50%-0.25rem)] items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-[0.72rem] text-white/78 sm:w-[112px]">
-      <span className="truncate capitalize">
-        {optionKey.replaceAll("_", " ")}
-      </span>
+    <label className="studio-composer-option-input">
+      <span>{String(schema.label ?? optionKey.replaceAll("_", " "))}</span>
       <input
-        type="number"
-        min={min}
-        max={max}
-        value={Number.isFinite(numericValue) ? numericValue : ""}
+        className="min-w-[6ch] w-0 flex-1 bg-transparent text-right"
+        type={numeric ? "number" : "text"}
+        min={typeof schema.min === "number" ? schema.min : undefined}
+        max={typeof schema.max === "number" ? schema.max : undefined}
+        step={typeof schema.ui_step === "number" ? schema.ui_step : undefined}
+        value={String(value ?? "")}
+        placeholder="Auto"
         onChange={(event) => {
-          const parsed = Number(event.currentTarget.value);
-          onOptionChange(
-            optionKey,
-            Number.isFinite(parsed) ? parsed : event.currentTarget.value,
-          );
+          const { value, valueAsNumber } = event.currentTarget;
+          onOptionChange(optionKey, numeric && value ? valueAsNumber : value);
         }}
-        className="min-w-0 flex-1 bg-transparent text-right text-white outline-none"
       />
     </label>
   );
@@ -616,19 +642,17 @@ const klingOptionLabels: Record<string, Record<string, string>> = {
   mode: { "720p": "720p", "1080p": "1080p", std: "Standard", pro: "Pro" },
 };
 
-function composerHidesOption(
-  modelKey: string,
-  inputPattern: string | null,
+function composerFieldChoices(
   optionKey: string,
+  schema: Record<string, unknown>,
+  value: unknown,
+  outputGroup: ReturnType<typeof studioOutputGroups>[number] | undefined,
 ) {
-  if (optionKey === "multi_shots") return MULTI_SHOT_MODEL_KEYS.has(modelKey);
-  return (
-    modelKey === "kling-3.0-i2v" &&
-    inputPattern === "first_last_frames" &&
-    optionKey === "aspect_ratio"
-  );
+  const choices = buildChoiceList(optionKey, schema, value);
+  return optionKey === "output_format" && outputGroup
+    ? choices.filter((choice) => outputGroup.formats.includes(choice.value))
+    : choices;
 }
-
 function composerOptionChoices(
   modelKey: string,
   optionKey: string,

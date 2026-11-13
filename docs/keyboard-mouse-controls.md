@@ -27,6 +27,8 @@ Media Studio shortcuts are ignored while you are typing in a field or when a blo
 | Click a gallery item | Open the asset inspector |
 | Click a favorite icon | Favorite or unfavorite the asset without opening it |
 | Click Projects, Presets, Reference library, or Settings | Open the matching Studio panel |
+| Select **Image**, **GIF**, or **SVG** under the model picker | Choose an output group when the model supports several. Image includes the available still file formats. |
+| Open a GIF or click **Download SVG** | Play the GIF in the inspector or save the original SVG from its gallery tile. |
 | Click Add in References | Choose **Upload file** or **Choose from library** to append a reference if the model has room |
 | Click Add in an empty preset image slot | Choose **Upload file** or **Choose from library** to fill that named slot |
 | Click the dropdown in the bottom-right corner of a reference | Choose **Upload file** or **Choose from library** to replace that reference in place |

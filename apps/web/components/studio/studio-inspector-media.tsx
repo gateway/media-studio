@@ -1,6 +1,7 @@
 "use client";
-import { Maximize2, Play } from "lucide-react";
+import { FileText, Maximize2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { mediaDownloadName, studioAssetFormat } from "@/lib/studio-media-urls";
 import type { MediaAsset } from "@/lib/types";
 
 type InspectorMediaProps = {
@@ -80,6 +81,16 @@ function VisualPreview({
 }
 
 export function StudioInspectorMedia(props: InspectorMediaProps) {
+  if (studioAssetFormat(props.asset) === "SVG") {
+    return (
+      <div className="studio-media-inspector-media">
+        <div className="studio-media-inspector-canvas flex-col gap-3">
+          <FileText aria-hidden="true" className="size-8" />
+          <p>{mediaDownloadName(props.asset)}</p>
+        </div>
+      </div>
+    );
+  }
   const canPreview = [props.displayVisual, props.playbackVisual].some(Boolean);
   return (
     <div className="studio-media-inspector-media">

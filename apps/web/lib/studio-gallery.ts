@@ -1,3 +1,4 @@
+import { parseStudioAspectRatio } from "@/lib/studio-aspect-ratio";
 import type { MediaAsset, MediaBatch, MediaJob, MediaPreset, MediaSystemPrompt } from "@/lib/types";
 import { isRecord } from "@/lib/utils";
 
@@ -214,16 +215,8 @@ function parseAspectRatioValue(value: unknown): number | null {
   if (typeof value !== "string") {
     return null;
   }
-  const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)$/);
-  if (!match) {
-    return null;
-  }
-  const width = Number(match[1]);
-  const height = Number(match[2]);
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return null;
-  }
-  return width / height;
+  const dimensions = parseStudioAspectRatio(value, ":");
+  return dimensions ? dimensions.width / dimensions.height : null;
 }
 
 function extractAspectRatioFromRecord(record: Record<string, unknown> | null | undefined): number | null {

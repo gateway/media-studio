@@ -25,6 +25,8 @@ export async function GET(request: Request, { params }: RouteContext) {
     "content-type",
     "content-length",
     "content-disposition",
+    "content-security-policy",
+    "x-content-type-options",
     "cache-control",
     "etag",
     "last-modified",
@@ -37,19 +39,30 @@ export async function GET(request: Request, { params }: RouteContext) {
     }
   }
 
-  if (request.url) {
-    const { searchParams } = new URL(request.url);
-    if (searchParams.get("download") === "1") {
-      const requestedName = searchParams.get("filename") ?? resolved.path.at(-1) ?? "download";
-      const safeName = requestedName.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^[-.]+|[-.]+$/g, "") || "download";
-      headers.set("content-disposition", `attachment; filename="${safeName}"`);
-    } else if (searchParams.get("inline") === "1") {
-      headers.delete("content-disposition");
-    }
-  }
+  applyFileDisposition(headers, request.url, resolved.path.at(-1));
 
   return new Response(result.response.body, {
     status: result.response.status,
     headers,
   });
+}
+
+function applyFileDisposition(headers: Headers, url: string, filename?: string) {
+  const { searchParams } = new URL(url);
+  const svg = headers.get("content-type")?.startsWith("image/svg+xml");
+  if (svg) {
+    headers.set("content-security-policy", "sandbox; default-src 'none'");
+    headers.set("x-content-type-options", "nosniff");
+  }
+  if (svg || searchParams.get("download") === "1") {
+    const requestedName = searchParams.get("filename") ?? filename;
+    const safeName = safeDownloadFilename(requestedName);
+    headers.set("content-disposition", `attachment; filename="${safeName}"`);
+  } else if (searchParams.get("inline") === "1") {
+    headers.delete("content-disposition");
+  }
+}
+
+function safeDownloadFilename(name = "download") {
+  return name.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^[-.]+|[-.]+$/g, "") || "download";
 }

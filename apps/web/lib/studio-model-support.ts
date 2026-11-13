@@ -89,14 +89,9 @@ export function optionChoices(schema: Record<string, unknown>, currentValue: unk
   if (schema.type === "int_range" && typeof schema.min === "number" && typeof schema.max === "number") {
     const min = Number(schema.min);
     const max = Number(schema.max);
-    if (Number.isInteger(min) && Number.isInteger(max) && max >= min) {
+    if (Number.isInteger(min) && Number.isInteger(max) && max >= min && (declared.length || max - min <= 20)) {
       const ranged = Array.from({ length: max - min + 1 }, (_, index) => min + index);
-      if (declared.length > 0) {
-        return [...declared, ...ranged.filter((value) => !declared.includes(value))];
-      }
-      if (max - min <= 20) {
-        return ranged;
-      }
+      return [...declared, ...ranged.filter((value) => !declared.includes(value))];
     }
   }
   if (declared.length > 0) {
@@ -119,11 +114,11 @@ export function optionChoices(schema: Record<string, unknown>, currentValue: unk
   return [] as unknown[];
 }
 
-function visibleOptionEntries(model: MediaModelSummary | null) {
-  if (!model?.options || !isRecord(model.options)) {
+export function studioRawOptionEntries(options: MediaModelSummary["options"]) {
+  if (!isRecord(options)) {
     return [] as Array<[string, Record<string, unknown>]>;
   }
-  return Object.entries(model.options).filter(
+  return Object.entries(options).filter(
     (entry): entry is [string, Record<string, unknown>] =>
       !HIDDEN_STUDIO_OPTION_KEYS.has(entry[0]) && isRecord(entry[1]) && entry[1].hidden_from_studio !== true,
   );
@@ -143,7 +138,7 @@ function supportsStudioOptionControl(schema: Record<string, unknown>) {
 }
 
 function deriveUnsupportedOptionKeys(model: MediaModelSummary | null) {
-  return visibleOptionEntries(model)
+  return studioRawOptionEntries(model?.options)
     .filter(([, schema]) => !supportsStudioOptionControl(schema))
     .map(([optionKey]) => optionKey)
     .sort((left, right) => left.localeCompare(right));

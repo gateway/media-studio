@@ -343,3 +343,39 @@ it.each(["queued", "running", "submitted", "processing"])(
     expect(screen.queryByRole("button")).toBeNull();
   },
 );
+
+it("shows a saved SVG as an image and offers its download if the preview fails", () => {
+  render(
+    <StudioGalleryTile
+      tile={{
+        asset: {
+          asset_id: "vector",
+          created_at: "2026-11-13",
+          generation_kind: "image",
+          hero_original_path: "outputs/emblem.svg",
+        },
+        label: "Seed bank emblem",
+        batch: null,
+        job: null,
+      }}
+      index={0}
+      selectedAssetId={null}
+      favoriteAssetIdBusy={null}
+      onSelectAsset={vi.fn()}
+      onSelectFailedJob={vi.fn()}
+      onDragAsset={vi.fn()}
+      onToggleFavorite={vi.fn()}
+    />,
+  );
+  const preview = screen.getByRole("img", { name: "Seed bank emblem" });
+  expect(preview.getAttribute("src")).toBe(
+    "/api/control/files/outputs/emblem.svg",
+  );
+  expect(
+    screen.getByTestId("studio-gallery-card").getAttribute("draggable"),
+  ).toBe("false");
+  fireEvent.error(preview);
+  expect(
+    screen.getByRole("link", { name: "Download SVG" }).getAttribute("href"),
+  ).toContain("download=1");
+});
