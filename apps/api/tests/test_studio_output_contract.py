@@ -1,6 +1,7 @@
-"""Studio catalog and generated-file checks with no application lifespan or store."""
+"""Studio output contracts and queue integration with mocked KIE calls."""
 
 from pathlib import Path
+from shutil import copyfile
 from unittest.mock import MagicMock
 
 import pytest
@@ -110,3 +111,84 @@ def _check_gif_thumbnail(artifact):
     assert gif_output["metadata"]["frame_count"] == 2
     with Image.open(Path(artifact["run_dir"]) / gif_output["thumb_path"]) as thumb:
         assert not thumb.is_animated
+
+
+@pytest.mark.parametrize("output_format, options, provider_options", [
+    ("png", {"aspect_ratio": "1:1"}, {"aspect_ratio": "1:1"}),
+    ("gif", {"frame_count": 2, "frame_duration_ms": 250}, {"frame_count": 2, "frame_duration_ms": 250}),
+    ("svg", {"svg_model": "gpt-5.6-luna"}, {"svg": {"model": "gpt-5.6-luna"}}),
+])
+def test_composer_output_passes_through_queue(
+    client, app_modules, tmp_path, monkeypatch, output_format, options, provider_options,
+):
+    worker = app_modules["runner"].runner
+    adapter = app_modules["runner"].kie_adapter
+    settings = app_modules["runner"].settings
+    kie = adapter.get_kie_module()
+    source = tmp_path / f"fixture.{output_format}"
+    _write_output_fixture(source, output_format)
+    url = "https://tempfile.redpandaai.co/fixture.bin"
+    payloads = []
+
+    def submit(prepared):
+        payload = kie.build_submission_payload(kie.PreparedRequest(**prepared), adapter.get_registry())
+        payloads.append(payload)
+        return {"task_id": "fixture-task", "provider_payload": payload}
+
+    status = MagicMock(side_effect=[{"state": "running"}, {"state": "succeeded", "output_urls": [url]}])
+    download = MagicMock(side_effect=lambda _, destination, __: copyfile(source, destination))
+    monkeypatch.setattr(adapter, "submit_request", submit)
+    monkeypatch.setattr(adapter, "poll_task", status)
+    monkeypatch.setattr(adapter, "download_job_output", download)
+    monkeypatch.setattr(settings, "media_enable_live_submit", True)
+    monkeypatch.setattr(settings, "kie_api_key", "mock-provider-key")
+
+    response = client.post("/media/jobs", json={
+        "model_key": "gpt-image-2-6-sunburst-text-to-image",
+        "task_mode": "text_to_image",
+        "prompt": "A blue circle on white.",
+        "options": {"output_format": output_format, **options},
+    })
+    assert response.status_code == 200, response.text
+    job = response.json()["jobs"][0]
+    assert job["status"] == "queued"
+
+    worker.tick()
+    running = client.get(f"/media/jobs/{job['job_id']}").json()
+    _assert_running_output(running, payloads, output_format, provider_options)
+
+    worker.tick()
+    completed = client.get(f"/media/jobs/{job['job_id']}").json()
+    assert completed["status"] == "completed", completed["error"]
+    assert (completed["scheduler_attempts"], len(payloads), status.call_count) == (1, 1, 2)
+    download.assert_called_once()
+    _assert_published_output(client, app_modules["store"], job["job_id"], source)
+
+
+def _assert_running_output(job, payloads, output_format, provider_options):
+    assert (job["status"], job["provider_task_id"]) == ("running", "fixture-task")
+    [payload] = payloads
+    sent = payload["input"]
+    assert sent["output_format"] == output_format
+    assert {key: sent[key] for key in provider_options} == provider_options
+    format_fields = {"frame_count", "frame_duration_ms", "svg"}
+    assert format_fields.intersection(sent) == format_fields.intersection(provider_options)
+
+
+def _assert_published_output(client, store, job_id, source):
+    [asset] = store.get_assets_by_job_id(job_id)
+    original_path = asset["hero_original_path"]
+    assert original_path.endswith(source.suffix)
+    original = client.get(f"/media/files/{original_path}")
+    assert original.status_code == 200
+    assert original.content == source.read_bytes()
+
+
+def _write_output_fixture(path, output_format):
+    if output_format == "svg":
+        path.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"/>', encoding="utf-8")
+    elif output_format == "gif":
+        frames = [Image.new("RGB", (8, 8), color) for color in ("red", "blue")]
+        frames[0].save(path, save_all=True, append_images=frames[1:], duration=250, loop=0)
+    else:
+        Image.new("RGB", (8, 8), "blue").save(path)

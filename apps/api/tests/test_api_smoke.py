@@ -277,20 +277,22 @@ def test_pricing_endpoint_returns_normalized_snapshot(client, app_modules) -> No
     assert payload["source"] == "site_pricing_page_and_market_page"
     assert snapshot.source_url
     assert payload["source_url"] == snapshot.source_url
-    assert payload["rules"]
-    assert any(rule["model_key"] == "nano-banana-2" for rule in payload["rules"])
-    assert any(rule["model_key"] == "gpt-image-2-text-to-image" for rule in payload["rules"])
-    gpt_rule = next(rule for rule in payload["rules"] if rule["model_key"] == "gpt-image-2-text-to-image")
-    assert gpt_rule["pricing_status"] == "observed_site_pricing"
-    assert gpt_rule["base_credits"] == pytest.approx(6.0)
-    assert payload["priced_model_keys"]
-    assert "gpt-image-2-text-to-image" in payload["priced_model_keys"]
+    _assert_snapshot_model_prices(payload)
     assert payload["missing_model_keys"] == []
     assert isinstance(payload["unmapped_source_rows"], list)
     # Snapshot freshness depends on the checked-in KIE pricing resource date.
     # Startup/manual refresh behavior is covered by the stale-refresh tests below.
     assert isinstance(payload["is_stale"], bool)
     assert payload["is_authoritative"] is False
+
+
+def _assert_snapshot_model_prices(payload) -> None:
+    rules = {rule["model_key"]: rule for rule in payload["rules"]}
+    assert "nano-banana-2" in rules
+    assert "gpt-image-2-text-to-image" in payload["priced_model_keys"]
+    gpt_rule = rules["gpt-image-2-text-to-image"]
+    assert gpt_rule["pricing_status"] == "observed_site_pricing"
+    assert gpt_rule["base_credits"] == pytest.approx(6.0)
 
 
 def test_pricing_estimate_applies_output_count_and_option_multipliers(client) -> None:
