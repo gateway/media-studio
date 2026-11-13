@@ -2469,15 +2469,12 @@ textarea {
   height: 24px;
   border-radius: var(--ms-radius-control-sm);
   backdrop-filter: none;
-}
 
-:where(.studio-create-stage-immersive)
-  .studio-gallery-tile[draggable="true"]
-  :is(.studio-gallery-icon-row, .studio-gallery-video-overlay)
-  .studio-icon-button:where(:not(button)) {
-  border: 0;
-  background: color-mix(in srgb, var(--ms-surface-primary) 76%, transparent);
-  color: var(--text-primary);
+  &:where(:not(button)) {
+    border: 0;
+    background: color-mix(in srgb, var(--ms-surface-primary) 76%, transparent);
+    color: var(--text-primary);
+  }
 }
 
 :where(.studio-create-stage-immersive)
@@ -2642,6 +2639,11 @@ textarea {
   border-color: var(--border-soft);
   background: var(--ms-surface-tertiary);
   color: var(--text-muted);
+}
+
+:where(.studio-create-stage-immersive) .studio-composer-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .studio-create-stage-immersive .studio-composer-options {
@@ -3445,8 +3447,6 @@ textarea {
   }
 
   :where(.studio-create-stage-immersive) .studio-composer-options {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
     align-self: stretch;
     gap: 8px;
@@ -3693,8 +3693,6 @@ textarea {
   }
 
   :where(.studio-create-stage-immersive) .studio-composer-options {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px 10px;
   }
 

@@ -229,6 +229,11 @@ async function smokeAdminRoute(
   await assertNoLoadError(page, routePath);
 }
 
+async function closeGraphImageAssets(page, dialog) {
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden", timeout: 10_000 });
+}
+
 async function run() {
   const kieRoot = resolveKieRoot();
   const pythonPath = path.join(kieRoot, ".venv", "bin", "python");
@@ -481,20 +486,16 @@ async function run() {
     await page
       .getByTestId("graph-nodes-modal")
       .waitFor({ state: "hidden", timeout: 10_000 });
+    const graphImageAssets = page.getByRole("dialog", { name: "Image Assets" });
     await page.getByTestId("graph-sidebar-images-button").click();
-    await page
-      .getByRole("dialog", { name: "Image Assets" })
-      .waitFor({ timeout: 10_000 });
+    await graphImageAssets.waitFor({ timeout: 10_000 });
     await page
       .getByRole("tab", { name: "Generated" })
       .waitFor({ timeout: 10_000 });
     await page
       .getByRole("tab", { name: "Imported" })
       .waitFor({ timeout: 10_000 });
-    await page.keyboard.press("Escape");
-    await page
-      .getByRole("dialog", { name: "Image Assets" })
-      .waitFor({ state: "hidden", timeout: 10_000 });
+    await closeGraphImageAssets(page, graphImageAssets);
     await page
       .getByTestId("graph-node-prompt.text")
       .waitFor({ timeout: 15_000 });
@@ -516,13 +517,8 @@ async function run() {
         '[data-testid^="graph-node-preview-media.load_image"] button[aria-label="Choose media from library"]',
       )
       .click();
-    await page
-      .getByRole("dialog", { name: "Image Assets" })
-      .waitFor({ timeout: 10_000 });
-    await page.keyboard.press("Escape");
-    await page
-      .getByRole("dialog", { name: "Image Assets" })
-      .waitFor({ state: "hidden", timeout: 10_000 });
+    await graphImageAssets.waitFor({ timeout: 10_000 });
+    await closeGraphImageAssets(page, graphImageAssets);
     await page
       .getByText("Load Image", { exact: true })
       .first()

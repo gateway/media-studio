@@ -36,3 +36,19 @@ export type StudioFrameInputProps = {
   onAddFiles: StudioAddFilesHandler;
   onResetFileInput: (input: HTMLInputElement | null) => void;
 };
+
+export function seedanceFrameDragHandlers(
+  slotIndex: number,
+  onSetDragActive: StudioFrameInputProps["onSetDragActive"],
+  onDropIntoSourceSlot: StudioFrameInputProps["onDropIntoSourceSlot"],
+) {
+  return {
+    onDragOver(event: DragEvent<HTMLDivElement | HTMLLabelElement>) {
+      event.preventDefault();
+      onSetDragActive(true);
+    },
+    onDragLeave: () => onSetDragActive(false),
+    onDrop: (event: DragEvent<HTMLDivElement | HTMLLabelElement>) =>
+      onDropIntoSourceSlot(event, slotIndex),
+  };
+}

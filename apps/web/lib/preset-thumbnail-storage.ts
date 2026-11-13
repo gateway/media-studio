@@ -5,6 +5,8 @@ import path from "node:path";
 
 import sharp from "sharp";
 
+import { resolveThumbnailRelativePath } from "@/lib/thumbnail-storage-path";
+
 const PRESET_THUMBNAILS_DIR = path.resolve(
   process.env.MEDIA_STUDIO_DATA_ROOT ||
     path.resolve(process.cwd(), "..", "..", "data"),
@@ -86,19 +88,8 @@ export function resolvePresetThumbnailAbsolutePath(
 export function resolvePresetThumbnailCandidatePaths(
   thumbnailPath: string | null | undefined,
 ) {
-  const normalized = String(thumbnailPath ?? "")
-    .trim()
-    .replace(/^\/+/, "");
-  if (!normalized) {
-    return [];
-  }
-  const safePath = path
-    .normalize(normalized)
-    .replace(/^(\.\.(\/|\\|$))+/, "")
-    .replace(/^preset-thumbnails[\\/]/, "");
-  if (!safePath || safePath.startsWith("..")) {
-    return [];
-  }
+  const safePath = resolveThumbnailRelativePath(thumbnailPath, /^preset-thumbnails[\\/]/);
+  if (!safePath) return [];
   return [
     path.join(PRESET_THUMBNAILS_DIR, safePath),
     path.join(SHIPPED_PRESET_THUMBNAILS_DIR, safePath),

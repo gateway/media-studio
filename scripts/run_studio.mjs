@@ -55,51 +55,34 @@ function usage() {
   );
 }
 
+const STARTUP_OPTIONS = new Map([
+  ["--production", { key: "production", value: true }],
+  ["--open", { key: "openBrowser", value: true }],
+  ["--no-open", { key: "openBrowser", value: false }],
+  ["--startup-mode", { key: "startupMode" }],
+  ["--api-host", { key: "apiHost" }],
+  ["--api-port", { key: "apiPort", explicitPort: "explicitApiPort" }],
+  ["--web-host", { key: "webHost" }],
+  ["--web-port", { key: "webPort", explicitPort: "explicitWebPort" }],
+]);
+
+function readOptionValue(arg, value) {
+  if (!value) throw new Error(`Missing value for ${arg}.`);
+  return value;
+}
+
 function parseArgs(argv) {
   const options = { production: false, openBrowser: false, explicitApiPort: false, explicitWebPort: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === "--production") {
-      options.production = true;
-    } else if (arg === "--open") {
-      options.openBrowser = true;
-    } else if (arg === "--no-open") {
-      options.openBrowser = false;
-    } else if (arg === "--startup-mode") {
-      options.startupMode = argv[++index];
-      if (!options.startupMode) throw new Error("Missing value for --startup-mode.");
-    } else if (arg === "--api-host") {
-      index += 1;
-      if (!argv[index]) {
-        throw new Error("Missing value for --api-host.");
-      }
-      options.apiHost = argv[index];
-    } else if (arg === "--api-port") {
-      index += 1;
-      if (!argv[index]) {
-        throw new Error("Missing value for --api-port.");
-      }
-      options.apiPort = argv[index];
-      options.explicitApiPort = true;
-    } else if (arg === "--web-host") {
-      index += 1;
-      if (!argv[index]) {
-        throw new Error("Missing value for --web-host.");
-      }
-      options.webHost = argv[index];
-    } else if (arg === "--web-port") {
-      index += 1;
-      if (!argv[index]) {
-        throw new Error("Missing value for --web-port.");
-      }
-      options.webPort = argv[index];
-      options.explicitWebPort = true;
-    } else if (arg === "--help" || arg === "-h") {
+    if (arg === "--help" || arg === "-h") {
       usage();
       process.exit(0);
-    } else {
-      throw new Error(`Unknown argument: ${arg}`);
     }
+    const option = STARTUP_OPTIONS.get(arg);
+    if (!option) throw new Error(`Unknown argument: ${arg}`);
+    options[option.key] = option.value ?? readOptionValue(arg, argv[++index]);
+    if (option.explicitPort) options[option.explicitPort] = true;
   }
   return options;
 }
@@ -729,54 +712,69 @@ function startupPreflight(runtime, mode) {
   if (result.status !== 0) throw new Error(result.stderr?.trim() || "Read-only startup preflight failed.");
 }
 
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
+function resolveStartupRuntime(options) {
   const env = { ...process.env, ...startupModeEnv(options.startupMode) };
   if (options.startupMode) {
     const installId = loadMediaEnv().MEDIA_STUDIO_INSTALL_ID?.trim();
     if (!installId) throw new Error("Startup mode requires an existing Media Studio install identity.");
     env.MEDIA_STUDIO_INSTALL_ID = installId;
   }
-  const runtime = withResolvedRuntimeEnv({ ...options, env, reload: !options.production });
-  const runtimeDir = path.join(runtime.env.MEDIA_STUDIO_DATA_ROOT, "runtime");
-  const sessionFile = path.join(runtimeDir, "media-studio-session.json");
+  return withResolvedRuntimeEnv({ ...options, env, reload: !options.production });
+}
+
+function sessionMatchesAddress(session, runtime, options) {
+  return session.apiHost === runtime.apiHost && session.webHost === runtime.webHost &&
+    (!options.explicitApiPort || String(session.apiPort) === runtime.apiPort) &&
+    (!options.explicitWebPort || String(session.webPort) === runtime.webPort);
+}
+
+async function reuseRecordedSession(sessionFile, runtime, options) {
   // Reopen the actual ports from the previous launch, including automatic port selection.
   const session = readLiveSession(sessionFile);
-  if (session?.installId === runtime.env.MEDIA_STUDIO_INSTALL_ID) {
-    const matchesAddress = session.apiHost === runtime.apiHost && session.webHost === runtime.webHost &&
-      (!options.explicitApiPort || String(session.apiPort) === runtime.apiPort) &&
-      (!options.explicitWebPort || String(session.webPort) === runtime.webPort);
-    if (matchesAddress && await reuseStudio(runtime, options, session.apiPort, session.webPort)) return;
-    if (options.startupMode) {
-      throw new Error("A live launcher is recorded for this installation, but it could not be reused on the requested hosts and ports. Confirm ownership before stopping it.");
-    }
-  }
-
-  if (await resolveAvailablePorts(runtime, options)) return;
-
-  const bindApiUrl = controlApiBaseUrl(runtime.apiHost, runtime.apiPort);
+  if (session?.installId !== runtime.env.MEDIA_STUDIO_INSTALL_ID) return false;
+  if (sessionMatchesAddress(session, runtime, options) &&
+      await reuseStudio(runtime, options, session.apiPort, session.webPort)) return true;
   if (options.startupMode) {
-    const recordedApi = readRuntimeRecord(path.join(runtimeDir, "media-studio-api-runtime.json"));
-    if (recordedApi?.installId === runtime.env.MEDIA_STUDIO_INSTALL_ID && recordedApi.host && recordedApi.port &&
-        !(await isPortAvailable(recordedApi.host, recordedApi.port))) {
-      throw new Error("An API for this installation is already running without a reusable web session. Confirm ownership before stopping it.");
-    }
-    if (runtime.controlApiBaseUrl !== bindApiUrl) throw new Error("The configured control API does not match the API bind address.");
+    throw new Error("A live launcher is recorded for this installation, but it could not be reused on the requested hosts and ports. Confirm ownership before stopping it.");
   }
+  return false;
+}
 
+async function checkStartupAddress(runtimeDir, runtime, bindApiUrl) {
+  const recordedApi = readRuntimeRecord(path.join(runtimeDir, "media-studio-api-runtime.json"));
+  if (recordedApi?.installId === runtime.env.MEDIA_STUDIO_INSTALL_ID && recordedApi.host && recordedApi.port &&
+      !(await isPortAvailable(recordedApi.host, recordedApi.port))) {
+    throw new Error("An API for this installation is already running without a reusable web session. Confirm ownership before stopping it.");
+  }
+  if (runtime.controlApiBaseUrl !== bindApiUrl) throw new Error("The configured control API does not match the API bind address.");
+}
+
+async function prepareRuntime(runtime, { production, startupMode }) {
   if (!existsSync(runtime.pythonPath)) {
     throw new Error(`Shared KIE Python runtime not found at ${runtime.pythonPath}. Run setup first.`);
   }
-  if (options.startupMode) startupPreflight(runtime, options.startupMode);
+  if (startupMode) startupPreflight(runtime, startupMode);
+  if (!production) return;
+  const kieUpdated = await kieRepoPreflight(runtime);
+  ensurePythonDependencies(runtime, { force: kieUpdated });
+  if (!startupMode) migrationPreflight(runtime);
+  ensureWebBuild(runtime);
+  if (startupMode) startupPreflight(runtime, startupMode);
+}
 
-  if (options.production) {
-    const kieUpdated = await kieRepoPreflight(runtime);
-    ensurePythonDependencies(runtime, { force: kieUpdated });
-    if (!options.startupMode) migrationPreflight(runtime);
-    ensureWebBuild(runtime);
-    if (options.startupMode) startupPreflight(runtime, options.startupMode);
+async function waitForStudio(apiHealthUrl, webReadyUrl, paths) {
+  console.log("Waiting for the API and Studio to become ready...");
+  if (!(await waitForUrl(apiHealthUrl))) {
+    console.error("The Media Studio API did not become ready.");
+    shutdown(paths, 1);
   }
+  if (!(await waitForUrl(webReadyUrl))) {
+    console.error("The Media Studio web app did not become ready.");
+    shutdown(paths, 1);
+  }
+}
 
+async function launchStudio(runtime, options, sessionFile, apiHealthUrl) {
   const paths = runtimePaths(mediaRoot, runtime.env);
   activeRuntime = runtime;
   activePaths = paths;
@@ -786,7 +784,6 @@ async function main() {
 
   const studioUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`;
   const settingsUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/settings`;
-  const apiHealthUrl = `${options.startupMode ? bindApiUrl : runtime.controlApiBaseUrl}/health`;
   const webReadyUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/icon.svg`;
 
   rmSync(paths.apiLog, { force: true });
@@ -833,15 +830,7 @@ async function main() {
     listenPort: runtime.webPort,
   });
 
-  console.log("Waiting for the API and Studio to become ready...");
-  if (!(await waitForUrl(apiHealthUrl))) {
-    console.error("The Media Studio API did not become ready.");
-    shutdown(paths, 1);
-  }
-  if (!(await waitForUrl(webReadyUrl))) {
-    console.error("The Media Studio web app did not become ready.");
-    shutdown(paths, 1);
-  }
+  await waitForStudio(apiHealthUrl, webReadyUrl, paths);
   if (options.startupMode) await checkStartedMode(options.startupMode, apiHealthUrl, runtime);
   console.log(`Media Studio is ready: ${studioUrl}`);
   writeFileSync(sessionFile, JSON.stringify({
@@ -853,6 +842,22 @@ async function main() {
     console.log(`Opening browser to ${studioUrl}`);
     openBrowser(studioUrl);
   }
+}
+
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
+  const runtime = resolveStartupRuntime(options);
+  const runtimeDir = path.join(runtime.env.MEDIA_STUDIO_DATA_ROOT, "runtime");
+  const sessionFile = path.join(runtimeDir, "media-studio-session.json");
+  if (await reuseRecordedSession(sessionFile, runtime, options)) return;
+  if (await resolveAvailablePorts(runtime, options)) return;
+
+  const bindApiUrl = controlApiBaseUrl(runtime.apiHost, runtime.apiPort);
+  if (options.startupMode) await checkStartupAddress(runtimeDir, runtime, bindApiUrl);
+  await prepareRuntime(runtime, options);
+
+  const apiHealthUrl = `${options.startupMode ? bindApiUrl : runtime.controlApiBaseUrl}/health`;
+  await launchStudio(runtime, options, sessionFile, apiHealthUrl);
 }
 
 main().catch((error) => {

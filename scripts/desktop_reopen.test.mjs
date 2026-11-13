@@ -7,6 +7,18 @@ import path from "node:path";
 import test from "node:test";
 import { startupModeEnv, startupModeIssue } from "./studio_startup_mode.mjs";
 
+function reopenArgs(port, mode, forceOtherPort) {
+  const args = [
+    new URL("./run_studio.mjs", import.meta.url).pathname,
+    "--production",
+    "--no-open",
+  ];
+  if (mode) args.push("--startup-mode", mode);
+  if (forceOtherPort)
+    args.push("--api-port", port === 18089 ? "18090" : "18089");
+  return args;
+}
+
 async function probeReopen({
   recorded,
   mode,
@@ -43,14 +55,7 @@ async function probeReopen({
         }),
       );
     }
-    const args = [
-      new URL("./run_studio.mjs", import.meta.url).pathname,
-      "--production",
-      "--no-open",
-    ];
-    if (mode) args.push("--startup-mode", mode);
-    if (forceOtherPort)
-      args.push("--api-port", port === 18089 ? "18090" : "18089");
+    const args = reopenArgs(port, mode, forceOtherPort);
     const child = spawn(process.execPath, args, {
       env: {
         ...process.env,

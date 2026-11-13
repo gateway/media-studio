@@ -5,6 +5,8 @@ import path from "node:path";
 
 import sharp from "sharp";
 
+import { resolveThumbnailRelativePath } from "@/lib/thumbnail-storage-path";
+
 const PROMPT_RECIPE_THUMBNAILS_DIR = path.resolve(process.cwd(), "..", "..", "data", "prompt-recipe-thumbnails");
 
 export function safePromptRecipeThumbnailSlug(value: string) {
@@ -47,14 +49,8 @@ export async function storePromptRecipeThumbnailBuffer({
 }
 
 export function resolvePromptRecipeThumbnailCandidatePaths(thumbnailPath: string | null | undefined) {
-  const normalized = String(thumbnailPath ?? "").trim().replace(/^\/+/, "");
-  if (!normalized) {
-    return [];
-  }
-  const safePath = path.normalize(normalized).replace(/^(\.\.(\/|\\|$))+/, "").replace(/^prompt-recipe-thumbnails[\\/]/, "");
-  if (!safePath || safePath.startsWith("..")) {
-    return [];
-  }
+  const safePath = resolveThumbnailRelativePath(thumbnailPath, /^prompt-recipe-thumbnails[\\/]/);
+  if (!safePath) return [];
   return [path.join(PROMPT_RECIPE_THUMBNAILS_DIR, safePath)];
 }
 

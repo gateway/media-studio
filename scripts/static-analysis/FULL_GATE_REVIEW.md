@@ -156,3 +156,22 @@ The four existing control-api focused test files pass all 16 tests before and
 after this visibility-only change; fetch is mocked. Web typechecking passes.
 Final full lint verifies the reviewed identities. No application/runtime,
 provider calls, local Python fixtures, data or settings are involved.
+
+## Studio composer branch (2026-11-13)
+
+The pre-reskin base `6ef94a0` reproduces all 262 tracked production clone
+identities. On `4eaeb2f`, the architecture gate rejected 36 identities. The raw
+report contained eight fragments without an exact match at the base, spanning
+Studio CSS, Seedance frame drag handling, attachment staging, thumbnail paths,
+launcher options and the Graph image picker smoke. The existing gallery and
+option aspect-ratio parsing pair also had changed endpoint source around its
+matched fragment. The fixes share those behaviors and move the Studio fixture
+controls to the existing harness. The Studio screen coordinator is 2,466 lines
+against the 2,600-line cap.
+
+The candidate contains 239 production pairs. The comparison matches both file
+endpoints, raw fragments, token counts, line counts and multiplicity. It also
+checks the full source lines covered by each refreshed pair. The baseline update
+keeps 212 records verbatim, refreshes 27 context hashes for byte-identical
+endpoint source and removes 23 absent pairs. The dependency and clone policies,
+corpora, tool versions and thresholds are unchanged.

@@ -17,6 +17,7 @@ import {
   optionChoices,
   studioRawOptionEntries,
 } from "@/lib/studio-model-support";
+import { parseStudioAspectRatio } from "@/lib/studio-aspect-ratio";
 import type { MediaModelSummary } from "@/lib/types";
 import { isRecord } from "@/lib/utils";
 
@@ -196,21 +197,9 @@ export function studioOptionChoices(schema: Record<string, unknown>, value: unkn
 }
 
 function aspectRatioIcon(value: unknown) {
-  const raw = String(value ?? "").trim();
-  const match = raw.match(/^(\d+(?:\.\d+)?)\s*[:x/]\s*(\d+(?:\.\d+)?)$/i);
-  if (!match) {
-    return Ratio;
-  }
-  const width = Number(match[1]);
-  const height = Number(match[2]);
-  if (
-    !Number.isFinite(width) ||
-    !Number.isFinite(height) ||
-    width <= 0 ||
-    height <= 0
-  ) {
-    return Ratio;
-  }
+  const dimensions = parseStudioAspectRatio(String(value ?? ""), ":x/");
+  if (!dimensions) return Ratio;
+  const { width, height } = dimensions;
   if (Math.abs(width - height) < 0.001) {
     return Square;
   }

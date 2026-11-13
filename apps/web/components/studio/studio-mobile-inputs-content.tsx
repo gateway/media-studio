@@ -10,7 +10,10 @@ import {
   StudioStandardSlotRail,
   type StudioStandardSlotRailProps,
 } from "@/components/studio/studio-standard-slot-rail";
-import type { StudioFrameInputProps } from "@/components/studio/studio-composer-input-types";
+import {
+  seedanceFrameDragHandlers,
+  type StudioFrameInputProps,
+} from "@/components/studio/studio-composer-input-types";
 import type { StudioComposerInputRail } from "@/lib/studio-model-support";
 
 type StudioMobileInputsContentProps = StudioFrameInputProps & {
@@ -72,6 +75,11 @@ export function StudioMobileInputsContent({
                     ]
                   : []),
               ].map((slot, slotIndex) => {
+                const dragHandlers = seedanceFrameDragHandlers(
+                  slotIndex,
+                  onSetDragActive,
+                  onDropIntoSourceSlot,
+                );
                 const attachmentPreview = slot.attachment
                   ? buildAttachmentPreview(
                       slot.attachment,
@@ -86,14 +94,7 @@ export function StudioMobileInputsContent({
                   >
                     {slot.attachment && attachmentPreview ? (
                       <div
-                        onDragOver={(event) => {
-                          event.preventDefault();
-                          onSetDragActive(true);
-                        }}
-                        onDragLeave={() => onSetDragActive(false)}
-                        onDrop={(event) =>
-                          onDropIntoSourceSlot(event, slotIndex)
-                        }
+                        {...dragHandlers}
                         className="h-full w-full"
                       >
                         <StudioStagedMediaTile
@@ -116,14 +117,7 @@ export function StudioMobileInputsContent({
                         wrapperClassName="h-full w-full"
                         tileClassName="studio-fixed-slot-add"
                         plusIconClassName={mobileAddTilePlusIconClassName}
-                        onDragOver={(event) => {
-                          event.preventDefault();
-                          onSetDragActive(true);
-                        }}
-                        onDragLeave={() => onSetDragActive(false)}
-                        onDrop={(event) =>
-                          onDropIntoSourceSlot(event, slotIndex)
-                        }
+                        {...dragHandlers}
                         onPickFiles={(fileList, input) => {
                           if (
                             slot.role === "last_frame" &&

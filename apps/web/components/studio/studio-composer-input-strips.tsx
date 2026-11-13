@@ -17,10 +17,11 @@ import {
   type StudioStandardSlotRailProps,
 } from "@/components/studio/studio-standard-slot-rail";
 import type { StudioAttachmentReplacement } from "@/hooks/studio/use-studio-attachments";
-import type {
-  AttachmentPreviewBuilder,
-  StudioAddFilesHandler,
-  StudioFrameInputProps,
+import {
+  seedanceFrameDragHandlers,
+  type AttachmentPreviewBuilder,
+  type StudioAddFilesHandler,
+  type StudioFrameInputProps,
 } from "@/components/studio/studio-composer-input-types";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
 import { seedanceReferenceTokenGuide } from "@/lib/media-studio-helpers";
@@ -172,6 +173,11 @@ export function StudioSourceAttachmentStrip({
               attachment: seedanceLastFrameAttachment,
             },
           ].map((slot, slotIndex) => {
+            const dragHandlers = seedanceFrameDragHandlers(
+              slotIndex,
+              onSetDragActive,
+              onDropIntoSourceSlot,
+            );
             const attachment = slot.attachment;
             const attachmentPreview = attachment
               ? buildAttachmentPreview(
@@ -217,12 +223,7 @@ export function StudioSourceAttachmentStrip({
                 >
                   {attachment && attachmentPreview ? (
                     <div
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        onSetDragActive(true);
-                      }}
-                      onDragLeave={() => onSetDragActive(false)}
-                      onDrop={(event) => onDropIntoSourceSlot(event, slotIndex)}
+                      {...dragHandlers}
                       className="h-full w-full"
                     >
                       <StudioStagedMediaTile
@@ -273,14 +274,7 @@ export function StudioSourceAttachmentStrip({
                         required={slot.role === "first_frame"}
                         wrapperClassName="h-full w-full"
                         tileClassName="studio-fixed-slot-add h-full w-full"
-                        onDragOver={(event) => {
-                          event.preventDefault();
-                          onSetDragActive(true);
-                        }}
-                        onDragLeave={() => onSetDragActive(false)}
-                        onDrop={(event) =>
-                          onDropIntoSourceSlot(event, slotIndex)
-                        }
+                        {...dragHandlers}
                         onPickFiles={pickFrameFiles}
                       >
                         <span className="studio-fixed-slot-empty-label">

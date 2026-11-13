@@ -44,10 +44,8 @@ import { StudioSettingsModal } from "@/components/studio/studio-settings-modal";
 import type { StudioStandardSlotRailProps } from "@/components/studio/studio-standard-slot-rail";
 import { StudioStructuredPresetComposer } from "@/components/studio/studio-structured-preset-composer";
 import {
-  buildStudioHarnessAttachment,
-  buildStudioHarnessMotionVideoAttachment,
   type StudioHarnessFixtureState,
-  type StudioTestFixtureControls,
+  useStudioHarnessFixtures,
   useStudioShellHandoffSnapshot,
   useStudioTestHarness,
 } from "@/components/studio/studio-test-harness";
@@ -85,7 +83,6 @@ import {
   isCoarsePointerDevice,
   mediaDisplayUrl,
   mediaThumbnailUrl,
-  modelInputLimit,
   resolveImageToVideoAnimationModel,
   orderedImageInputVisual,
   type StudioComposerSlot,
@@ -103,9 +100,7 @@ import {
 } from "@/lib/studio-composer-reveal";
 import type {
   MediaAsset,
-  MediaJob,
   MediaPreset,
-  MediaValidationResponse,
 } from "@/lib/types";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
 import {
@@ -199,7 +194,6 @@ export function MediaStudio({
     async () => undefined,
   );
   const applyEnhancementPromptProxyRef = useRef<() => boolean>(() => false);
-  const appliedStudioHarnessFixtureRef = useRef<string | null>(null);
   const { studioPresetCatalog, enabledStudioModelChoices, modelIconByKey } =
     useStudioShellCatalog({
       models,
@@ -517,9 +511,7 @@ export function MediaStudio({
     setPrompt,
     setPresetInputValues,
     setPresetSlotStates,
-    setOptionValues,
     setEnhanceDialogOpen,
-    setAttachments,
     setIsDragActive,
     setValidation,
     setMobileComposerCollapsed,
@@ -779,325 +771,36 @@ export function MediaStudio({
     addReferenceMediaAsAttachment,
     orderedImageReplacement,
   });
-  const studioHarnessFixtures = useMemo<StudioTestFixtureControls>(() => {
-    const closeStudioOverlays = () => {
-      setSelectedFailedJobId(null);
-      setSelectedAssetId(null);
-      setSelectedMediaLightboxOpen(false);
-      setSelectedReferencePreview(null);
-      setReferenceLibraryTarget(null);
-      setReferencesExpanded(false);
-      setPresetBrowserOpen(false);
-      setProjectBrowserOpen(false);
-    };
-    const prepareComposerFixture = () => {
-      closeStudioOverlays();
-      setDesktopComposerCollapsed(false);
-      setMobileComposerCollapsed(false);
-      setSelectedPresetId("");
-      setSelectedPromptIds([]);
-      setPresetInputValues({});
-      setPresetSlotStates({});
-      setOptionValues({});
-      setValidation(null);
-      setOpenPicker(null);
-      setPromptReferenceDismissed(false);
-      setPromptHasFocus(false);
-      setPromptCursorIndex(null);
-      setStudioHarnessFixtureState(null);
-    };
-    const findMultiImageModel = () =>
-      models.find(
-        (model) =>
-          model.studio_exposed !== false &&
-          !model.key.startsWith("seedance") &&
-          modelInputLimit(model, "image_inputs") > 1 &&
-          modelInputLimit(model, "video_inputs") === 0 &&
-          modelInputLimit(model, "audio_inputs") === 0,
-      );
-    const findSeedanceModel = () =>
-      models.find(
-        (model) =>
-          model.studio_exposed !== false &&
-          model.key.startsWith("seedance-2.0"),
-      );
-    const findStandardModel = () =>
-      models.find(
-        (model) =>
-          model.studio_exposed !== false &&
-          modelInputLimit(model, "image_inputs") > 0 &&
-          modelInputLimit(model, "image_inputs") <= 2 &&
-          modelInputLimit(model, "video_inputs") === 0 &&
-          modelInputLimit(model, "audio_inputs") === 0 &&
-          !model.key.startsWith("seedance"),
-      );
-    const findMotionControlModel = (preferredKey = "kling-3.0-motion") =>
-      models.find(
-        (model) => model.studio_exposed !== false && model.key === preferredKey,
-      ) ??
-      models.find(
-        (model) =>
-          model.studio_exposed !== false &&
-          (model.input_patterns ?? []).includes("motion_control"),
-      );
-
-    return {
-      reset: () => {
-        setStudioHarnessFixtureState(null);
-        setPromptHasFocus(false);
-        setPromptCursorIndex(null);
-        setPromptReferenceDismissed(false);
-        clearComposer();
-        closeStudioOverlays();
-        setDesktopComposerCollapsed(false);
-        setMobileComposerCollapsed((collapsed) =>
-          mobileComposerCollapsedForProgrammaticExpand(
-            isCoarsePointerDevice(),
-            collapsed,
-          ),
-        );
-      },
-      mountPromptReferencePicker: () => {
-        const targetModel = findMultiImageModel();
-        if (!targetModel) {
-          return {
-            ok: false,
-            reason: "No non-Seedance multi-image Studio model is available.",
-          };
-        }
-        prepareComposerFixture();
-        clearSourceAsset();
-        setModelKey(targetModel.key);
-        setAttachments([
-          buildStudioHarnessAttachment(1, "images"),
-          buildStudioHarnessAttachment(2, "images"),
-        ]);
-        const nextPrompt = "Blend this concept with @image";
-        setPrompt(nextPrompt);
-        setPromptCursorIndex(nextPrompt.length);
-        setPromptHasFocus(true);
-        return { ok: true };
-      },
-      mountComposerEnhanceSetup: () => {
-        prepareComposerFixture();
-        setPrompt("Enhance this neon observatory scene.");
-        setStudioHarnessFixtureState({ composerEnhanceMode: "setup" });
-        return { ok: true };
-      },
-      mountComposerEnhanceDisabled: () => {
-        prepareComposerFixture();
-        setPrompt("Enhance this glass castle portrait.");
-        setStudioHarnessFixtureState({ composerEnhanceMode: "disabled" });
-        return { ok: true };
-      },
-      mountContextPanels: () => {
-        closeStudioOverlays();
-        setStudioHarnessFixtureState({ contextPanels: true });
-        setLocalJobs([
-          {
-            job_id: "studio-fixture-job-1",
-            model_key: currentModel?.key ?? modelKey,
-            status: "completed",
-            raw_prompt:
-              "Fixture job used only to mount Studio context panel chrome.",
-            created_at: "2026-06-18T00:00:00.000Z",
-            provider_task_id: "local-fixture",
-          } as MediaJob,
-        ]);
-        if (prompts[0]?.prompt_id) {
-          setSelectedPromptIds([prompts[0].prompt_id]);
-        }
-        setValidation({
-          state: "ready",
-          resolved_system_prompt: {
-            rendered_system_prompt:
-              "Fixture preflight text for context-panel visual verification.",
-          },
-        } as MediaValidationResponse);
-        return { ok: true };
-      },
-      mountGalleryEmptyState: () => {
-        closeStudioOverlays();
-        setStudioHarnessFixtureState({ galleryEmpty: true });
-        setLocalAssets([]);
-        setLocalJobs([]);
-        gallery.actions.setLocalBatches([]);
-        setOptimisticBatches([]);
-        activateGalleryKindFilter("all");
-        setGalleryModelFilter("all");
-        return { ok: true };
-      },
-      mountMotionControlVideo: (preferredKey = "kling-3.0-motion") => {
-        const targetModel = findMotionControlModel(preferredKey);
-        if (!targetModel) {
-          return {
-            ok: false,
-            reason: "No motion-control Studio model is available.",
-          };
-        }
-        prepareComposerFixture();
-        setModelKey(targetModel.key);
-        setAttachments([
-          buildStudioHarnessAttachment(1, "images"),
-          buildStudioHarnessMotionVideoAttachment(),
-        ]);
-        setOptionValues({ character_orientation: "image", mode: "720p" });
-        setOutputCount(1);
-        setPrompt(
-          "Motion-control fixture with a 20.083333 second driving video.",
-        );
-        return { ok: true };
-      },
-      mountMobileInputs: (mode = "multi-image") => {
-        prepareComposerFixture();
-        if (mode === "seedance") {
-          const targetModel = findSeedanceModel();
-          if (!targetModel) {
-            return {
-              ok: false,
-              reason: "No Seedance Studio model is available.",
-            };
-          }
-          setModelKey(targetModel.key);
-          setAttachments([
-            buildStudioHarnessAttachment(1, "images", "first_frame"),
-            buildStudioHarnessAttachment(2, "images", "reference"),
-            buildStudioHarnessAttachment(3, "videos", "reference"),
-            buildStudioHarnessAttachment(4, "audios", "reference"),
-          ]);
-          setPrompt("Seedance fixture using @image1 @video1 @audio1.");
-          return { ok: true };
-        }
-        if (mode === "standard") {
-          const targetModel = findStandardModel();
-          if (!targetModel) {
-            return {
-              ok: false,
-              reason: "No standard image-input Studio model is available.",
-            };
-          }
-          setModelKey(targetModel.key);
-          setAttachments([]);
-          setPrompt("Standard input fixture.");
-          return { ok: true };
-        }
-        const targetModel = findMultiImageModel();
-        if (!targetModel) {
-          return {
-            ok: false,
-            reason: "No multi-image Studio model is available.",
-          };
-        }
-        setModelKey(targetModel.key);
-        setAttachments([
-          buildStudioHarnessAttachment(1, "images"),
-          buildStudioHarnessAttachment(2, "images"),
-        ]);
-        setPrompt("Multi-image mobile fixture.");
-        return { ok: true };
-      },
-    };
+  const closeStudioOverlays = useCallback(() => {
+    setSelectedFailedJobId(null);
+    setSelectedAssetId(null);
+    setSelectedMediaLightboxOpen(false);
+    setSelectedReferencePreview(null);
+    setReferenceLibraryTarget(null);
+    setReferencesExpanded(false);
+    setPresetBrowserOpen(false);
+    setProjectBrowserOpen(false);
   }, [
-    activateGalleryKindFilter,
-    clearComposer,
-    clearSourceAsset,
-    currentModel?.key,
-    gallery.actions,
-    modelKey,
-    models,
-    prompts,
-    setAttachments,
-    setGalleryModelFilter,
-    setLocalAssets,
-    setLocalJobs,
-    setMobileComposerCollapsed,
-    setModelKey,
-    setOpenPicker,
-    setOptimisticBatches,
-    setOptionValues,
-    setOutputCount,
-    setPresetInputValues,
-    setPresetSlotStates,
-    setPrompt,
-    setSelectedAssetId,
-    setSelectedFailedJobId,
-    setSelectedMediaLightboxOpen,
-    setSelectedPresetId,
-    setSelectedPromptIds,
-    setValidation,
     setReferenceLibraryTarget,
+    setSelectedAssetId,
+    setSelectedMediaLightboxOpen,
     setSelectedReferencePreview,
   ]);
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const hostname = window.location.hostname;
-    const localHost =
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "::1";
-    if (!localHost) {
-      return;
-    }
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("studioTestHarness") !== "1") {
-      return;
-    }
-    const fixtureKey = params.get("studioFixture");
-    if (!fixtureKey || appliedStudioHarnessFixtureRef.current === fixtureKey) {
-      return;
-    }
-    appliedStudioHarnessFixtureRef.current = fixtureKey;
-    window.requestAnimationFrame(() => {
-      if (fixtureKey === "prompt-reference") {
-        studioHarnessFixtures.mountPromptReferencePicker();
-        return;
-      }
-      if (fixtureKey === "enhance-setup") {
-        studioHarnessFixtures.mountComposerEnhanceSetup();
-        return;
-      }
-      if (fixtureKey === "enhance-disabled") {
-        studioHarnessFixtures.mountComposerEnhanceDisabled();
-        return;
-      }
-      if (fixtureKey === "context-panels") {
-        studioHarnessFixtures.mountContextPanels();
-        return;
-      }
-      if (fixtureKey === "gallery-empty") {
-        studioHarnessFixtures.mountGalleryEmptyState();
-        return;
-      }
-      if (fixtureKey === "motion-control-video") {
-        studioHarnessFixtures.mountMotionControlVideo();
-        return;
-      }
-      if (fixtureKey === "motion-control-video-2-6") {
-        studioHarnessFixtures.mountMotionControlVideo("kling-2.6-motion");
-        return;
-      }
-      if (fixtureKey === "reference-library") {
-        setReferenceLibraryTarget({
-          type: "browse",
-          title: "Reference Library fixture",
-        });
-        return;
-      }
-      if (fixtureKey === "mobile-seedance") {
-        studioHarnessFixtures.mountMobileInputs("seedance");
-        return;
-      }
-      if (fixtureKey === "mobile-standard") {
-        studioHarnessFixtures.mountMobileInputs("standard");
-        return;
-      }
-      if (fixtureKey === "mobile-inputs") {
-        studioHarnessFixtures.mountMobileInputs("multi-image");
-      }
-    });
-  }, [setReferenceLibraryTarget, studioHarnessFixtures]);
+  const studioHarnessFixtures = useStudioHarnessFixtures({
+    models,
+    prompts,
+    modelKey,
+    currentModelKey: currentModel?.key,
+    closeStudioOverlays,
+    setDesktopComposerCollapsed,
+    setPromptReferenceDismissed,
+    setPromptHasFocus,
+    setPromptCursorIndex,
+    setStudioHarnessFixtureState,
+    setReferenceLibraryTarget,
+    composerActions: composer.actions,
+    galleryActions: gallery.actions,
+  });
   const studioHandoffSnapshot = useStudioShellHandoffSnapshot({
     projectId: selectedProjectId,
     assetIds: localAssets.map((asset) => asset.asset_id),
