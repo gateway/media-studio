@@ -268,12 +268,15 @@ def test_kie_adapter_prefers_configured_repo(app_modules) -> None:
     assert module_file.startswith(configured_root)
 
 
-def test_pricing_endpoint_returns_normalized_snapshot(client) -> None:
+def test_pricing_endpoint_returns_normalized_snapshot(client, app_modules) -> None:
+    kie_api = app_modules["main"].kie_adapter.get_kie_module()
+    snapshot = kie_api.registry.loader.load_latest_pricing_snapshot()
     response = client.get("/media/pricing")
     assert response.status_code == 200
     payload = response.json()
     assert payload["source"] == "site_pricing_page_and_market_page"
-    assert payload["source_url"] == "https://kie.ai/gpt-image-2-5"
+    assert snapshot.source_url
+    assert payload["source_url"] == snapshot.source_url
     assert payload["rules"]
     assert any(rule["model_key"] == "nano-banana-2" for rule in payload["rules"])
     assert any(rule["model_key"] == "gpt-image-2-text-to-image" for rule in payload["rules"])
