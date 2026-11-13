@@ -15,8 +15,9 @@ import {
   toneForStatus,
   type StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
+import { studioAssetFormat } from "@/lib/studio-media-urls";
 import type { MediaAsset } from "@/lib/types";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, isRecord } from "@/lib/utils";
 
 type StudioInspectorInfoProps = {
   selectedAsset: MediaAsset;
@@ -214,6 +215,7 @@ export function StudioInspectorInfo({
               )}
             </dd>
           </div>
+          <GifFrameCount asset={selectedAsset} />
           {optionEntries.map(([key, value]) => (
             <div key={key} className="studio-media-inspector-option">
               <dt>{optionShortLabel(key)}</dt>
@@ -226,4 +228,32 @@ export function StudioInspectorInfo({
       </section>
     </section>
   );
+}
+
+function GifFrameCount({ asset }: { asset: MediaAsset }) {
+  if (studioAssetFormat(asset) !== "GIF") return null;
+  const actual = measuredGifFrameCount(asset.payload?.outputs);
+  if (actual == null) return null;
+
+  const options = asset.payload?.options;
+  const requested = isRecord(options) ? options.frame_count : undefined;
+  const differs = typeof requested === "number" && requested !== actual;
+  return (
+    <div>
+      <dt>Actual frame count</dt>
+      <dd>
+        {actual}
+        {differs ? ` (${requested} requested)` : ""}
+      </dd>
+    </div>
+  );
+}
+
+function measuredGifFrameCount(outputs: unknown) {
+  const output: unknown = Array.isArray(outputs) ? outputs[0] : undefined;
+  const metadata = isRecord(output) ? output.metadata : undefined;
+  const count = isRecord(metadata) ? metadata.frame_count : undefined;
+  return typeof count === "number" && Number.isInteger(count) && count > 0
+    ? count
+    : null;
 }

@@ -395,12 +395,18 @@ export function parseMultiShotScript(
 
 export function displayChoiceLabel(
   optionKey: string,
-  _schema: Record<string, unknown>,
+  schema: Record<string, unknown>,
   value: unknown,
 ) {
   if (value == null || value === "") {
     return "Select";
   }
+  const labels = schema.ui_choice_labels;
+  const label =
+    isRecord(labels) && Object.hasOwn(labels, String(value))
+      ? labels[String(value)]
+      : undefined;
+  if (typeof label === "string") return label;
   if (optionKey === "mode" && typeof value === "string") {
     if (value === "std" || value === "720p") return "Standard";
     if (value === "pro" || value === "1080p") return "High";
@@ -418,8 +424,6 @@ export function displayChoiceLabel(
     return value.replaceAll("_", " ").toUpperCase();
   }
   if (typeof value === "boolean") {
-    if (optionKey === "google_search") return value ? "On" : "Off";
-    if (optionKey === "sound") return value ? "On" : "Off";
     return value ? "On" : "Off";
   }
   if (typeof value === "string") {

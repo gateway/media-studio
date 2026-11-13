@@ -22,7 +22,11 @@ HIDDEN_STUDIO_OPTION_KEYS: set[str] = set()
 _STILL_FORMATS = ["png", "jpeg", "webp"]
 _GPT_IMAGE_OUTPUT_OPTIONS = {
     "output_format": {"label": "File format", "ui_order": 10},
-    "aspect_ratio": {"ui_order": 20, "ui_visible_when": {"output_format": _STILL_FORMATS}},
+    "aspect_ratio": {
+        "label": "Aspect ratio", "ui_order": 20,
+        "ui_choice_labels": {"auto": "Auto"},
+        "ui_visible_when": {"output_format": _STILL_FORMATS},
+    },
     "resolution": {"ui_order": 30, "ui_visible_when": {"output_format": _STILL_FORMATS}},
     "background": {
         "default": "auto",
@@ -34,7 +38,7 @@ _GPT_IMAGE_OUTPUT_OPTIONS = {
         "label": "Compression", "ui_order": 50, "ui_visible_when": {"output_format": ["jpeg", "webp"]},
     },
     "frame_count": {
-        "label": "Frames", "default": 9, "ui_order": 20, "ui_visible_when": {"output_format": "gif"},
+        "label": "Frame count", "default": 9, "ui_order": 20, "ui_visible_when": {"output_format": "gif"},
     },
     "frame_duration_ms": {
         "label": "Time per frame (ms)", "default": 200, "ui_step": 10, "ui_order": 30,
@@ -46,10 +50,15 @@ _GPT_IMAGE_OUTPUT_OPTIONS = {
     },
     "svg_model": {
         "label": "SVG author", "default": "gpt-5.6-luna", "ui_order": 20,
+        "ui_choice_labels": {
+            "gpt-6-sol": "GPT-6 Sol",
+            "gpt-5.6-luna": "GPT-5.6 Luna",
+            "gpt-5.6-terra": "GPT-5.6 Terra",
+        },
         "ui_visible_when": {"output_format": "svg"},
     },
     "quality": {"ui_group": "advanced"},
-    "complexity": {"ui_group": "advanced"},
+    "complexity": {"label": "Planning complexity", "ui_group": "advanced"},
     "moderation": {"ui_group": "advanced"},
 }
 _STUDIO_OPTION_OVERRIDES = {
@@ -204,7 +213,7 @@ def _copy_option_metadata(payload: Dict[str, Any], schema: Dict[str, Any]) -> No
     for key in ("min", "max"):
         if schema.get(key) is not None:
             payload[key] = schema[key]
-    for key in ("ui_control", "ui_visible_when", "ui_choice_visible_when", "ui_step", "value_aliases"):
+    for key in ("ui_control", "ui_visible_when", "ui_choice_visible_when", "ui_choice_labels", "ui_step", "value_aliases"):
         if schema.get(key):
             payload[key] = schema[key]
 

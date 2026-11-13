@@ -1,6 +1,6 @@
 import { studioOptionChoices } from "@/lib/studio-options";
 
-const groupLabels = { image: "Image", gif: "GIF", svg: "SVG" } as const;
+const groupLabels = { image: "Still image", gif: "GIF", svg: "SVG" } as const;
 const formatGroups: Record<string, keyof typeof groupLabels> = {
   png: "image",
   jpg: "image",
@@ -43,5 +43,5 @@ function studioGifLoopLabel(options: Record<string, unknown>) {
   const frames = Number(options.frame_count);
   const milliseconds = Number(options.frame_duration_ms);
   const duration = frames * milliseconds / 1000;
-  return Number.isFinite(duration) && duration > 0 ? `${duration} s per loop` : null;
+  return Number.isFinite(duration) && duration > 0 ? `${duration} s per loop requested` : null;
 }

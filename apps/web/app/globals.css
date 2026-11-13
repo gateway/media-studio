@@ -1720,6 +1720,11 @@ textarea {
   object-fit: cover;
 }
 
+.studio-gallery-tile > .studio-gallery-svg-preview {
+  object-fit: contain;
+  padding: 16px;
+}
+
 .studio-gallery-placeholder {
   background:
     radial-gradient(
@@ -1752,13 +1757,6 @@ textarea {
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.studio-gallery-file > a {
-  position: relative;
-  z-index: 2;
-  color: var(--text-primary);
-  text-decoration: underline;
 }
 
 .studio-gallery-select {

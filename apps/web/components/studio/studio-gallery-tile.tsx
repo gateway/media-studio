@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import {
   ChevronRight,
   CircleAlert,
   Clapperboard,
+  Download,
   FileText,
   Heart,
   Image as ImageIcon,
@@ -19,7 +21,12 @@ import {
   prettifyModelLabel,
 } from "@/lib/media-studio-helpers";
 import { galleryTileSizeBand, type GalleryTile } from "@/lib/studio-gallery";
-import { mediaDownloadName, mediaDownloadUrl, studioAssetFormat } from "@/lib/studio-media-urls";
+import {
+  mediaDownloadName,
+  mediaDownloadUrl,
+  mediaVariantUrl,
+  studioAssetFormat,
+} from "@/lib/studio-media-urls";
 import type { MediaAsset } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +66,7 @@ export function StudioGalleryTile({
   onToggleFavorite,
 }: StudioGalleryTileProps) {
   const format = studioAssetFormat(tile.asset);
+  const svgDownload = format === "SVG" ? mediaDownloadUrl(tile.asset) : null;
   const batchTile = tile.batch;
   const batchJob = tile.job;
   const assetId = tile.asset?.asset_id;
@@ -113,7 +121,8 @@ export function StudioGalleryTile({
           onClick={selectTile}
         />
       ) : null}
-      {(tile.asset?.generation_kind === "video" || format === "GIF") && !batchTile ? (
+      {(tile.asset?.generation_kind === "video" || format === "GIF") &&
+      !batchTile ? (
         <div className="studio-gallery-video-overlay">
           <span className="studio-icon-button studio-gallery-icon-button-md">
             <Play className="ml-0.5 size-5" />
@@ -130,10 +139,20 @@ export function StudioGalleryTile({
       {!batchTile ? (
         <div className="studio-gallery-footer">
           <div className="studio-gallery-footer-row">
-            <div className="studio-gallery-model-label">
+            <div
+              className={cn(
+                "studio-gallery-model-label",
+                format === "SVG" && "sr-only",
+              )}
+            >
               {prettifyModelLabel(tile.asset?.model_key)}
             </div>
-            <div className="studio-gallery-icon-row">
+            <div
+              className={cn(
+                "studio-gallery-icon-row",
+                format === "SVG" && "ml-auto",
+              )}
+            >
               {tile.asset?.asset_id != null ? (
                 <button
                   type="button"
@@ -165,8 +184,21 @@ export function StudioGalleryTile({
                   />
                 </button>
               ) : null}
+              {svgDownload ? (
+                <a
+                  href={svgDownload}
+                  download
+                  aria-label="Download SVG"
+                  className="studio-icon-button studio-gallery-icon-button-sm pointer-events-auto"
+                >
+                  <Download className="size-3.5" aria-hidden="true" />
+                </a>
+              ) : null}
               <div className="studio-icon-button studio-gallery-icon-button-sm">
-                <StudioGalleryTileIcon format={format} kind={tile.asset?.generation_kind} />
+                <StudioGalleryTileIcon
+                  format={format}
+                  kind={tile.asset?.generation_kind}
+                />
               </div>
             </div>
           </div>
@@ -177,41 +209,94 @@ export function StudioGalleryTile({
 }
 
 function StudioGalleryTilePreview({
-  tile, eager, format,
+  tile,
+  eager,
+  format,
 }: {
-  tile: GalleryTile; eager: boolean; format: string | undefined;
+  tile: GalleryTile;
+  eager: boolean;
+  format: string | undefined;
 }) {
-  if (format === "SVG") return <StudioGalleryFile asset={tile.asset} />;
+  if (format === "SVG")
+    return <StudioGallerySvgPreview tile={tile} eager={eager} />;
   const preview = mediaThumbnailUrl(tile.asset);
   return preview ? (
-      <img
-        src={preview}
-        alt={tile.asset?.prompt_summary ?? tile.label}
-        loading={eager ? "eager" : "lazy"}
-        fetchPriority={eager ? "high" : "auto"}
-        decoding="async"
-        className="transition duration-500 group-hover:scale-[1.03]"
-      />
-  ) : <div className="studio-gallery-placeholder h-full w-full" />;
+    <StudioGalleryImage tile={tile} eager={eager} src={preview} />
+  ) : (
+    <div className="studio-gallery-placeholder h-full w-full" />
+  );
+}
+
+function StudioGallerySvgPreview({
+  tile,
+  eager,
+}: {
+  tile: GalleryTile;
+  eager: boolean;
+}) {
+  const preview =
+    mediaThumbnailUrl(tile.asset) ?? mediaVariantUrl(tile.asset, "original");
+  const [failedPreview, setFailedPreview] = useState<string | null>(null);
+  return preview && failedPreview !== preview ? (
+    <StudioGalleryImage
+      tile={tile}
+      eager={eager}
+      src={preview}
+      onError={() => setFailedPreview(preview)}
+    />
+  ) : (
+    <StudioGalleryFile asset={tile.asset} />
+  );
+}
+
+function StudioGalleryImage({
+  tile,
+  eager,
+  src,
+  onError,
+}: {
+  tile: GalleryTile;
+  eager: boolean;
+  src: string;
+  onError?: () => void;
+}) {
+  return (
+    <img
+      src={src}
+      alt={tile.asset?.prompt_summary ?? tile.label}
+      loading={eager ? "eager" : "lazy"}
+      fetchPriority={eager ? "high" : "auto"}
+      decoding="async"
+      onError={onError}
+      className={cn(
+        "transition duration-500 group-hover:scale-[1.03]",
+        onError && "studio-gallery-svg-preview",
+      )}
+    />
+  );
 }
 
 function StudioGalleryFile({ asset }: { asset: GalleryTile["asset"] }) {
-  const download = mediaDownloadUrl(asset);
   const name = mediaDownloadName(asset);
   return (
     <div className="studio-gallery-placeholder h-full w-full">
-      {download && (
-        <div className="studio-gallery-file">
-          <FileText aria-hidden="true" className="size-8" />
-          <span className="studio-gallery-file-name" title={name}>{name}</span>
-          <a href={download} download>Download SVG</a>
-        </div>
-      )}
+      <div className="studio-gallery-file">
+        <FileText aria-hidden="true" className="size-8" />
+        <span className="studio-gallery-file-name" title={name}>
+          {name}
+        </span>
+      </div>
     </div>
   );
 }
 
-function StudioGalleryTileIcon({ format, kind }: { format?: string; kind?: string | null }) {
+function StudioGalleryTileIcon({
+  format,
+  kind,
+}: {
+  format?: string;
+  kind?: string | null;
+}) {
   if (format) return <span className="text-[0.6rem]">{format}</span>;
   if (kind === "video") return <Clapperboard className="size-3.5" />;
   if (kind === "audio") return <Music2 className="size-3.5" />;

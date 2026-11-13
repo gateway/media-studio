@@ -12,6 +12,7 @@ import type { MediaModelSummary } from "@/lib/types";
 afterEach(cleanup);
 
 const noop = () => {};
+const svgAuthorLabels = { ui_choice_labels: { luna: "Luna", sol: "Sol" } };
 const model: MediaModelSummary = {
   key: "any-model",
   label: "Any image model",
@@ -21,14 +22,14 @@ const model: MediaModelSummary = {
     { key: "output_format", type: "enum", allowed: ["png", "jpeg", "webp", "gif", "svg"], default: "png" },
     { key: "output_compression", label: "Compression", type: "int_range", min: 0, max: 100,
       ui_visible_when: { output_format: ["jpeg", "webp"] } },
-    { key: "frame_count", label: "Frames", type: "int_range", min: 2, max: 16, default: 9,
+    { key: "frame_count", label: "Frame count", type: "int_range", min: 2, max: 16, default: 9,
       ui_visible_when: { output_format: "gif" } },
     { key: "frame_duration_ms", label: "Time per frame (ms)", type: "int_range", min: 20, max: 2000,
       default: 200, ui_step: 10, ui_visible_when: { output_format: "gif" } },
     { key: "size", label: "Frame size", type: "string", ui_control: "text", default: "auto",
       ui_visible_when: { output_format: "gif" } },
     { key: "svg_model", label: "SVG author", type: "enum", allowed: ["luna", "sol"], default: "luna",
-      ui_visible_when: { output_format: "svg" } },
+      ui_visible_when: { output_format: "svg" }, ...svgAuthorLabels },
   ],
 };
 
@@ -88,23 +89,25 @@ it("switches formats, computes GIF loop length and restores prior options", () =
 
   fireEvent.click(screen.getByRole("button", { name: "GIF" }));
   expect(screen.getByRole("button", { name: "Generate GIF" })).toBeTruthy();
-  expect(screen.getByText("1.8 s per loop")).toBeTruthy();
+  expect(screen.getByText("1.8 s per loop requested")).toBeTruthy();
   selectChoice("frame_count", "10");
   fireEvent.change(screen.getByLabelText("Time per frame (ms)"), { target: { value: "250" } });
   fireEvent.change(screen.getByLabelText("Frame size"), { target: { value: "384x512" } });
-  expect(screen.getByText("2.5 s per loop")).toBeTruthy();
+  expect(screen.getByText("2.5 s per loop requested")).toBeTruthy();
   expect(requestOptions()).toEqual({ output_format: "gif", frame_count: 10, frame_duration_ms: 250, size: "384x512" });
 
   fireEvent.click(screen.getByRole("button", { name: "SVG" }));
   expect(screen.getByRole("button", { name: "Generate SVG" })).toBeTruthy();
   expect(screen.queryByLabelText("Time per frame (ms)")).toBeNull();
+  expect(screen.getByRole("button", { name: "SVG author · Luna" })).toBeTruthy();
   selectChoice("svg_model", "sol");
+  expect(screen.getByRole("button", { name: "SVG author · Sol" })).toBeTruthy();
   expect(requestOptions()).toEqual({ output_format: "svg", svg_model: "sol" });
 
-  fireEvent.click(screen.getByRole("button", { name: "Image", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Still image", exact: true }));
   expect(requestOptions()).toEqual({ output_format: "jpeg", output_compression: 65 });
   fireEvent.click(screen.getByRole("button", { name: "GIF" }));
-  expect(screen.getByText("2.5 s per loop")).toBeTruthy();
+  expect(screen.getByText("2.5 s per loop requested")).toBeTruthy();
 });
 
 it("keeps a single image group in the existing format picker", () => {
