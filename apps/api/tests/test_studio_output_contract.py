@@ -1,6 +1,7 @@
 """Studio catalog and generated-file checks with no application lifespan or store."""
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from PIL import Image
@@ -48,6 +49,25 @@ def test_kling_catalog_declares_aspect_visibility():
     controls = _studio_options("kling-3.0-i2v")
     assert controls["aspect_ratio"]["ui_visible_when"] == {"$input_pattern": ["prompt_only", "single_image"]}
     assert "ui_visible_when" not in _studio_options("kling-3.0-t2v")["aspect_ratio"]
+
+
+def test_svg_result_host_uses_anonymous_download(monkeypatch):
+    kie_api = kie_adapter.get_kie_module()
+    client = MagicMock()
+    client.return_value.__enter__.return_value.download_to_path.return_value = {"downloaded": True}
+    monkeypatch.setattr(kie_api.clients, "DownloadClient", client)
+    ordinary_download = MagicMock(return_value={"ordinary": True})
+    monkeypatch.setattr(kie_adapter, "download_output_file", ordinary_download)
+
+    assert kie_adapter.download_job_output("https://getapib.org/result", "result.bin", "svg") == {"downloaded": True}
+    settings = client.call_args.args[0]
+    assert settings.api_key is None
+    assert settings.trusted_download_hosts == ["getapib.org"]
+    client.return_value.__enter__.return_value.download_to_path.assert_called_once_with(
+        "https://getapib.org/result", "result.bin", anonymous=True,
+    )
+    assert kie_adapter.download_job_output("https://getapib.org/result", "result.bin", "gif") == {"ordinary": True}
+    assert kie_adapter.download_job_output("https://other.getapib.org/result", "result.bin", "svg") == {"ordinary": True}
 
 
 def test_svg_and_gif_keep_original_format_even_with_a_generic_provider_url(tmp_path, monkeypatch):

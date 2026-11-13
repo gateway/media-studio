@@ -433,6 +433,16 @@ def download_output_file(source_url: str, destination_path: str) -> Dict[str, An
     return _dump(get_kie_module().download_output_file(source_url, destination_path))
 
 
+def download_job_output(source_url: str, destination_path: str, output_format: Optional[str]) -> Dict[str, Any]:
+    if output_format != "svg" or urlparse(source_url).hostname != "getapib.org":
+        return download_output_file(source_url, destination_path)
+    # KIE returns this exact host for SVG generation in its authenticated task status.
+    kie_api = get_kie_module()
+    svg_settings = kie_api.KieSettings(api_key=None, trusted_download_hosts=["getapib.org"])
+    with kie_api.clients.DownloadClient(svg_settings) as client:
+        return _dump(client.download_to_path(source_url, destination_path, anonymous=True))
+
+
 def identify_image_mime_type(path: Path) -> Optional[str]:
     return get_kie_module().artifacts.image_metadata(path, include_sha256=False, include_animation=False)["mime_type"]
 

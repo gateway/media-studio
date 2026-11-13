@@ -551,7 +551,7 @@ function StudioOptionInput({
     <label className="studio-composer-option-input">
       <span>{String(schema.label ?? optionKey.replaceAll("_", " "))}</span>
       <input
-        className="min-w-[4ch] w-0 flex-1 bg-transparent text-right"
+        className="min-w-[6ch] w-0 flex-1 bg-transparent text-right"
         type={numeric ? "number" : "text"}
         min={typeof schema.min === "number" ? schema.min : undefined}
         max={typeof schema.max === "number" ? schema.max : undefined}
