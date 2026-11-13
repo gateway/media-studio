@@ -269,7 +269,6 @@ it.each([
         ["web_search", { type: "bool", default: false }],
       ],
       optionValues: { return_last_frame: false },
-      inferredInputPattern: "first_last_frames",
       canSubmit: false,
       generateButtonLabel: "Generate",
       onOpenPickerChange: vi.fn(),
@@ -314,7 +313,6 @@ it("labels automatic duration without changing its selected or serialized value"
         ["duration", { type: "int_range", allowed: [-1], min: 4, max: 30 }],
       ]}
       optionValues={{ duration: -1 }}
-      inferredInputPattern="prompt_only"
       canSubmit={false}
       generateButtonLabel="Generate"
       onOpenPickerChange={vi.fn()}

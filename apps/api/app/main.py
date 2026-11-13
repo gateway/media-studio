@@ -187,6 +187,13 @@ def get_media_file(file_path: str):
     resolved = _resolve_media_file_path(file_path)
     if not resolved or not resolved.exists() or not resolved.is_file():
         raise _not_found("file")
+    if resolved.suffix.lower() in {".svg", ".svgz"}:
+        return FileResponse(
+            resolved,
+            media_type="image/svg+xml",
+            filename=resolved.name,
+            headers={"Content-Security-Policy": "sandbox; default-src 'none'", "X-Content-Type-Options": "nosniff"},
+        )
     return FileResponse(resolved)
 
 

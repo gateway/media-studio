@@ -1539,7 +1539,7 @@ export async function getMobileShareBlob(blob: Blob) {
   if (!isImageMimeType(blob.type)) {
     return blob;
   }
-  if (blob.type === "image/png" || blob.type === "image/jpeg") {
+  if (["image/png", "image/jpeg", "image/gif", "image/svg+xml"].includes(blob.type)) {
     return blob;
   }
   return convertImageBlobToJpeg(blob);
@@ -1549,11 +1549,17 @@ export function inferBlobMimeType(asset: MediaAsset | null | undefined, blob: Bl
   if (blob.type) {
     return blob.type;
   }
-  const filename = mediaDownloadName(asset).toLowerCase();
-  if (filename.endsWith(".png")) return "image/png";
-  if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) return "image/jpeg";
-  if (filename.endsWith(".webp")) return "image/webp";
-  if (filename.endsWith(".mp4")) return "video/mp4";
-  if (filename.endsWith(".mov")) return "video/quicktime";
-  return "application/octet-stream";
+  const extension = mediaDownloadName(asset).toLowerCase().split(".").at(-1);
+  return blobMimeTypes.get(extension ?? "") ?? "application/octet-stream";
 }
+
+const blobMimeTypes = new Map([
+  ["png", "image/png"],
+  ["jpg", "image/jpeg"],
+  ["jpeg", "image/jpeg"],
+  ["webp", "image/webp"],
+  ["gif", "image/gif"],
+  ["svg", "image/svg+xml"],
+  ["mp4", "video/mp4"],
+  ["mov", "video/quicktime"],
+]);

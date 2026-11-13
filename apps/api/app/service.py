@@ -12,6 +12,7 @@ from pathlib import Path
 from time import perf_counter
 from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlsplit
 
 from PIL import Image, ImageDraw
 
@@ -1165,12 +1166,17 @@ def _relative_media_path(artifact: Dict[str, Any], path_value: Optional[str]) ->
         return absolute_path.as_posix()
 
 
+def _output_header(output_path: Path) -> bytes:
+    try:
+        with output_path.open("rb") as handle:
+            return handle.read(32)
+    except OSError:
+        return b""
+
+
 def _infer_output_kind(job: Dict[str, Any], output_path: Path, remote_output_url: Optional[str]) -> str:
-    if output_path.exists():
-        try:
-            header = output_path.read_bytes()[:32]
-        except OSError:
-            header = b""
+    header = _output_header(output_path)
+    if header:
         if b"ftyp" in header[:16]:
             return "video"
         if header.startswith(b"\x1a\x45\xdf\xa3"):
@@ -1187,8 +1193,8 @@ def _infer_output_kind(job: Dict[str, Any], output_path: Path, remote_output_url
             return "image"
         if header.startswith((b"GIF87a", b"GIF89a")):
             return "image"
-    for candidate in (remote_output_url, str(output_path)):
-        mime_type = mimetypes.guess_type(candidate or "")[0] or ""
+    for candidate in (urlsplit(remote_output_url or "").path, str(output_path)):
+        mime_type = mimetypes.guess_type(candidate)[0] or ""
         if mime_type.startswith("video/"):
             return "video"
         if mime_type.startswith("audio/"):
@@ -1200,7 +1206,7 @@ def _infer_output_kind(job: Dict[str, Any], output_path: Path, remote_output_url
         return "video"
     if suffix in {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}:
         return "audio"
-    if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+    if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}:
         return "image"
     task_mode = str(job.get("task_mode") or "").lower()
     if "video" in task_mode:
@@ -1217,40 +1223,47 @@ def _infer_output_kind(job: Dict[str, Any], output_path: Path, remote_output_url
 
 def _normalized_output_source_path(job: Dict[str, Any], output_path: Path, remote_output_url: Optional[str]) -> Path:
     output_kind = _infer_output_kind(job, output_path, remote_output_url)
-    if output_kind == "video" and output_path.suffix.lower() not in {".mp4", ".mov", ".webm", ".mkv", ".avi"}:
-        normalized = output_path.with_suffix(".mp4")
-        if not normalized.exists():
-            output_path.replace(normalized)
-        return normalized
-    if output_kind == "audio" and output_path.suffix.lower() not in {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}:
-        extension = ".mp3"
-        try:
-            header = output_path.read_bytes()[:32]
-        except OSError:
-            header = b""
-        if header.startswith(b"RIFF") and b"WAVE" in header[:16]:
-            extension = ".wav"
-        normalized = output_path.with_suffix(extension)
-        if not normalized.exists():
-            output_path.replace(normalized)
-        return normalized
-    if output_kind == "image" and output_path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
-        extension = ".jpg"
-        try:
-            header = output_path.read_bytes()[:32]
-        except OSError:
-            header = b""
-        if header.startswith(b"\x89PNG\r\n\x1a\n"):
-            extension = ".png"
-        elif header.startswith(b"RIFF") and b"WEBP" in header[:16]:
-            extension = ".webp"
-        elif header.startswith((b"GIF87a", b"GIF89a")):
-            extension = ".gif"
-        normalized = output_path.with_suffix(extension)
-        if not normalized.exists():
-            output_path.replace(normalized)
-        return normalized
-    return output_path
+    suffix = output_path.suffix.lower()
+    if output_kind == "image":
+        extension = _image_output_extension(output_path, suffix)
+    elif output_kind == "video":
+        extension = suffix if suffix in {".mp4", ".mov", ".webm", ".mkv", ".avi"} else ".mp4"
+    else:
+        extension = _audio_output_extension(output_path, suffix)
+    if extension == suffix:
+        return output_path
+    normalized = output_path.with_suffix(extension)
+    if not normalized.exists():
+        output_path.replace(normalized)
+    return normalized
+
+
+def _image_output_extension(output_path: Path, suffix: str) -> str:
+    header = _output_header(output_path)
+    if header.startswith((b"GIF87a", b"GIF89a")):
+        return ".gif"
+    if _is_svg_output(output_path, header):
+        return ".svg"
+    if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}:
+        return suffix
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if header.startswith(b"RIFF") and b"WEBP" in header[:16]:
+        return ".webp"
+    return ".jpg"
+
+
+def _is_svg_output(output_path: Path, header: bytes) -> bool:
+    if not header.lstrip(b"\xef\xbb\xbf \t\r\n").startswith(b"<") and not header.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return False
+    return kie_adapter.identify_image_mime_type(output_path) == "image/svg+xml"
+
+
+def _audio_output_extension(output_path: Path, suffix: str) -> str:
+    if suffix in {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}:
+        return suffix
+    header = _output_header(output_path)
+    return ".wav" if header.startswith(b"RIFF") and b"WAVE" in header[:16] else ".mp3"
 
 
 def _find_existing_job_asset(

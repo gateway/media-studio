@@ -31,10 +31,21 @@ export function mediaThumbnailUrl(asset?: MediaAsset | null) {
 }
 
 export function mediaDisplayUrl(asset?: MediaAsset | null) {
+  const format = studioAssetFormat(asset);
+  if (format === "SVG") return null;
+  if (format === "GIF") {
+    return mediaVariantUrl(asset, "original") ?? mediaThumbnailUrl(asset);
+  }
   if (asset?.generation_kind === "video") {
     return mediaThumbnailUrl(asset);
   }
   return mediaVariantUrl(asset, "web") ?? mediaVariantUrl(asset, "thumb") ?? mediaVariantUrl(asset, "poster");
+}
+
+export function studioAssetFormat(asset?: MediaAsset | null) {
+  const original = asset?.hero_original_path ?? asset?.hero_original_url;
+  const match = original?.match(/\.(gif|svg)(?:[?#]|$)/i)?.[1];
+  return match?.toUpperCase();
 }
 
 export function referencePreviewUrl(reference: MediaReference | null | undefined) {
@@ -93,10 +104,10 @@ export function mediaDownloadName(asset?: MediaAsset | null) {
   const firstOutput = Array.isArray(payload?.outputs) && payload.outputs.length > 0 && isRecord(payload.outputs[0]) ? payload.outputs[0] : null;
   const outputOriginalFilename = typeof firstOutput?.original_filename === "string" ? firstOutput.original_filename : null;
   const extensionSource =
-    outputOriginalFilename ??
     asset?.hero_original_path ??
-    asset?.hero_web_path ??
     asset?.hero_original_url ??
+    outputOriginalFilename ??
+    asset?.hero_web_path ??
     asset?.hero_web_url ??
     asset?.hero_poster_url ??
     asset?.hero_thumb_url ??
@@ -158,6 +169,7 @@ export function mediaDownloadUrl(asset?: MediaAsset | null) {
 }
 
 export function mediaInlineUrl(asset?: MediaAsset | null) {
+  if (studioAssetFormat(asset) === "SVG") return null;
   const originalUrl =
     toControlApiProxyPath(asset?.hero_original_url) ??
     toControlApiDataPreviewPath(asset?.hero_original_path) ??

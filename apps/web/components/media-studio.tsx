@@ -34,6 +34,7 @@ import { StudioComposer } from "@/components/studio/studio-composer";
 import {
   StudioComposerControls,
   StudioComposerModelPicker,
+  StudioComposerOutputPicker,
   StudioComposerPresetPicker,
 } from "@/components/studio/studio-composer-controls";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
@@ -491,11 +492,11 @@ export function MediaStudio({
     structuredPresetPromptPreview,
     enhancementPreviewVisual,
     compactOptionEntries,
+    requestOptions,
     estimatedCredits,
     formattedRemainingCredits,
     generateButtonLabel,
     modelMaxOutputs,
-    inferredInputPattern,
     canSubmit,
     composerStatusMessage,
     seedanceFirstFrameAttachment,
@@ -2253,9 +2254,22 @@ export function MediaStudio({
       }}
     />
   );
+  const outputPicker = (
+    <StudioComposerOutputPicker
+      entries={compactOptionEntries}
+      value={requestOptions.output_format}
+      stillFormat={optionValues.studio_still_format}
+      onSelect={(format) => {
+        expandStudioComposer();
+        setOpenPicker(null);
+        updateOption("output_format", format);
+      }}
+    />
+  );
+  const modelAndOutput = <>{modelPicker}{outputPicker}</>;
   const [leadingModelPicker, inlineModelPicker] = modelPickerLeadsComposer
-    ? [modelPicker, null]
-    : [null, modelPicker];
+    ? [modelAndOutput, null]
+    : [null, modelAndOutput];
 
   const composerPresetPicker = (
     <StudioComposerPresetPicker
@@ -2484,8 +2498,8 @@ export function MediaStudio({
                   modelMaxOutputs={modelMaxOutputs}
                   outputCount={outputCount}
                   compactOptionEntries={compactOptionEntries}
-                  optionValues={optionValues}
-                  inferredInputPattern={inferredInputPattern}
+                  optionValues={requestOptions}
+                  draftOptionValues={optionValues}
                   canSubmit={canSubmit}
                   generateButtonLabel={generateButtonLabel}
                   onOpenPickerChange={(pickerId) => {

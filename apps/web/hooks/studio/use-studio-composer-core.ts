@@ -23,7 +23,6 @@ import {
   normalizeStructuredPresetImageSlots,
   normalizeStructuredPresetTextFields,
   optionBooleanValue,
-  optionEntries,
   parseMultiShotScript,
   parseOptionChoice,
   pickerWidth,
@@ -32,6 +31,7 @@ import {
   resolveEnhancementPreviewVisual,
   resolveComposerSourceAsset,
   resolveStudioPresetTargetModel,
+  resolveStudioOptions,
   seedanceReferenceTokenGuide,
   serializeOptionChoice,
   isStudioPresetVisible,
@@ -59,6 +59,7 @@ import {
   studioRequiredInputError,
 } from "@/lib/studio-composer-requirements";
 import { insertStudioPromptSnippet } from "@/lib/studio-prompt-snippets";
+import { studioStillFormat } from "@/lib/studio-output";
 import { useStudioAttachments } from "@/hooks/studio/use-studio-attachments";
 import { useStudioComposerDraftEffects } from "@/hooks/studio/use-studio-composer-draft-effects";
 import { useStudioComposerGuardEffects } from "@/hooks/studio/use-studio-composer-guard-effects";
@@ -420,6 +421,10 @@ export function useStudioComposer({
     attachments,
     currentSourceAsset,
   );
+  const { options: requestOptions, entries: compactOptionEntries } = useMemo(
+    () => resolveStudioOptions(currentModel, optionValues, currentPresetDefaultOptions, inputPattern),
+    [currentModel, currentPresetDefaultOptions, inputPattern, optionValues],
+  );
   const modelHasImageDrivenInputs =
     modelSupportsImageDrivenInputs(currentModel);
   const modelHasFirstLastFrameInputs =
@@ -537,30 +542,21 @@ export function useStudioComposer({
   const seedanceReferenceGuideText = seedanceReferenceGuideTokens.length
     ? `Reference staged assets in the prompt with ${seedanceReferenceGuideTokens.join(", ")}.`
     : "Reference uploads can be mentioned in the prompt with @image1, @video1, or @audio1 once staged.";
-  const compactOptionEntries = optionEntries(currentModel);
   const optionSignature = useMemo(
-    () => JSON.stringify(optionValues),
-    [optionValues],
+    () => JSON.stringify(requestOptions),
+    [requestOptions],
   );
-  const pricingOptions = useMemo(() => {
-    const normalized = buildNormalizedStudioOptions(
-      currentModel,
-      optionValues,
-      currentPresetDefaultOptions,
-    );
-    return deriveStudioPricingOptions({
+  const pricingOptions = useMemo(() =>
+    deriveStudioPricingOptions({
       modelKey,
-      options: normalized,
+      options: requestOptions,
       attachments,
       sourceAsset: currentSourceAsset,
-    });
-  }, [
+    }), [
     attachments,
-    currentModel,
-    currentPresetDefaultOptions,
     currentSourceAsset,
     modelKey,
-    optionValues,
+    requestOptions,
   ]);
   const selectedPromptSignature = useMemo(
     () => selectedPromptIds.join("|"),
@@ -615,11 +611,6 @@ export function useStudioComposer({
     [currentModel],
   );
   const validationReady = studioValidationReady(validation);
-  const inferredInputPattern = inferInputPattern(
-    currentModel,
-    attachments,
-    currentSourceAsset,
-  );
   const composerHasSubmittableInput = structuredPresetActive
     ? Boolean(structuredPresetPromptPreview)
     : multiShotsEnabled
@@ -759,7 +750,15 @@ export function useStudioComposer({
   }
 
   function updateOption(optionKey: string, value: unknown) {
-    setOptionValues((current) => ({ ...current, [optionKey]: value }));
+    validationRequestIdRef.current += 1;
+    setValidation(null);
+    setOptionValues((current) => {
+      const next = { ...current, [optionKey]: value };
+      if (optionKey === "output_format") {
+        next.studio_still_format = studioStillFormat({ ...current, output_format: requestOptions.output_format });
+      }
+      return next;
+    });
   }
 
   function insertPromptSnippet(snippet: string) {
@@ -925,11 +924,9 @@ export function useStudioComposer({
     currentModel,
     currentPreset,
     currentPresetCompatibleWithModel,
-    currentPresetDefaultOptions,
     selectedPresetId,
     modelKey,
-    inferredInputPattern,
-    optionValues,
+    requestOptions,
     prompt,
     structuredPresetActive,
     structuredPresetPromptPreview,
@@ -1093,6 +1090,7 @@ export function useStudioComposer({
       missingRequiredInputError,
       enhancementPreviewVisual,
       compactOptionEntries,
+      requestOptions,
       pricingOptions,
       estimatedCredits,
       estimatedCostUsd,
@@ -1102,7 +1100,6 @@ export function useStudioComposer({
       generateButtonLabel,
       modelMaxOutputs,
       validationReady,
-      inferredInputPattern,
       canSubmit,
       composerStatusMessage,
       imageSlotLabels,

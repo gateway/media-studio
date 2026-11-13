@@ -4,6 +4,7 @@ import {
   ChevronRight,
   CircleAlert,
   Clapperboard,
+  FileText,
   Heart,
   Image as ImageIcon,
   Layers3,
@@ -18,6 +19,7 @@ import {
   prettifyModelLabel,
 } from "@/lib/media-studio-helpers";
 import { galleryTileSizeBand, type GalleryTile } from "@/lib/studio-gallery";
+import { mediaDownloadName, mediaDownloadUrl, studioAssetFormat } from "@/lib/studio-media-urls";
 import type { MediaAsset } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -56,11 +58,9 @@ export function StudioGalleryTile({
   onDragAsset,
   onToggleFavorite,
 }: StudioGalleryTileProps) {
-  const preview = mediaThumbnailUrl(tile.asset);
+  const format = studioAssetFormat(tile.asset);
   const batchTile = tile.batch;
   const batchJob = tile.job;
-  const jobPreview = preview;
-  const eagerTile = index < 4;
   const assetId = tile.asset?.asset_id;
   const inspectableAsset = assetId != null && !batchTile;
   const selected = inspectableAsset && assetId === selectedAssetId;
@@ -84,19 +84,10 @@ export function StudioGalleryTile({
       data-testid={
         batchTile ? "studio-gallery-batch-card" : "studio-gallery-card"
       }
-      data-asset-id={
-        tile.asset?.asset_id != null ? String(tile.asset.asset_id) : undefined
-      }
+      data-asset-id={assetId?.toString()}
       data-job-id={tile.job?.job_id ?? undefined}
       data-generation-kind={tile.asset?.generation_kind ?? undefined}
-      key={
-        tile.job?.job_id
-          ? `job-${tile.job.job_id}`
-          : tile.asset?.asset_id != null
-            ? `asset-${tile.asset.asset_id}`
-            : `placeholder-${index}-${tile.label}`
-      }
-      draggable={Boolean(inspectableAsset)}
+      draggable={inspectableAsset && format !== "SVG"}
       onDragStart={(event) => onDragAsset(event, tile.asset)}
       className={cn(
         "studio-gallery-tile group",
@@ -107,18 +98,7 @@ export function StudioGalleryTile({
         inspectableAsset ? "cursor-grab active:cursor-grabbing" : "",
       )}
     >
-      {jobPreview ? (
-        <img
-          src={jobPreview}
-          alt={tile.asset?.prompt_summary ?? tile.label}
-          loading={eagerTile ? "eager" : "lazy"}
-          fetchPriority={eagerTile ? "high" : "auto"}
-          decoding="async"
-          className="transition duration-500 group-hover:scale-[1.03]"
-        />
-      ) : (
-        <div className="studio-gallery-placeholder h-full w-full" />
-      )}
+      <StudioGalleryTilePreview tile={tile} eager={index < 4} format={format} />
       <div className="studio-gallery-scrim" />
       {canInspect ? (
         <button
@@ -127,13 +107,13 @@ export function StudioGalleryTile({
           aria-label={
             failedBatchTile
               ? `View details for failed ${modelLabel} job`
-              : `Inspect ${tile.asset?.generation_kind ?? "media"}: ${tile.asset?.prompt_summary ?? tile.label}`
+              : `Inspect ${format ?? tile.asset?.generation_kind ?? "media"}: ${tile.asset?.prompt_summary ?? tile.label}`
           }
           aria-pressed={selected}
           onClick={selectTile}
         />
       ) : null}
-      {tile.asset?.generation_kind === "video" && !batchTile ? (
+      {(tile.asset?.generation_kind === "video" || format === "GIF") && !batchTile ? (
         <div className="studio-gallery-video-overlay">
           <span className="studio-icon-button studio-gallery-icon-button-md">
             <Play className="ml-0.5 size-5" />
@@ -186,13 +166,7 @@ export function StudioGalleryTile({
                 </button>
               ) : null}
               <div className="studio-icon-button studio-gallery-icon-button-sm">
-                {tile.asset?.generation_kind === "video" ? (
-                  <Clapperboard className="size-3.5" />
-                ) : tile.asset?.generation_kind === "audio" ? (
-                  <Music2 className="size-3.5" />
-                ) : (
-                  <ImageIcon className="size-3.5" />
-                )}
+                <StudioGalleryTileIcon format={format} kind={tile.asset?.generation_kind} />
               </div>
             </div>
           </div>
@@ -200,6 +174,48 @@ export function StudioGalleryTile({
       ) : null}
     </div>
   );
+}
+
+function StudioGalleryTilePreview({
+  tile, eager, format,
+}: {
+  tile: GalleryTile; eager: boolean; format: string | undefined;
+}) {
+  if (format === "SVG") return <StudioGalleryFile asset={tile.asset} />;
+  const preview = mediaThumbnailUrl(tile.asset);
+  return preview ? (
+      <img
+        src={preview}
+        alt={tile.asset?.prompt_summary ?? tile.label}
+        loading={eager ? "eager" : "lazy"}
+        fetchPriority={eager ? "high" : "auto"}
+        decoding="async"
+        className="transition duration-500 group-hover:scale-[1.03]"
+      />
+  ) : <div className="studio-gallery-placeholder h-full w-full" />;
+}
+
+function StudioGalleryFile({ asset }: { asset: GalleryTile["asset"] }) {
+  const download = mediaDownloadUrl(asset);
+  const name = mediaDownloadName(asset);
+  return (
+    <div className="studio-gallery-placeholder h-full w-full">
+      {download && (
+        <div className="studio-gallery-file">
+          <FileText aria-hidden="true" className="size-8" />
+          <span className="studio-gallery-file-name" title={name}>{name}</span>
+          <a href={download} download>Download SVG</a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StudioGalleryTileIcon({ format, kind }: { format?: string; kind?: string | null }) {
+  if (format) return <span className="text-[0.6rem]">{format}</span>;
+  if (kind === "video") return <Clapperboard className="size-3.5" />;
+  if (kind === "audio") return <Music2 className="size-3.5" />;
+  return <ImageIcon className="size-3.5" />;
 }
 
 function StudioGalleryJobState({

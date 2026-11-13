@@ -18,13 +18,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
-function EnhancementFlow() {
+function EnhancementFlow({
+  requestOptions = {},
+  validationReady = true,
+}: { requestOptions?: Record<string, unknown>; validationReady?: boolean }) {
   const [preview, setPreview] = useState<MediaEnhancePreviewResponse | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [activity, setActivity] = useState("");
+  const [formMessage, setFormMessage] = useState<string | null>(null);
   const options: Parameters<typeof useStudioComposerSubmit>[0] = {
     autoValidateTimerRef: { current: null },
     validationRequestIdRef: { current: 0 },
@@ -32,11 +36,9 @@ function EnhancementFlow() {
     currentModel: null,
     currentPreset: null,
     currentPresetCompatibleWithModel: false,
-    currentPresetDefaultOptions: null,
     selectedPresetId: "",
     modelKey: "gpt-image-2",
-    inferredInputPattern: "prompt_only",
-    optionValues: {},
+    requestOptions,
     prompt: "Keep warm amber light and 4:3 framing.",
     structuredPresetActive: false,
     structuredPresetPromptPreview: "",
@@ -62,11 +64,13 @@ function EnhancementFlow() {
     enhanceHasSavedSystemPrompt: true,
     enhanceConfiguredForModel: true,
     enhancementPreviewVisual: "/existing-image.png",
-    validationReady: true,
+    validationReady,
     maxConcurrentJobs: 1,
     localBatches: [],
     setValidation: vi.fn(),
-    setFormMessage: vi.fn(),
+    setFormMessage: (update) => {
+      if (typeof update !== "function") setFormMessage(update?.text ?? null);
+    },
     setBusyState: vi.fn(),
     setEnhanceDialogOpen: vi.fn(),
     setEnhancePreview: setPreview,
@@ -86,6 +90,9 @@ function EnhancementFlow() {
   return (
     <>
       <output aria-label="Activity">{activity}</output>
+      <p>{formMessage}</p>
+      <button type="button" onClick={() => { flow.submitMedia("validate").catch(console.error); }}>Validate options</button>
+      <button type="button" onClick={() => { flow.submitMedia("submit").catch(console.error); }}>Submit options</button>
       <StudioEnhanceDialog
         open
         previewVisual="/existing-image.png"
@@ -116,6 +123,32 @@ function EnhancementFlow() {
     </>
   );
 }
+
+it("serializes the same effective options for validation and submission", async () => {
+  const fetch = vi.fn().mockImplementation(async () => Response.json({ ok: true, validation: { state: "ready" } }));
+  vi.stubGlobal("fetch", fetch);
+  const options = { output_format: "gif", frame_count: 9, frame_duration_ms: 200 };
+  render(<EnhancementFlow requestOptions={options} />);
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Validate options" })));
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Submit options" })));
+  const forms = fetch.mock.calls.map(([, init]) => init.body as FormData);
+  expect(forms.map((form) => form.get("intent"))).toEqual(["validate", "submit"]);
+  expect(forms.map((form) => JSON.parse(String(form.get("options"))))).toEqual([options, options]);
+});
+
+it("shows the provider validation reason and skips submission for invalid GIF settings", async () => {
+  const message = "GIF frame duration must be a multiple of 10 ms.";
+  const fetch = vi.fn().mockResolvedValue(Response.json({
+    ok: true,
+    validation: { state: "invalid", validation: { impossible_inputs: [{ message }] } },
+  }));
+  vi.stubGlobal("fetch", fetch);
+  render(<EnhancementFlow validationReady={false} requestOptions={{ output_format: "gif", frame_duration_ms: 25 }} />);
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Submit options" })));
+  expect(screen.getByText(message)).toBeTruthy();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect((fetch.mock.calls[0][1].body as FormData).get("intent")).toBe("validate");
+});
 
 it("explains an unreachable enhancement and preserves prompt and image for a successful retry", async () => {
   const fetch = vi

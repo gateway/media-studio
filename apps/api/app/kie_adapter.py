@@ -433,6 +433,10 @@ def download_output_file(source_url: str, destination_path: str) -> Dict[str, An
     return _dump(get_kie_module().download_output_file(source_url, destination_path))
 
 
+def identify_image_mime_type(path: Path) -> Optional[str]:
+    return get_kie_module().artifacts.image_metadata(path, include_sha256=False, include_animation=False)["mime_type"]
+
+
 def create_run_artifact(request_payload: Dict[str, Any]) -> Dict[str, Any]:
     kie_api = get_kie_module()
     request = kie_api.RunArtifactCreateRequest(**request_payload)

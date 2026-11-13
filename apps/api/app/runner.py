@@ -19,7 +19,7 @@ def _download_suffix_from_url(source_url: str) -> str:
     suffix = ""
     if "." in parsed_path:
         suffix = "." + parsed_path.rsplit(".", 1)[-1].lower()
-    if suffix in {".mp4", ".mov", ".webm", ".mkv", ".avi", ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+    if suffix in {".mp4", ".mov", ".webm", ".mkv", ".avi", ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}:
         return suffix
     if mime_type.startswith("video/"):
         return ".mp4"

@@ -35,6 +35,12 @@ const models = [
     key: "kling-3.0-i2v",
     input_patterns: ["single_image", "first_last_frames"],
     image_inputs: { required_min: 1, required_max: 2 },
+    options: {
+      aspect_ratio: {
+        type: "enum", allowed: ["1:1", "16:9", "9:16"],
+        ui_visible_when: { $input_pattern: ["prompt_only", "single_image"] },
+      },
+    },
   },
   {
     key: "kling-2.6-t2v",
@@ -172,6 +178,7 @@ function KlingComposer() {
         Stage frames
       </button>
       <p>{derived.missingRequiredInputError}</p>
+      <span data-testid="pricing-options">{JSON.stringify(derived.pricingOptions)}</span>
       <StudioPromptComposerBody
         promptInputRef={refs.promptInputRef}
         prompt={state.prompt}
@@ -212,8 +219,7 @@ function KlingComposer() {
         modelMaxOutputs={1}
         outputCount={1}
         compactOptionEntries={derived.compactOptionEntries}
-        optionValues={state.optionValues}
-        inferredInputPattern={derived.inferredInputPattern}
+        optionValues={derived.requestOptions}
         canSubmit={derived.canSubmit}
         generateButtonLabel="Generate"
         onOpenPickerChange={setOpenPicker}
@@ -369,6 +375,7 @@ it("suppresses aspect only for Kling3 image first/last frames and strips it from
   });
   fireEvent.click(screen.getByRole("button", { name: "Stage frames" }));
   expect(screen.queryByTestId("studio-picker-aspect_ratio")).toBeNull();
+  expect(JSON.parse(screen.getByTestId("pricing-options").textContent ?? "{}")).not.toHaveProperty("aspect_ratio");
   fireEvent.click(screen.getByRole("button", { name: "Check request" }));
   await waitFor(() => expect(fetch).toHaveBeenCalled());
   const body = fetch.mock.calls.at(-1)![1].body as FormData;

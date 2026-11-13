@@ -18,6 +18,51 @@ KNOWN_STUDIO_INPUT_PATTERNS = {
 
 HIDDEN_STUDIO_OPTION_KEYS: set[str] = set()
 
+# The SDK applies option defaults to every request. These defaults are for active Studio controls.
+_STILL_FORMATS = ["png", "jpeg", "webp"]
+_GPT_IMAGE_OUTPUT_OPTIONS = {
+    "output_format": {"label": "File format", "ui_order": 10},
+    "aspect_ratio": {"ui_order": 20, "ui_visible_when": {"output_format": _STILL_FORMATS}},
+    "resolution": {"ui_order": 30, "ui_visible_when": {"output_format": _STILL_FORMATS}},
+    "background": {
+        "default": "auto",
+        "ui_order": 40,
+        "ui_visible_when": {"output_format": [*_STILL_FORMATS, "gif"], "resolution": ["1K", None]},
+        "ui_choice_visible_when": {"transparent": {"output_format": ["png", "webp", "gif"]}},
+    },
+    "output_compression": {
+        "label": "Compression", "ui_order": 50, "ui_visible_when": {"output_format": ["jpeg", "webp"]},
+    },
+    "frame_count": {
+        "label": "Frames", "default": 9, "ui_order": 20, "ui_visible_when": {"output_format": "gif"},
+    },
+    "frame_duration_ms": {
+        "label": "Time per frame (ms)", "default": 200, "ui_step": 10, "ui_order": 30,
+        "ui_visible_when": {"output_format": "gif"},
+    },
+    "size": {
+        "label": "Frame size", "default": "auto", "ui_control": "text", "ui_order": 50,
+        "ui_visible_when": {"output_format": "gif"},
+    },
+    "svg_model": {
+        "label": "SVG author", "default": "gpt-5.6-luna", "ui_order": 20,
+        "ui_visible_when": {"output_format": "svg"},
+    },
+    "quality": {"ui_group": "advanced"},
+    "complexity": {"ui_group": "advanced"},
+    "moderation": {"ui_group": "advanced"},
+}
+_STUDIO_OPTION_OVERRIDES = {
+    **{
+        f"gpt-image-2-6-{tier}-{mode}-to-image": _GPT_IMAGE_OUTPUT_OPTIONS
+        for tier in ("sunburst", "flare")
+        for mode in ("text", "image")
+    },
+    "kling-3.0-i2v": {
+        "aspect_ratio": {"ui_visible_when": {"$input_pattern": ["prompt_only", "single_image"]}},
+    },
+}
+
 
 def _is_record(value: Any) -> bool:
     return isinstance(value, dict)
@@ -79,11 +124,11 @@ def option_choices(schema: Dict[str, Any], current_value: Any = None) -> List[An
         ):
             minimum_int = int(minimum)
             maximum_int = int(maximum)
-            ranged = list(range(minimum_int, maximum_int + 1))
+            ranged = range(minimum_int, maximum_int + 1)
             if declared:
                 return [*declared, *(value for value in ranged if value not in declared)]
             if maximum_int - minimum_int <= 20:
-                return ranged
+                return list(ranged)
     if declared:
         return declared
     if schema.get("type") in {"bool", "boolean"} or isinstance(current_value, bool) or isinstance(schema.get("default"), bool):
@@ -151,30 +196,42 @@ def _dynamic_option(option_key: str, schema: Dict[str, Any]) -> Optional[Dict[st
     choices = option_choices(schema, schema.get("default"))
     if option_type in {"enum", "bool"} or choices:
         payload["allowed"] = choices
-    if schema.get("min") is not None:
-        payload["min"] = schema.get("min")
-    if schema.get("max") is not None:
-        payload["max"] = schema.get("max")
+    _copy_option_metadata(payload, schema)
     return payload
 
 
-def _dynamic_options(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _copy_option_metadata(payload: Dict[str, Any], schema: Dict[str, Any]) -> None:
+    for key in ("min", "max"):
+        if schema.get(key) is not None:
+            payload[key] = schema[key]
+    for key in ("ui_control", "ui_visible_when", "ui_choice_visible_when", "ui_step", "value_aliases"):
+        if schema.get(key):
+            payload[key] = schema[key]
+
+
+def _studio_option_schemas(model_key: Any, raw: Dict[str, Any]) -> Dict[str, Any]:
     options = raw.get("options") if _is_record(raw.get("options")) else {}
+    overrides = _STUDIO_OPTION_OVERRIDES.get(model_key, {})
+    return {
+        key: {**schema, **overrides.get(key, {})}
+        for key, schema in options.items()
+        if _is_record(schema)
+    }
+
+
+def _dynamic_options(options: Dict[str, Any]) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     for option_key, schema in options.items():
-        if not _is_record(schema):
-            continue
         dynamic = _dynamic_option(str(option_key), schema)
         if dynamic is not None:
             rows.append(dynamic)
     return sorted(rows, key=lambda item: (item.get("ui_order") is None, item.get("ui_order") or 0, item["label"]))
 
 
-def _unsupported_option_keys(raw: Dict[str, Any]) -> List[str]:
-    options = raw.get("options") if _is_record(raw.get("options")) else {}
+def _unsupported_option_keys(options: Dict[str, Any]) -> List[str]:
     keys: List[str] = []
     for option_key, schema in options.items():
-        if option_key in HIDDEN_STUDIO_OPTION_KEYS or not _is_record(schema) or schema.get("hidden_from_studio") is True:
+        if option_key in HIDDEN_STUDIO_OPTION_KEYS or schema.get("hidden_from_studio") is True:
             continue
         if not _studio_option_supported(schema):
             keys.append(str(option_key))
@@ -191,7 +248,8 @@ def derive_studio_model_support(model: Dict[str, Any]) -> Dict[str, Any]:
     raw = model.get("raw") or {}
     patterns = supported_model_input_patterns(model)
     unsupported_input_patterns = [pattern for pattern in patterns if pattern not in KNOWN_STUDIO_INPUT_PATTERNS]
-    unsupported_option_keys = _unsupported_option_keys(raw)
+    options = _studio_option_schemas(model.get("key"), raw)
+    unsupported_option_keys = _unsupported_option_keys(options)
     max_image_inputs = _input_limit(raw, "image")
     max_video_inputs = _input_limit(raw, "video")
     max_audio_inputs = _input_limit(raw, "audio")
@@ -282,7 +340,7 @@ def derive_studio_model_support(model: Dict[str, Any]) -> Dict[str, Any]:
         "studio_hidden_reason": hidden_reason,
         "studio_support_summary": support_summary,
         "studio_unsupported_option_keys": unsupported_option_keys,
-        "studio_dynamic_options": _dynamic_options(raw),
+        "studio_dynamic_options": _dynamic_options(options),
     }
 
 

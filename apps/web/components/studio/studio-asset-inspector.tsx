@@ -15,7 +15,7 @@ import type {
   StructuredPresetTextField,
   StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
-import { mediaDownloadUrl } from "@/lib/media-studio-helpers";
+import { mediaDownloadUrl, studioAssetFormat } from "@/lib/studio-media-urls";
 import type { MediaAsset } from "@/lib/types";
 
 type StudioAssetInspectorProps = {
@@ -94,8 +94,10 @@ export function StudioAssetInspector({
   const panelRef = useDialogFocus(onClose, suspended);
   const titleId = useId();
   const promptId = useId();
+  const format = studioAssetFormat(selectedAsset);
+  const svg = format === "SVG";
   const kind =
-    selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "Media";
+    format ?? selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "Media";
   const title = `${kind.charAt(0).toUpperCase()}${kind.slice(1)} details`;
   return (
     <div className="admin-theme-root studio-browser-theme studio-media-inspector-backdrop">
@@ -141,8 +143,8 @@ export function StudioAssetInspector({
           <div className="studio-media-inspector-action-bar">
             <div className="studio-media-inspector-media-actions">
               <StudioInspectorActions
-                showImageActions={selectedAsset.generation_kind === "image"}
-                showReviseAction={showReviseAction}
+                showImageActions={selectedAsset.generation_kind === "image" && !svg}
+                showReviseAction={showReviseAction && !svg}
                 onAnimate={onAnimate}
                 onUseImage={onUseImage}
                 onRevise={onRevise}
@@ -153,7 +155,7 @@ export function StudioAssetInspector({
               favoriteAssetIdBusy={favoriteAssetIdBusy}
               onToggleFavorite={onToggleFavorite}
               canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
-              downloadActionLabel={downloadActionLabel}
+              downloadActionLabel={svg ? "Download SVG" : downloadActionLabel}
               onDownload={onDownload}
               onDismiss={onDismiss}
             />
